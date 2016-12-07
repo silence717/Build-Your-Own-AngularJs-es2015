@@ -1,2 +1,6 @@
-.idea
-node_modules
+/.idea
+/node_modules
+.DS_Store
+npm-debug.log
+/coverage
+/build

@@ -175,7 +175,7 @@
     "no-this-before-super": 2,
     //严格限制了抛出错误的类型，简单来说只能够抛出Error生成的错误。但是这条规则并不能够保证你只能够
     //抛出Error错误。详细见官网
-    "no-throw-literal": 2,
+//    "no-throw-literal": 2,
     //行末禁止加空格
     "no-trailing-spaces": 2,
     //禁止使用没有定义的变量，除非在／＊global＊／已经申明

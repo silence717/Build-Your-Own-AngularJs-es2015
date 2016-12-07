@@ -4,6 +4,7 @@
  */
 'use strict';
 import Scope from './scope';
+import _ from 'lodash';
 
 describe('Scope', function () {
 	// Angular的Scope对象是POJO（简单的JavaScript对象），在它们上面，可以像对其他对象一样添加属性。
@@ -110,6 +111,136 @@ describe('Scope', function () {
 			scope.name = 'Bob';
 			scope.$digest();
 			expect(scope.initial).toBe('B.');
+		});
+		// 放弃持续不稳定的digest,如果两个watcher不断互相调用，这个时候会造成数据一直不稳定
+		it('gives up on the watches after 10 iterations', () => {
+			scope.counterA = 0;
+			scope.counterB = 0;
+			scope.$watch(
+				scope => scope.counterA,
+				(newValue, oldValue, scope) => {
+					scope.counterB++;
+				}
+			);
+			scope.$watch(
+				scope => scope.counterB,
+				(newValue, oldValue, scope) => {
+					scope.counterA++;
+				}
+			);
+			expect(() => { scope.$digest(); }).toThrow();
+		});
+		// 假设在一个digest循环中，有很多的watcher,尽可能的减少他的执行次数是非常有必要的。
+		// 我们可以做些什么来减少 watcher 的执行次数呢, 只需要记录最近一次结果是脏的 watcher,
+		// 第二次循环的时候, 比较当前执行的 watcher 是否是最后记住的 watcher,
+		// 如果是, 说明, 剩余的 watcher 上次的结果都是干净的, 没有必要全部循环完, 直接退出循环就好
+		it('ends the digest when the last watch is clean', () => {
+			scope.array = _.range(100);
+			let watchExecutions = 0;
+			_.times(100, i => {
+				scope.$watch(
+					scope => {
+						watchExecutions++;
+						return scope.array[i];
+					},
+					(newValue, oldValue, scope) => {}
+				); });
+			scope.$digest();
+			expect(watchExecutions).toBe(200);
+			scope.array[0] = 420;
+			scope.$digest();
+			expect(watchExecutions).toBe(301);
+		});
+		// 在listenerFn中添加watch，第二个watch没有执行，
+		// 原因是在第二次 digest 循环中, 我们检测到第一个 watcher 作为最后一次记录的脏 watcher,直接跳出循环
+		// 修复： 当我们添加一个新的 watcher 时, 重新设置 $$lastDirtyWatch 为 null, 禁用优化.
+		it('does not end digest so that new watches are not run', () => {
+			scope.aValue = 'abc';
+			scope.counter = 0;
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.$watch(
+						scope => scope.aValue,
+						(newValue, oldValue, scope) => {
+							scope.counter++;
+						}
+					);
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
+		// 基于值的脏检查,基于目前的实现是不可能的，所以angular为$watch提供了第3个参数
+		// objectEquality(default:false):Compare for object equality using angular.equals instead of comparing for reference equality.
+		// 基于值的脏检查意味着如果新旧值是对象或者数组，我们必须遍历其中包含的所有内容。如果它们之间有任何差异，监听器就脏了。如果该值包含嵌套的对象或者数组，它也会递归地按值比较。
+		it('compares based on value if enabled', () => {
+			scope.aValue = [1, 2, 3];
+			scope.counter = 0;
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				},
+				true
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+			scope.aValue.push(4);
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 处理NaN的这种情况，因为在js中NaN永远不等于自己本身
+		it('correctly handles NaNs', () => {
+			// 我们可能不会自己定义NaN，但是watch是一个表达式，它可能会返回这样一个值，这样的话digest很快会达到ttl
+			scope.number = 0 / 0;
+			scope.counter = 0;
+			scope.$watch(
+				scope => scope.number,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
+		// 定义两个watch, 第一个watchFn中发生异常，我们期望抛出异常，程序继续执行
+		it('catches exceptions in watch functions and continues', () => {
+			scope.aValue = 'abc';
+			scope.counter = 0;
+			scope.$watch(
+				scope => { throw 'Error'; },
+				(newValue, oldValue, scope) => { }
+			);
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
+		// 定义两个watch, 第一个listenerFn中发生异常，抛出异常，程序正常执行
+		it('catches exceptions in listener functions and continues', () => {
+			scope.aValue = 'abc';
+			scope.counter = 0;
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					throw 'Error';
+				}
+			);
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
 		});
 	});
 });

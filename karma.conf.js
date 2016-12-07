@@ -47,8 +47,8 @@ module.exports = function (config) {
 			noInfo: true
 		},
 
-		// browsers: ['PhantomJS'],
-		browsers: ['Chrome'],
+		browsers: ['PhantomJS'],
+		// browsers: ['Chrome'],
 		reporters: ['progress', 'coverage'],
 		// optionally, configure the reporter
 		coverageReporter: {

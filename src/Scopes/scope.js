@@ -35,9 +35,19 @@ export default class Scope {
 			valueEq: !!valueEq,
 			last: initWatchVal
 		};
-		this.$$watchers.push(watcher);
+		// 为了避免删除的时候数组塌陷，对其他的 watcher 造成影响，所以每次新加watcher从头开始添加
+		this.$$watchers.unshift(watcher);
 		// 修复监听器中添加watcher不执行问题，重新设置 $$lastDirtyWatch 为 null
 		this.$$lastDirtyWatch = null;
+		// 为了销毁监听器，我们给$watch返回一个可以从 $$watcher 中删除监听器的函数
+		return () => {
+			const index = this.$$watchers.indexOf(watcher);
+			if (index >= 0) {
+				this.$$watchers.splice(index, 1);
+				// 当我们删除一个watcher的时候，将最后一次的脏值变为null
+				this.$$lastDirtyWatch = null;
+			}
+		};
 	}
 
 	/**
@@ -46,25 +56,29 @@ export default class Scope {
 	 */
 	$$digestOnce() {
 		let dirty, newValue, oldValue;
-		_.forEach(this.$$watchers, watcher => {
+		// 防止数组塌陷，循环使用倒叙，这样保证对其余 wather 没有影响
+		_.forEachRight(this.$$watchers, watcher => {
 			// 添加try、catch捕获异常，使其在执行中发生异常的时候被捕获，不影响其余watcher执行
 			try {
-				newValue = watcher.watchFn(this);
-				// 取出存取的last为旧值
-				oldValue = watcher.last;
-				// 不仅仅是新旧值的对比，加入是否基于值检测
-				if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
-					// 当新旧值不一样的时候，将$$lastDirtyWatch设置为当前的watcher
-					this.$$lastDirtyWatch = watcher;
-					// 每次新旧值不相同的时候，将新值存为last，用于下次和新值做比较，如果为基于值得脏检查，则使用深拷贝
-					watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
-					// 第一次的时候添加判断,旧值为initWatchVal时候，将它替换掉
-					watcher.listenerFn(newValue, (oldValue === initWatchVal ? newValue : oldValue), this);
-					// 当新值和旧值不相等的时候我们认为数据是不稳定的，所以为脏
-					dirty = true;
-				} else if (this.$$lastDirtyWatch === watcher) {
-					// 当检测到的结果是一个干净的watcher。lodash 中的 return false 可跳出循环。
-					return false;
+				// 对watcher进行操作的时候，必须判断一下watcher是否存在，因为它有可能在别的watcher中被删除
+				if (watcher) {
+					newValue = watcher.watchFn(this);
+					// 取出存取的last为旧值
+					oldValue = watcher.last;
+					// 不仅仅是新旧值的对比，加入是否基于值检测
+					if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
+						// 当新旧值不一样的时候，将$$lastDirtyWatch设置为当前的watcher
+						this.$$lastDirtyWatch = watcher;
+						// 每次新旧值不相同的时候，将新值存为last，用于下次和新值做比较，如果为基于值得脏检查，则使用深拷贝
+						watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
+						// 第一次的时候添加判断,旧值为initWatchVal时候，将它替换掉
+						watcher.listenerFn(newValue, (oldValue === initWatchVal ? newValue : oldValue), this);
+						// 当新值和旧值不相等的时候我们认为数据是不稳定的，所以为脏
+						dirty = true;
+					} else if (this.$$lastDirtyWatch === watcher) {
+						// 当检测到的结果是一个干净的watcher。lodash 中的 return false 可跳出循环。
+						return false;
+					}
 				}
 			} catch (e) {
 				console.error(e);

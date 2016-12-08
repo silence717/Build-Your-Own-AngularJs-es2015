@@ -242,5 +242,95 @@ describe('Scope', function () {
 			scope.$digest();
 			expect(scope.counter).toBe(1);
 		});
+		// 销毁监听器
+		it('allows destroying a $watch with a removal function', () => {
+			scope.aValue = 'abc';
+			scope.counter = 0;
+			const destroyWatch = scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+			scope.aValue = 'def';
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+			scope.aValue = 'ghi';
+			destroyWatch();
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 删除监听器的时候，我们应该只删除自己，不对其余 $$watcher 产生影响
+		it('allows destroying a $watch during digest', () => {
+			scope.aValue = 'abc';
+			const watchCalls = [];
+			scope.$watch(
+				scope => {
+					watchCalls.push(' rst');
+					return scope.aValue;
+				}
+			);
+			const destroyWatch = scope.$watch(
+				scope => {
+					watchCalls.push('second');
+					destroyWatch();
+				}
+			);
+			scope.$watch(
+				scope => {
+					watchCalls.push('third');
+					return scope.aValue;
+				}
+			);
+			scope.$digest();
+			expect(watchCalls).toEqual([' rst', 'second', 'third', ' rst', 'third']);
+		});
+		// 在一个 watcher 中删除另一个 watcher
+		// 第一个 watcher 的 watch 被执行, 它是脏的, 被存储在 $$lastDirtyWatch, 它的 listener 被执行, 销毁第二个 watcher, 数组变短, 它成了第二个.
+		// 第一个 watcher 又被执行了一遍, 这次它是干净的, 于是跳出循环, 第三个 watcher 始终不执行.
+		it('allows a $watch to destroy another during digest', () => {
+			scope.aValue = 'abc';
+			scope.counter = 0;
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					destroyWatch();
+				}
+			);
+			const destroyWatch = scope.$watch(
+				scope => { },
+				(newValue, oldValue, scope) => {}
+			);
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
+		// 在一个watcher中删除多个watcher
+		// 这样我们在循环的时候必须判断当前watcher是否存在，它有可能被别的watcher删除
+		it('allows destroying several $watches during digest', () => {
+			scope.aValue = 'abc';
+			scope.counter = 0;
+			const destroyWatch1 = scope.$watch(
+				scope => {
+					destroyWatch1();
+					destroyWatch2();
+				}
+			);
+			const destroyWatch2 = scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(0);
+		});
 	});
 });

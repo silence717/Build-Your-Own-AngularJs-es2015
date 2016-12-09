@@ -333,4 +333,53 @@ describe('Scope', function () {
 			expect(scope.counter).toBe(0);
 		});
 	});
+
+	describe('$eval', () => {
+		let scope;
+		beforeEach(() => {
+			scope = new Scope();
+		});
+		// 仅有一个参数的情况
+		it('executes $evaled function and returns result', () =>  {
+			scope.aValue = 42;
+			const result = scope.$eval((scope) => {
+				return scope.aValue;
+			});
+			expect(result).toBe(42);
+		});
+		// 包含第二个参数
+		it('passes the second $eval argument straight through', () => {
+			scope.aValue = 42;
+			const result = scope.$eval((scope, arg) => {
+				return scope.aValue + arg;
+			}, 2);
+			expect(result).toBe(44);
+		});
+	});
+
+	describe('$apply', () => {
+		let scope;
+		beforeEach(() => {
+			scope = new Scope();
+		});
+		it('executes the given function and starts the digest', () => {
+			scope.aValue = 'someValue';
+			scope.counter = 0;
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+			// $apply内部调用$eval方法，立即执行了了该方法，这个时候aValue值发生变化，进入$digest循环，上面定义的watcher的ListenerFn执行
+			scope.$apply(scope => {
+				scope.aValue = 'someOtherValue';
+			});
+			expect(scope.counter).toBe(2);
+		});
+	});
 });
+
+

@@ -21,7 +21,7 @@ export default class Scope {
 	 * 使用$watch，可以在Scope上添加一个监听器。当Scope上发生变更时，监听器会收到提示
 	 * @param watchFn   一个监控函数，用于指定所关注的那部分数据。可以是一个表达式，也可以为一个函数。
 	 * @param listenerFn  一个监听函数，用于在数据变更的时候接受提示。
-	 * @params valueEq:  可选参数，true - 基于值的脏检查，false - 基于引用的检查，默认false.不传的时候为undefined,通过两次取反使其为false
+	 * @param valueEq:  可选参数，true - 基于值的脏检查，false - 基于引用的检查，默认false.不传的时候为undefined,通过两次取反使其为false
 	 * 为什么添加一个last？
 	 * 比较watch函数返回值和存储last属性的值大部分没有问题。
 	 * 只有第一次执行watch的时候，我们并没有设置last的值，值为undefined。
@@ -83,7 +83,6 @@ export default class Scope {
 			} catch (e) {
 				console.error(e);
 			}
-
 		});
 		return dirty;
 	}
@@ -125,6 +124,29 @@ export default class Scope {
 			return newValue === oldValue ||
 				(typeof newValue === 'number' && typeof oldValue === 'number' &&
 				isNaN(newValue) && isNaN(oldValue));
+		}
+	}
+
+	/**
+	 * 在作用域的上下文上执行代码
+	 * @param expr 用一个函数作为参数，然后立即执行这个参数，并且把作用域自身当作参数传递给它。
+	 * @param locals 它所做的仅仅是把这个参数传递给这个函数
+	 * @returns {*} 返回的是第一个函数的返回值
+	 */
+	$eval(expr, locals) {
+		return expr(this, locals);
+	}
+
+	/**
+	 * $apply使用函数作参数，它用$eval执行这个函数，然后通过$digest触发digest循环
+	 * @param expr  函数
+	 */
+	$apply(expr) {
+		try {
+			return this.$eval(expr);
+		} finally {
+			// $digest的调用放置于finally块中，以确保即使函数抛出异常，也会执行digest。
+			this.$digest();
 		}
 	}
 

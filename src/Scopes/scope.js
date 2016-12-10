@@ -15,6 +15,8 @@ export default class Scope {
 		this.$$watchers = [];
 		// 最后一个watcher到的脏值
 		this.$$lastDirtyWatch = null;
+		// 存储$evalAsync列入计划的任务
+		this.$$asyncQueue = [];
 	}
 
 	/**
@@ -101,6 +103,11 @@ export default class Scope {
 		// 循环开始将其设置为null
 		this.$$lastDirtyWatch = null;
 		do {
+			// 从队列中取出每个东西，然后使用$eval来触发所有被延迟执行的函数：
+			while (this.$$asyncQueue.length) {
+				const asyncTask = this.$$asyncQueue.shift();
+				asyncTask.scope.$eval(asyncTask.expression);
+			}
 			dirty = this.$$digestOnce();
 			if (dirty && !(ttl--)) {
 				throw '10 digest iterations reached';
@@ -148,6 +155,16 @@ export default class Scope {
 			// $digest的调用放置于finally块中，以确保即使函数抛出异常，也会执行digest。
 			this.$digest();
 		}
+	}
+
+	/**
+	 * 延迟执行代码
+	 * 将所有的延迟执行存储起来，但是我们需要在$digest中去真正的执行它
+	 * @param expr 延迟执行的code,包装为函数
+	 */
+	$evalAsync(expr) {
+		// 存入当前的作用域scope, 是为了作用域的继承
+		this.$$asyncQueue.push({scope: this, expression: expr});
 	}
 
 }

@@ -340,9 +340,9 @@ describe('Scope', function () {
 			scope = new Scope();
 		});
 		// 仅有一个参数的情况
-		it('executes $evaled function and returns result', () =>  {
+		it('executes $evaled function and returns result', () => {
 			scope.aValue = 42;
-			const result = scope.$eval((scope) => {
+			const result = scope.$eval(scope => {
 				return scope.aValue;
 			});
 			expect(result).toBe(42);
@@ -386,6 +386,7 @@ describe('Scope', function () {
 		beforeEach(() => {
 			scope = new Scope();
 		});
+		// 在digest的ListenerFn中延迟执行
 		it('executes given function later in the same cycle', () => {
 			scope.aValue = [1, 2, 3];
 			scope.asyncEvaluated = false;
@@ -402,5 +403,56 @@ describe('Scope', function () {
 			scope.$digest();
 			expect(scope.asyncEvaluated).toBe(true);
 			expect(scope.asyncEvaluatedImmediately).toBe(false);
-		}); });
+		});
+		// 在digest的watchFn中延迟执行
+		it('executes $evalAsynced functions added by watch functions', () => {
+			scope.aValue = [1, 2, 3];
+			scope.asyncEvaluated = false;
+			scope.$watch(
+				scope => {
+					if (!scope.asyncEvaluated) {
+						scope.$evalAsync(scope => {
+							scope.asyncEvaluated = true;
+						});
+					}
+					return scope.aValue;
+				},
+				(newValue, oldValue, scope) => { }
+			);
+			scope.$digest();
+			expect(scope.asyncEvaluated).toBe(true);
+		});
+		// 当不为脏的时候，我们需要继续执行延迟的部分代码
+		it('executes $evalAsynced functions even when not dirty', () => {
+			scope.aValue = [1, 2, 3];
+			scope.asyncEvaluatedTimes = 0;
+			scope.$watch(
+				scope => {
+					if (scope.asyncEvaluatedTimes < 2) {
+						scope.$evalAsync(scope => {
+							scope.asyncEvaluatedTimes++;
+						});
+					}
+					return scope.aValue;
+				},
+				(newValue, oldValue, scope) => {}
+			);
+			scope.$digest();
+			expect(scope.asyncEvaluatedTimes).toBe(2);
+		});
+		// watcher中有多个延迟执行，触发ttl
+		it('eventually halts $evalAsyncs added by watches', () => {
+			scope.aValue = [1, 2, 3];
+			scope.$watch(
+				scope => {
+					scope.$evalAsync(scope => {});
+					return scope.aValue;
+				},
+				(newValue, oldValue, scope) => {}
+			);
+			expect(() => {
+				scope.$digest();
+			}).toThrow();
+		});
+	});
 });

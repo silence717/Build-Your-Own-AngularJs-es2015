@@ -105,14 +105,17 @@ export default class Scope {
 		do {
 			// 从队列中取出每个东西，然后使用$eval来触发所有被延迟执行的函数：
 			while (this.$$asyncQueue.length) {
+				// 先把需要执行的函数从数组中提取出来
 				const asyncTask = this.$$asyncQueue.shift();
 				asyncTask.scope.$eval(asyncTask.expression);
 			}
 			dirty = this.$$digestOnce();
-			if (dirty && !(ttl--)) {
+			// 由于watcherFn中的 $evalAsync 没有条件限制，会一直执行，这样不断触发while条件执行digest
+			// 所以我们需要添加条件判断，是下面测试条件为真，前面的条件为真，且ttl达到上限，则触发抛出异常
+			if ((dirty || this.$$asyncQueue.length) && !(ttl--)) {
 				throw '10 digest iterations reached';
 			}
-		} while (dirty);
+		} while (dirty || this.$$asyncQueue.length); // 结束脏检查的时候，需要判断时候还有需要延迟执行的代码
 	}
 
 	/**

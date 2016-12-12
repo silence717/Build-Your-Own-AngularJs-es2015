@@ -121,9 +121,14 @@ export default class Scope {
 		do {
 			// 从队列中取出每个东西，然后使用$eval来触发所有被延迟执行的函数：
 			while (this.$$asyncQueue.length) {
-				// 先把需要执行的函数从数组中提取出来
-				const asyncTask = this.$$asyncQueue.shift();
-				asyncTask.scope.$eval(asyncTask.expression);
+				// 在执行 $$asyncQueue 中捕获异常
+				try {
+					// 先把需要执行的函数从数组中提取出来
+					const asyncTask = this.$$asyncQueue.shift();
+					asyncTask.scope.$eval(asyncTask.expression);
+				} catch (e) {
+					console.log(e);
+				}
 			}
 			dirty = this.$$digestOnce();
 			// 由于watcherFn中的 $evalAsync 没有条件限制，会一直执行，这样不断触发while条件执行digest
@@ -136,7 +141,12 @@ export default class Scope {
 		this.$clearPhase();
 		// $digest 循环结束后执行 $$postDigestQueue 数组中存储的任务
 		while (this.$$postDigestQueue.length) {
-			this.$$postDigestQueue.shift()();
+			// 执行 $$postDigestQueue 队列时候捕获异常
+			try {
+				this.$$postDigestQueue.shift()();
+			} catch (e) {
+				console.log(e);
+			}
 		}
 	}
 
@@ -245,8 +255,13 @@ export default class Scope {
 	 */
 	$$flushApplyAsync() {
 		while (this.$$applyAsyncQueue.length) {
-			// 从 $$applyAsyncQueue 数组中依次拿出前面置入的函数并执行
-			this.$$applyAsyncQueue.shift()();
+			// 在执行 $$applyAsyncQueue 捕获异常
+			try {
+				// 从 $$applyAsyncQueue 数组中依次拿出前面置入的函数并执行
+				this.$$applyAsyncQueue.shift()();
+			} catch (e) {
+				console.log(e);
+			}
 		}
 		// 将 $$applyAsyncId 置为空表明执行完毕
 		this.$$applyAsyncId = null;

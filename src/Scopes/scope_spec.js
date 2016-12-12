@@ -496,6 +496,24 @@ describe('Scope', function () {
 				done();
 			}, 50);
 		});
+		// 在 $evalAsync 中捕获异常
+		it('catches exceptions in $evalAsync', done => {
+			scope.aValue = 'abc';
+			scope.counter = 0;
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$evalAsync(scope => {
+				throw 'Error';
+			});
+			setTimeout(() => {
+				expect(scope.counter).toBe(1);
+				done();
+			}, 50);
+		});
 	});
 
 	describe('$applyAsync', () => {
@@ -591,6 +609,22 @@ describe('Scope', function () {
 				done();
 			}, 50);
 		});
+		// 在 $applyAsync 中捕获异常
+		it('catches exceptions in $applyAsync', done => {
+			scope.$applyAsync(scope => {
+				throw 'Error';
+			});
+			scope.$applyAsync(scope => {
+				throw 'Error';
+			});
+			scope.$applyAsync(scope => {
+				scope.applied = true;
+			});
+			setTimeout(() => {
+				expect(scope.applied).toBe(true);
+				done();
+			}, 50);
+		});
 	});
 
 	describe('$postDigest', () => {
@@ -630,6 +664,18 @@ describe('Scope', function () {
 			// 再次执行 $digest 循环，listenerFn执行 watchedValue变为新值
 			scope.$digest();
 			expect(scope.watchedValue).toBe('changed value');
+		});
+		// $$postDigest 中捕获异常
+		it('catches exceptions in $$postDigest', () => {
+			let didRun = false;
+			scope.$$postDigest(() => {
+				throw 'Error';
+			});
+			scope.$$postDigest(() => {
+				didRun = true;
+			});
+			scope.$digest();
+			expect(didRun).toBe(true);
 		});
 	});
 });

@@ -592,4 +592,44 @@ describe('Scope', function () {
 			}, 50);
 		});
 	});
+
+	describe('$postDigest', () => {
+		let scope;
+		beforeEach(() => {
+			scope = new Scope();
+		});
+		// 在 $digest 后执行
+		it('runs after each digest', () => {
+			scope.counter = 0;
+			scope.$$postDigest(() => {
+				scope.counter++;
+			});
+			expect(scope.counter).toBe(0);
+			scope.$digest(); // 结束后 $$postDigestQueue 已执行，队列中为空
+
+			expect(scope.counter).toBe(1);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
+		// 在 digest 循环中不包括 $$postDigest
+		it('does not include $$postDigest in the digest', () => {
+			scope.aValue = 'original value';
+			scope.$$postDigest(() => {
+				scope.aValue = 'changed value';
+			});
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.watchedValue = newValue;
+				}
+			);
+			// 第一次 $digest 循环，scope.aValue 从 initVal 到 'original value'
+			scope.$digest();
+			// 结束后执行 $$postDigestQueue 中的队列，scope.aValue发生变化
+			expect(scope.watchedValue).toBe('original value');
+			// 再次执行 $digest 循环，listenerFn执行 watchedValue变为新值
+			scope.$digest();
+			expect(scope.watchedValue).toBe('changed value');
+		});
+	});
 });

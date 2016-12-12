@@ -23,6 +23,8 @@ export default class Scope {
 		this.$$applyAsyncId = null;
 		// 存储现在正在做的信息，阶段
 		this.$$phase = null;
+		// 在 $digest 执行后需要执行的队列
+		this.$$postDigestQueue = [];
 	}
 
 	/**
@@ -110,7 +112,7 @@ export default class Scope {
 		this.$$lastDirtyWatch = null;
 		// 从外层循环设置阶段属性为 $digest
 		this.$beginPhase('$digest');
-		// 如果当前存在需要异步执行的 $$applyAsyncId, 取消该任务任务，并且通过 $$flushApplyAsync 马上执行所有的队列中的每个表达式
+		// 如果当前存在需要异步执行的 $$applyAsyncId, 取消该任务任务，并且通过 $$flushApplyAsync 执行所有的队列中的每个表达式
 		// 因为目前已经进入了一轮 digest 循环，由于 $apply 方法最终也会触发 $digest,那么在这里直接执行 $apply，这样既可减少一次不必要的 digest 调用。
 		if (this.$$applyAsyncId) {
 			clearTimeout(this.$$applyAsyncId);
@@ -132,6 +134,10 @@ export default class Scope {
 		} while (dirty || this.$$asyncQueue.length); // 结束脏检查的时候，需要判断时候还有需要延迟执行的代码
 		// 循环结束后清空
 		this.$clearPhase();
+		// $digest 循环结束后执行 $$postDigestQueue 数组中存储的任务
+		while (this.$$postDigestQueue.length) {
+			this.$$postDigestQueue.shift()();
+		}
 	}
 
 	/**
@@ -233,7 +239,10 @@ export default class Scope {
 			}, 0);
 		}
 	}
-	//
+
+	/**
+	 *  通过 $$flushApplyAsync 执行所有的队列中的每个表达式
+	 */
 	$$flushApplyAsync() {
 		while (this.$$applyAsyncQueue.length) {
 			// 从 $$applyAsyncQueue 数组中依次拿出前面置入的函数并执行
@@ -241,6 +250,14 @@ export default class Scope {
 		}
 		// 将 $$applyAsyncId 置为空表明执行完毕
 		this.$$applyAsyncId = null;
+	}
+
+	/**
+	 * 将需要在 $digest 执行完后执行的方法存入队列
+	 * @param fn
+	 */
+	$$postDigest(fn) {
+		this.$$postDigestQueue.push(fn);
 	}
 
 }

@@ -454,5 +454,47 @@ describe('Scope', function () {
 				scope.$digest();
 			}).toThrow();
 		});
+		// 当前正在执行的阶段
+		it('has a $$phase field whose value is the current digest phase', () => {
+			scope.aValue = [1, 2, 3];
+			scope.phaseInWatchFunction = undefined;
+			scope.phaseInListenerFunction = undefined;
+			scope.phaseInApplyFunction = undefined;
+			scope.$watch(
+				scope => {
+					scope.phaseInWatchFunction = scope.$$phase;
+					return scope.aValue;
+				},
+				(newValue, oldValue, scope) => {
+					scope.phaseInListenerFunction = scope.$$phase;
+				}
+			);
+			scope.$apply(scope => {
+				scope.phaseInApplyFunction = scope.$$phase;
+			});
+			expect(scope.phaseInWatchFunction).toBe('$digest');
+			expect(scope.phaseInListenerFunction).toBe('$digest');
+			expect(scope.phaseInApplyFunction).toBe('$apply');
+		});
+		// 把 digest 加入 $evalAsync
+		it('schedules a digest in $evalAsync', done => {
+			scope.aValue = 'abc';
+			scope.counter = 0;
+			// 添加watch，并没有调用 digest
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			// 没有执行digest 或者 apply,$$phase为null
+			scope.$evalAsync(scope => {});
+			expect(scope.counter).toBe(0);
+			setTimeout(() => {
+				// js为单线程，执行了$evalAsync, 触发了$digest循环, scope.aValue发生了变化执行了对于的listenerFn
+				expect(scope.counter).toBe(1);
+				done();
+			}, 50);
+		});
 	});
 });

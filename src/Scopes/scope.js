@@ -17,6 +17,8 @@ export default class Scope {
 		this.$$lastDirtyWatch = null;
 		// 存储$evalAsync列入计划的任务
 		this.$$asyncQueue = [];
+		// 存储现在正在做的信息，阶段
+		this.$$phase = null;
 	}
 
 	/**
@@ -102,6 +104,8 @@ export default class Scope {
 		let ttl = 10;
 		// 循环开始将其设置为null
 		this.$$lastDirtyWatch = null;
+		// 从外层循环设置阶段属性为 $digest
+		this.$beginPhase('$digest');
 		do {
 			// 从队列中取出每个东西，然后使用$eval来触发所有被延迟执行的函数：
 			while (this.$$asyncQueue.length) {
@@ -116,6 +120,8 @@ export default class Scope {
 				throw '10 digest iterations reached';
 			}
 		} while (dirty || this.$$asyncQueue.length); // 结束脏检查的时候，需要判断时候还有需要延迟执行的代码
+		// 循环结束后清空
+		this.$clearPhase();
 	}
 
 	/**
@@ -153,8 +159,12 @@ export default class Scope {
 	 */
 	$apply(expr) {
 		try {
+			// 设置外层循环阶段为 $apply
+			this.$beginPhase('$apply');
 			return this.$eval(expr);
 		} finally {
+			// 循环结束后清除
+			this.$clearPhase();
 			// $digest的调用放置于finally块中，以确保即使函数抛出异常，也会执行digest。
 			this.$digest();
 		}
@@ -163,11 +173,39 @@ export default class Scope {
 	/**
 	 * 延迟执行代码
 	 * 将所有的延迟执行存储起来，但是我们需要在$digest中去真正的执行它
+	 * $evalAsync做的另外一件事情是：如果现在没有其他的$digest在运行的话，把给定的$digest延迟执行。
+	 * 这意味着，无论什么时候调用$evalAsync，可以确定要延迟执行的这个函数会“很快”被执行，而不是等到其他什么东西来触发一次digest。
 	 * @param expr 延迟执行的code,包装为函数
 	 */
 	$evalAsync(expr) {
+		// 检测作用域上现有的阶段变量，如果没有，也没有已列入计划的异步任务，就把这个digest列入计划
+		if (!this.$$phase && !this.$$asyncQueue.length) {
+			// js为单线程，执行完push操作才会执行此代码，这个时候$$asyncQueue长度为1，于是触发了$digest循环
+			setTimeout(() => {
+				if (this.$$asyncQueue.length) {
+					this.$digest();
+				}
+			}, 0);
+		}
 		// 存入当前的作用域scope, 是为了作用域的继承
 		this.$$asyncQueue.push({scope: this, expression: expr});
 	}
 
+	/**
+	 * 设置 scope.$$phase 为正在做的信息
+	 * @param phase
+	 */
+	$beginPhase(phase) {
+		if (this.$$phase) {
+			throw this.$$phase + 'already in progress.';
+		}
+		this.$$phase = phase;
+	}
+
+	/**
+	 * 清除 scope.$$phase 信息为null
+	 */
+	$clearPhase() {
+		this.$$phase = null;
+	}
 }

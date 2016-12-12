@@ -17,6 +17,10 @@ export default class Scope {
 		this.$$lastDirtyWatch = null;
 		// 存储$evalAsync列入计划的任务
 		this.$$asyncQueue = [];
+		// 存储需要异步执行的 $apply 任务
+		this.$$applyAsyncQueue = [];
+		// 存储需要异步执行的任务标识
+		this.$$applyAsyncId = null;
 		// 存储现在正在做的信息，阶段
 		this.$$phase = null;
 	}
@@ -106,6 +110,12 @@ export default class Scope {
 		this.$$lastDirtyWatch = null;
 		// 从外层循环设置阶段属性为 $digest
 		this.$beginPhase('$digest');
+		// 如果当前存在需要异步执行的 $$applyAsyncId, 取消该任务任务，并且通过 $$flushApplyAsync 马上执行所有的队列中的每个表达式
+		// 因为目前已经进入了一轮 digest 循环，由于 $apply 方法最终也会触发 $digest,那么在这里直接执行 $apply，这样既可减少一次不必要的 digest 调用。
+		if (this.$$applyAsyncId) {
+			clearTimeout(this.$$applyAsyncId);
+			this.$$flushApplyAsync();
+		}
 		do {
 			// 从队列中取出每个东西，然后使用$eval来触发所有被延迟执行的函数：
 			while (this.$$asyncQueue.length) {
@@ -152,24 +162,6 @@ export default class Scope {
 	$eval(expr, locals) {
 		return expr(this, locals);
 	}
-
-	/**
-	 * $apply使用函数作参数，它用$eval执行这个函数，然后通过$digest触发digest循环
-	 * @param expr  函数
-	 */
-	$apply(expr) {
-		try {
-			// 设置外层循环阶段为 $apply
-			this.$beginPhase('$apply');
-			return this.$eval(expr);
-		} finally {
-			// 循环结束后清除
-			this.$clearPhase();
-			// $digest的调用放置于finally块中，以确保即使函数抛出异常，也会执行digest。
-			this.$digest();
-		}
-	}
-
 	/**
 	 * 延迟执行代码
 	 * 将所有的延迟执行存储起来，但是我们需要在$digest中去真正的执行它
@@ -208,4 +200,47 @@ export default class Scope {
 	$clearPhase() {
 		this.$$phase = null;
 	}
+	/**
+	 * $apply使用函数作参数，它用$eval执行这个函数，然后通过$digest触发digest循环
+	 * @param expr  函数
+	 */
+	$apply(expr) {
+		try {
+			// 设置外层循环阶段为 $apply
+			this.$beginPhase('$apply');
+			return this.$eval(expr);
+		} finally {
+			// 循环结束后清除
+			this.$clearPhase();
+			// $digest的调用放置于finally块中，以确保即使函数抛出异常，也会执行digest。
+			this.$digest();
+		}
+	}
+
+	/**
+	 * 合并 $digest 循环
+	 * @param expr 需要执行方法
+	 */
+	$applyAsync(expr) {
+		this.$$applyAsyncQueue.push(() => {
+			this.$eval(expr);
+		});
+		// 我们需要保证当前只有$applyAsync执行，也就是队列中的按插入顺序执行
+		if (this.$$applyAsyncId === null) {
+			this.$$applyAsyncId = setTimeout(() => {
+				// _.bind: Creates a function that invokes func with the this binding of thisArg and partials prepended to the arguments it receives.
+				this.$apply(_.bind(this.$$flushApplyAsync, this));
+			}, 0);
+		}
+	}
+	//
+	$$flushApplyAsync() {
+		while (this.$$applyAsyncQueue.length) {
+			// 从 $$applyAsyncQueue 数组中依次拿出前面置入的函数并执行
+			this.$$applyAsyncQueue.shift()();
+		}
+		// 将 $$applyAsyncId 置为空表明执行完毕
+		this.$$applyAsyncId = null;
+	}
+
 }

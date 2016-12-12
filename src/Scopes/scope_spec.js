@@ -497,4 +497,99 @@ describe('Scope', function () {
 			}, 50);
 		});
 	});
+
+	describe('$applyAsync', () => {
+		let scope;
+		beforeEach(() => {
+			scope = new Scope();
+		});
+		// 使用 $applyAsync 允许异步执行 $apply
+		it('allows async $apply with $applyAsync', done => {
+			scope.counter = 0;
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			// 第一次执行 digest 的时候 scope.aValue 未定义，所以执行一次listennerFn
+			expect(scope.counter).toBe(1);
+			// 延迟执行$apply
+			scope.$applyAsync(scope => {
+				scope.aValue = 'abc';
+			});
+			expect(scope.counter).toBe(1);
+			// 这个时候触发 $applyAsync 里面代码执行，scope.aValue 值发生变化，$apply 触发 $digest 循环
+			setTimeout(() => {
+				expect(scope.counter).toBe(2);
+				done();
+			}, 50);
+		});
+		// 同一个循环中的 $applyAsynced 方法不会执行
+		it('never executes $applyAsynced function in the same cycle', done => {
+			scope.aValue = [1, 2, 3];
+			scope.asyncApplied = false;
+			scope.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					// listenerFn中调用 $applyAsync ，方法中的值不会立马发生变化
+					scope.$applyAsync(scope => {
+						scope.asyncApplied = true;
+					});
+				}
+			);
+			scope.$digest();
+			expect(scope.asyncApplied).toBe(false);
+			setTimeout(() => {
+				expect(scope.asyncApplied).toBe(true);
+				done();
+			}, 50);
+		});
+		// 使用 $applyAsync 合并多个调用
+		it('coalesces many calls to $applyAsync', done => {
+			scope.counter = 0;
+			scope.$watch(
+				scope => {
+					scope.counter++;
+					return scope.aValue;
+				},
+				(newValue, oldValue, scope) => { }
+			);
+			scope.$applyAsync(scope => {
+				scope.aValue = 'abc';
+			});
+			scope.$applyAsync(scope => {
+				scope.aValue = 'def';
+			});
+			setTimeout(() => {
+				expect(scope.counter).toBe(2);
+				done();
+			}, 50);
+		});
+		// 如果是第一次进入$digest需要取消或者清空$applyAsync队列
+		it('cancels and flushes $applyAsync if digested first', done => {
+			scope.counter = 0;
+			scope.$watch(
+				scope => {
+					scope.counter++;
+					return scope.aValue;
+				},
+				(newValue, oldValue, scope) => { }
+			);
+			scope.$applyAsync(scope => {
+				scope.aValue = 'abc';
+			});
+			scope.$applyAsync(scope => {
+				scope.aValue = 'def';
+			});
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+			expect(scope.aValue).toEqual('def');
+			setTimeout(() => {
+				expect(scope.counter).toBe(2);
+				done();
+			}, 50);
+		});
+	});
 });

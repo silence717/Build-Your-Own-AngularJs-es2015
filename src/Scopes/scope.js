@@ -334,4 +334,18 @@ export default class Scope {
 		};
 	}
 
+	/**
+	 * 新建一个 scope
+	 * 换衣这一块可以参考创建对象：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create
+	 * @returns {ChildScope}
+	 */
+	$new() {
+		// 首先我们创建一个构造函数，并且存储为局部变量
+		const ChildScope = () => {};
+		// 将 ChildScope 的原型设置为当前 Scope
+		ChildScope.prototype = this;
+		// 利用 ChildScope 创建一个 child 对象并返回
+		const child = new ChildScope();
+		return child;
+	}
 }

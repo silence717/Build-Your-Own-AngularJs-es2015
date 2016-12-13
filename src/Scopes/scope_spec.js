@@ -8,7 +8,7 @@ import _ from 'lodash';
 
 describe('Scope', function () {
 	// Angular的Scope对象是POJO（简单的JavaScript对象），在它们上面，可以像对其他对象一样添加属性。
-	it('can be constructed and used as an object', () => {
+	xit('can be constructed and used as an object', () => {
 		const scope = new Scope();
 		scope.aProperty = 1;
 		expect(scope.aProperty).toBe(1);
@@ -784,6 +784,79 @@ describe('Scope', function () {
 			destroyGroup();
 			scope.$digest();
 			expect(counter).toEqual(0);
+		});
+	});
+
+	describe('inheritance', () => {
+		// 子scope继承父亲的所有属性
+		it('inherits the parent properties', () => {
+			const parent = new Scope();
+			parent.aValue = [1, 2, 3];
+			const child = parent.$new();
+			expect(child.aValue).toEqual([1, 2, 3]);
+		});
+		// 子scope上的属性不会影响父scope
+		it('does not cause a parent to inherit its properties', () => {
+			const parent = new Scope();
+			const child = parent.$new();
+			child.aValue = [1, 2, 3];
+			expect(parent.aValue).toBeUndefined();
+		});
+		// 不管在什么时间创建子 scope, 当一个属性定义在父 ，所有子scope都可访问该属性
+		it('inherits the parents properties whenever they are defined', () => {
+			const parent = new Scope();
+			const child = parent.$new();
+			parent.aValue = [1, 2, 3];
+			expect(child.aValue).toEqual([1, 2, 3]);
+		});
+		// 你可以在子 scope 上操作父scope的属性，因为 scopes 指向同样的值
+		it('can manipulate a parent scopes property', () => {
+			const parent = new Scope();
+			const child = parent.$new();
+			parent.aValue = [1, 2, 3];
+			child.aValue.push(4);
+			expect(child.aValue).toEqual([1, 2, 3, 4]);
+			expect(parent.aValue).toEqual([1, 2, 3, 4]);
+		});
+		// 在子 scope 上 watch 父 scope 的属性值
+		it('can watch a property in the parent', () => {
+			const parent = new Scope();
+			const child = parent.$new();
+			parent.aValue = [1, 2, 3];
+			child.counter = 0;
+			// 子scope也可以调用 $watch 方法，这是因为父 scope 继承Scope.prototype, 子scope又继承父亲
+			// 所以定义在Scope.prototype上的所有方法在每个 scope 都是可用的。
+			child.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				},
+				true
+			);
+			child.$digest();
+			expect(child.counter).toBe(1);
+			parent.aValue.push(4);
+			child.$digest();
+			expect(child.counter).toBe(2);
+		});
+		// scope 层级可以是任意深度
+		it('can be nested at any depth', () => {
+			const a = new Scope();
+			const aa = a.$new();
+			const aaa = aa.$new();
+			const aab = aa.$new();
+			const ab = a.$new();
+			const abb = ab.$new();
+			a.value = 1;
+			expect(aa.value).toBe(1);
+			expect(aaa.value).toBe(1);
+			expect(aab.value).toBe(1);
+			expect(ab.value).toBe(1);
+			expect(abb.value).toBe(1);
+			ab.anotherValue = 2;
+			expect(abb.anotherValue).toBe(2);
+			expect(aa.anotherValue).toBeUndefined();
+			expect(aaa.anotherValue).toBeUndefined();
 		});
 	});
 });

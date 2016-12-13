@@ -678,4 +678,112 @@ describe('Scope', function () {
 			expect(didRun).toBe(true);
 		});
 	});
+
+	describe('$watchGroup', () => {
+		let scope;
+		beforeEach(() => {
+			scope = new Scope();
+		});
+		// watches是一个数组，期望listenerFn返回的也是一个数组
+		it('takes watches as an array and calls listener with arrays', () => {
+			let gotNewValues, gotOldValues;
+			scope.aValue = 1;
+			scope.anotherValue = 2;
+			scope.$watchGroup([
+				scope => scope.aValue,
+				scope => scope.anotherValue
+			], (newValues, oldValues, scope) => {
+				gotNewValues = newValues;
+				gotOldValues = oldValues;
+			});
+			scope.$digest();
+			expect(gotNewValues).toEqual([1, 2]);
+			expect(gotOldValues).toEqual([1, 2]);
+		});
+		// 在每次 digest 循环中只触发一次 digest
+		it('only calls listener once per digest', () => {
+			let counter = 0;
+			scope.aValue = 1;
+			scope.anotherValue = 2;
+			scope.$watchGroup([
+				scope => scope.aValue,
+				scope => scope.anotherValue
+			], (newValues, oldValues, scope) => {
+				counter++;
+			});
+			scope.$digest();
+			expect(counter).toEqual(1);
+		});
+		// 第一次执行 digest 的时候 newValues 和 oldValues使用同一数组
+		it('uses the same array of old and new values on  rst run', () => {
+			let gotNewValues, gotOldValues;
+			scope.aValue = 1;
+			scope.anotherValue = 2;
+			scope.$watchGroup([
+				scope => scope.aValue,
+				scope => scope.anotherValue
+			], (newValues, oldValues, scope) => {
+				gotNewValues = newValues;
+				gotOldValues = oldValues;
+			});
+			scope.$digest();
+			expect(gotNewValues).toBe(gotOldValues);
+		});
+		// 第二次之后 oldValues 和 newValues 使用不同的数组
+		it('uses different arrays for old and new values on subsequent runs', () => {
+			let gotNewValues, gotOldValues;
+			scope.aValue = 1;
+			scope.anotherValue = 2;
+			scope.$watchGroup([
+				scope => scope.aValue,
+				scope => scope.anotherValue
+			], (newValues, oldValues, scope) => {
+				gotNewValues = newValues;
+				gotOldValues = oldValues;
+			});
+			scope.$digest();
+			scope.anotherValue = 3;
+			scope.$digest();
+			expect(gotNewValues).toEqual([1, 3]);
+			expect(gotOldValues).toEqual([1, 2]);
+		});
+		// 当watch的数组为空的时候，执行一次listenerFn.
+		it('calls the listener once when the watch array is empty', () => {
+			let gotNewValues, gotOldValues;
+			scope.$watchGroup([], (newValues, oldValues, scope) => {
+				gotNewValues = newValues;
+				gotOldValues = oldValues;
+			});
+			scope.$digest();
+			expect(gotNewValues).toEqual([]);
+			expect(gotOldValues).toEqual([]);
+		});
+		// 一旦销毁函数被调用，即使watchFn中的表达式发生改变，那么listenerFn将不会执行
+		it('can be deregistered', () => {
+			let counter = 0;
+			scope.aValue = 1;
+			scope.anotherValue = 2;
+			const destroyGroup = scope.$watchGroup([
+				scope => scope.aValue,
+				scope => scope.anotherValue
+			], (newValues, oldValues, scope) => {
+				counter++;
+			});
+			scope.$digest();
+			scope.anotherValue = 3;
+			destroyGroup();
+			scope.$digest();
+			expect(counter).toEqual(1);
+		});
+		// 当 watchFn数组为空， digest一次也没有执行的时候，我们调用了销毁方法
+		it('does not call the zero-watch listener when deregistered first', () => {
+			let counter = 0;
+			const destroyGroup = scope.$watchGroup([], (newValues, oldValues, scope) => {
+				counter++;
+			});
+			destroyGroup();
+			scope.$digest();
+			expect(counter).toEqual(0);
+		});
+	});
 });

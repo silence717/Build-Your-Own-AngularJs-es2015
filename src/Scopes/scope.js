@@ -275,4 +275,63 @@ export default class Scope {
 		this.$$postDigestQueue.push(fn);
 	}
 
+	/**
+	 * watch 一个数组
+	 * @param watchFns 一组 watch expr，只要其中一个发生变化，都会触发 $digest 训话
+	 * @param listenerFn 监听函数 每个watcher都应该有自己的新旧值
+	 */
+	$watchGroup(watchFns, listenerFn) {
+		// 根据watchFn的长度，定义新旧值对应的数组
+		const newValues = new Array(watchFns.length);
+		const oldValues = new Array(watchFns.length);
+		let changeReactionScheduled = false;
+		// 标记是否为第一次运行
+		let firstRun = true;
+		// 当watchFn为空的时候，执行一次listenerFn,使返回的newValues,oldValues不是undefined而为空数组[]
+		if (watchFns.length === 0) {
+			// 同样我们需要处理一下，当 watchFn 为空的时候，是否可以执行listener函数
+			let shouldCall = true;
+			this.$evalAsync(() => {
+				// 由于采用 $evalAsync 延迟执行，这个时候return Fn 已经返回，shouldCall已更改为false，所以listenerFn不会被执行
+				if (shouldCall) {
+					listenerFn(newValues, newValues, this);
+				}
+			});
+			return () => {
+				shouldCall = false;
+			};
+		}
+		// 处理同一时间所有watches都检查完毕，触发多次listenerFn执行
+		const watchGroupListener = () => {
+			if (firstRun) {
+				firstRun = false;
+				// 第一次运行的时候，使newValues与oldValues一样
+				listenerFn(newValues, newValues, this);
+			} else {
+				listenerFn(newValues, oldValues, this);
+			}
+			changeReactionScheduled = false;
+		};
+		// 由于有的watch注册的时候返回了一个函数，所以我们需要做的就是将它们集合起来，返回一个数组，创建一个注销功能，返回的时候调用它们
+		// lodash 的_.map方法：Creates an array of values by running each element in collection through iteratee.
+		const destroyFunctions = _.map(watchFns, (watchFn, i) => {
+			return this.$watch(watchFn, (newValue, oldValue) => {
+				// 将每次执行的listener新旧值与watchFn对应起来
+				newValues[i] = newValue;
+				oldValues[i] = oldValue;
+				if (!changeReactionScheduled) {
+					changeReactionScheduled = true;
+					// 利用 $evalAsync 在同一个 digest 中延迟一些东西执行
+					this.$evalAsync(watchGroupListener);
+				}
+			});
+		});
+		// 调用所有创建好的 destroyFunctions， 每一个 destroyFunction 都是一个方法，销毁的时候直接调用
+		return () => {
+			_.forEach(destroyFunctions, destroyFunction => {
+				destroyFunction();
+			});
+		};
+	}
+
 }

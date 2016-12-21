@@ -883,5 +883,19 @@ describe('Scope', function () {
 			expect(child.user.name).toBe('Jill');
 			expect(parent.user.name).toBe('Jill');
 		});
+		// 子scope执行$digest循环的时候，不要触发它的父scope
+		it('does not digest its parent(s)', () => {
+			const parent = new Scope();
+			const child = parent.$new();
+			parent.aValue = 'abc';
+			parent.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.aValueWas = newValue;
+				}
+			);
+			child.$digest();
+			expect(child.aValueWas).toBeUndefined();
+		});
 	});
 });

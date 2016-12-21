@@ -346,6 +346,8 @@ export default class Scope {
 		ChildScope.prototype = this;
 		// 利用 ChildScope 创建一个 child 对象并返回
 		const child = new ChildScope();
+		// 我们为每个子scope添加独立的$$watchers,这样就会做到覆盖属性，子scope执行$digest循环的时候就不会影响到父scope
+		child.$$watchers = [];
 		return child;
 	}
 }

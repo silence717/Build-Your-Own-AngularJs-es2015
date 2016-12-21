@@ -897,5 +897,34 @@ describe('Scope', function () {
 			child.$digest();
 			expect(child.aValueWas).toBeUndefined();
 		});
+		// 记录每个scope的子scope
+		// 实际上angular内部并没有一个$$children的数组，而是采用$$nextSibling、$$prevSibling、$$childHead 、$$childTail给出一个可操作的范围
+		// 使其添加和删除的成本更小，不必操纵数组。功能与$$children类似。
+		it('keeps a record of its children', () => {
+			const parent = new Scope();
+			const child1 = parent.$new();
+			const child2 = parent.$new();
+			const child2_1 = child2.$new();
+			expect(parent.$$children.length).toBe(2);
+			expect(parent.$$children[0]).toBe(child1);
+			expect(parent.$$children[1]).toBe(child2);
+			expect(child1.$$children.length).toBe(0);
+			expect(child2.$$children.length).toBe(1);
+			expect(child2.$$children[0]).toBe(child2_1);
+		});
+		// 父 scope 调用 $digest 循环的时候其子 scope 的watchers也被执行
+		it('digests its children', () => {
+			const parent = new Scope();
+			const child = parent.$new();
+			parent.aValue = 'abc';
+			child.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.aValueWas = newValue;
+				}
+			);
+			parent.$digest();
+			expect(child.aValueWas).toBe('abc');
+		});
 	});
 });

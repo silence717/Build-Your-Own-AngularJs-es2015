@@ -25,6 +25,8 @@ export default class Scope {
 		this.$$phase = null;
 		// 在 $digest 执行后需要执行的队列
 		this.$$postDigestQueue = [];
+		// 存储子scope
+		this.$$children = [];
 	}
 
 	/**
@@ -65,34 +67,45 @@ export default class Scope {
 	 * @returns {*} 把所有的监听器运行一次，返回一个布尔值，表示是否还有变更
 	 */
 	$$digestOnce() {
-		let dirty, newValue, oldValue;
-		// 防止数组塌陷，循环使用倒叙，这样保证对其余 wather 没有影响
-		_.forEachRight(this.$$watchers, watcher => {
-			// 添加try、catch捕获异常，使其在执行中发生异常的时候被捕获，不影响其余watcher执行
-			try {
-				// 对watcher进行操作的时候，必须判断一下watcher是否存在，因为它有可能在别的watcher中被删除
-				if (watcher) {
-					newValue = watcher.watchFn(this);
-					// 取出存取的last为旧值
-					oldValue = watcher.last;
-					// 不仅仅是新旧值的对比，加入是否基于值检测
-					if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
-						// 当新旧值不一样的时候，将$$lastDirtyWatch设置为当前的watcher
-						this.$$lastDirtyWatch = watcher;
-						// 每次新旧值不相同的时候，将新值存为last，用于下次和新值做比较，如果为基于值得脏检查，则使用深拷贝
-						watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
-						// 第一次的时候添加判断,旧值为initWatchVal时候，将它替换掉
-						watcher.listenerFn(newValue, (oldValue === initWatchVal ? newValue : oldValue), this);
-						// 当新值和旧值不相等的时候我们认为数据是不稳定的，所以为脏
-						dirty = true;
-					} else if (this.$$lastDirtyWatch === watcher) {
-						// 当检测到的结果是一个干净的watcher。lodash 中的 return false 可跳出循环。
-						return false;
+		let dirty;
+		let continueLoop = true;
+		// 通过调用 $$everyScope 遍历整个当前scope的层级
+		this.$$everyScope(scope => {
+			let newValue, oldValue;
+			// 防止数组塌陷，循环使用倒叙，这样保证对其余 wather 没有影响
+			_.forEachRight(scope.$$watchers, watcher => {
+				// 添加try、catch捕获异常，使其在执行中发生异常的时候被捕获，不影响其余watcher执行
+				try {
+					// 对watcher进行操作的时候，必须判断一下watcher是否存在，因为它有可能在别的watcher中被删除
+					if (watcher) {
+						newValue = watcher.watchFn(this);
+						// 取出存取的last为旧值
+						oldValue = watcher.last;
+						// 不仅仅是新旧值的对比，加入是否基于值检测
+						if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
+							// 当新旧值不一样的时候，将$$lastDirtyWatch设置为当前的watcher
+							this.$$lastDirtyWatch = watcher;
+							// 每次新旧值不相同的时候，将新值存为last，用于下次和新值做比较，如果为基于值得脏检查，则使用深拷贝
+							watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
+							// 第一次的时候添加判断,旧值为initWatchVal时候，将它替换掉
+							// 添加$$everyScope时候，将最后一个参数从this改为scope,目的是为了在循环内部使用也对的scope，确保正确运行
+							watcher.listenerFn(newValue, (oldValue === initWatchVal ? newValue : oldValue), scope);
+							// 当新值和旧值不相等的时候我们认为数据是不稳定的，所以为脏
+							dirty = true;
+						} else if (this.$$lastDirtyWatch === watcher) {
+							// $$lastDirtyWatch采用的是rootScope的，如果为当前scope设置,就会造成属性覆盖，我们必须保证scope中所有的监听器。
+							// 循环内部遍历 Scope 的层级, 直到所有 Scope 被访问或者缩短回路优化生效.
+							// 缩短回路优化使用 continueLoop 变量追踪. 如果它是 false, 则跳出 循环和 $$digestOnce 函数.
+							continueLoop = false;
+							// 当检测到的结果是一个干净的watcher。lodash 中的 return false 可跳出循环。
+							return false;
+						}
 					}
+				} catch (e) {
+					console.error(e);
 				}
-			} catch (e) {
-				console.error(e);
-			}
+			});
+			return continueLoop;
 		});
 		return dirty;
 	}
@@ -336,7 +349,7 @@ export default class Scope {
 
 	/**
 	 * 新建一个 scope
-	 * 换衣这一块可以参考创建对象：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create
+	 * 关于这一块可以参考创建对象：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create
 	 * @returns {ChildScope}
 	 */
 	$new() {
@@ -346,8 +359,27 @@ export default class Scope {
 		ChildScope.prototype = this;
 		// 利用 ChildScope 创建一个 child 对象并返回
 		const child = new ChildScope();
+		// 每次新建一个child的时候都将其存入对应的children数组
+		this.$$children.push(child);
 		// 我们为每个子scope添加独立的$$watchers,这样就会做到覆盖属性，子scope执行$digest循环的时候就不会影响到父scope
 		child.$$watchers = [];
+		// 为子scope也设置children存储
+		child.$$children = [];
 		return child;
+	}
+
+	/**
+	 * 在当前的Scope上调用一次fn,并且递归调用当前scope的子Scope
+	 * @param fn  遍历监听器过程的fn
+	 * @returns {boolean}
+	 */
+	$$everyScope(fn) {
+		if (fn(this)) {
+			return this.$$children.every(child => {
+				return child.$$everyScope(fn);
+			});
+		} else {
+			return false;
+		}
 	}
 }

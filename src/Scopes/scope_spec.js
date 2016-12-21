@@ -339,7 +339,7 @@ describe('Scope', function () {
 		beforeEach(() => {
 			scope = new Scope();
 		});
-		// 仅有一个参数的情况
+		// 仅有一个参数，执行该表达式并返回结果
 		it('executes $evaled function and returns result', () => {
 			scope.aValue = 42;
 			const result = scope.$eval(scope => {
@@ -857,6 +857,31 @@ describe('Scope', function () {
 			expect(abb.anotherValue).toBe(2);
 			expect(aa.anotherValue).toBeUndefined();
 			expect(aaa.anotherValue).toBeUndefined();
+		});
+		// 与父 scope 使用相同名字的属性，会覆盖父scope相同名称的值
+		// 当我们在子scope中添加一个与父scope相同名称的属性，不会影响父scope。
+		// 实际在作用域链上我们存在两个不想听的属性，都叫做name。
+		// 这种通常被称为覆盖：从子 scope 的角度来看，父scope的name属性被覆盖了。
+		it('shadows a parents property with the same name', () => {
+			const parent = new Scope();
+			const child = parent.$new();
+
+			parent.name = 'Joe';
+			child.name = 'Jill';
+
+			expect(child.name).toBe('Jill');
+			expect(parent.name).toBe('Joe');
+		});
+		// 使用对象将父 scope 上的属性包裹起来
+		// 这种方式，我们并没有对子 scope 赋值，我们仅仅是从父scope上读取user对象和在对象内赋值，
+		// 两个scope只是使用了同一个user对象的引用。user对象只是一个纯js对象，与scope继承无关。
+		it('does not shadow members of parent scopes attributes', () => {
+			const parent = new Scope();
+			const child = parent.$new();
+			parent.user = {name: 'Joe'};
+			child.user.name = 'Jill';
+			expect(child.user.name).toBe('Jill');
+			expect(parent.user.name).toBe('Jill');
 		});
 	});
 });

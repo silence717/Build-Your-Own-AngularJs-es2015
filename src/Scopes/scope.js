@@ -173,7 +173,7 @@ export default class Scope {
 	 * 在作用域的上下文上执行代码
 	 * @param expr 用一个函数作为参数，然后立即执行这个参数，并且把作用域自身当作参数传递给它。
 	 * @param locals 它所做的仅仅是把这个参数传递给这个函数
-	 * @returns {*} 返回的是第一个函数的返回值
+	 * @returns {*} 返回这个表达式执行的代码
 	 */
 	$eval(expr, locals) {
 		return expr(this, locals);
@@ -226,7 +226,7 @@ export default class Scope {
 			this.$beginPhase('$apply');
 			return this.$eval(expr);
 		} finally {
-			// 循环结束后清除
+			// 因为接下来进入$digest阶段，所以将$$phase清空，否则进入$digest会报错
 			this.$clearPhase();
 			// $digest的调用放置于finally块中，以确保即使函数抛出异常，也会执行digest。
 			this.$digest();

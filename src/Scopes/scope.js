@@ -27,6 +27,8 @@ export default class Scope {
 		this.$$postDigestQueue = [];
 		// 存储子scope
 		this.$$children = [];
+		// 添加一个rootScope的引用
+		this.$root = this;
 	}
 
 	/**
@@ -242,7 +244,8 @@ export default class Scope {
 			// 因为接下来进入$digest阶段，所以将$$phase清空，否则进入$digest会报错
 			this.$clearPhase();
 			// $digest的调用放置于finally块中，以确保即使函数抛出异常，也会执行digest。
-			this.$digest();
+			//  在 $apply 方法中用在 Root Scope 直接调用 $digest 替换 在当前 Scope 上调用 $digest.
+			this.$root.$digest();
 		}
 	}
 

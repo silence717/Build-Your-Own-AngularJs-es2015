@@ -926,5 +926,21 @@ describe('Scope', function () {
 			parent.$digest();
 			expect(child.aValueWas).toBe('abc');
 		});
+		// 调用$apply的时候从rootScope开始执行digest循环
+		it('digests from root on $apply', () => {
+			const parent = new Scope();
+			const child = parent.$new();
+			const child2 = child.$new();
+			parent.aValue = 'abc';
+			parent.counter = 0;
+			parent.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			child2.$apply(scope => { });
+			expect(parent.counter).toBe(1);
+		});
 	});
 });

@@ -51,6 +51,8 @@ export default class Scope {
 		};
 		// 为了避免删除的时候数组塌陷，对其他的 watcher 造成影响，所以每次新加watcher从头开始添加
 		this.$$watchers.unshift(watcher);
+		// todo
+		this.$root.$$lastDirtyWatch = null;
 		// 修复监听器中添加watcher不执行问题，重新设置 $$lastDirtyWatch 为 null
 		this.$$lastDirtyWatch = null;
 		// 为了销毁监听器，我们给$watch返回一个可以从 $$watcher 中删除监听器的函数
@@ -59,7 +61,8 @@ export default class Scope {
 			if (index >= 0) {
 				this.$$watchers.splice(index, 1);
 				// 当我们删除一个watcher的时候，将最后一次的脏值变为null
-				this.$$lastDirtyWatch = null;
+				// this.$$lastDirtyWatch = null;
+				this.$root.$$lastDirtyWatch = null
 			}
 		};
 	}
@@ -86,7 +89,7 @@ export default class Scope {
 						// 不仅仅是新旧值的对比，加入是否基于值检测
 						if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
 							// 当新旧值不一样的时候，将$$lastDirtyWatch设置为当前的watcher
-							this.$$lastDirtyWatch = watcher;
+							scope.$root.$$lastDirtyWatch = watcher;
 							// 每次新旧值不相同的时候，将新值存为last，用于下次和新值做比较，如果为基于值得脏检查，则使用深拷贝
 							watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
 							// 第一次的时候添加判断,旧值为initWatchVal时候，将它替换掉
@@ -94,7 +97,7 @@ export default class Scope {
 							watcher.listenerFn(newValue, (oldValue === initWatchVal ? newValue : oldValue), scope);
 							// 当新值和旧值不相等的时候我们认为数据是不稳定的，所以为脏
 							dirty = true;
-						} else if (this.$$lastDirtyWatch === watcher) {
+						} else if (scope.$root.$$lastDirtyWatch === watcher) {
 							// $$lastDirtyWatch采用的是rootScope的，如果为当前scope设置,就会造成属性覆盖，我们必须保证scope中所有的监听器。
 							// 循环内部遍历 Scope 的层级, 直到所有 Scope 被访问或者缩短回路优化生效.
 							// 缩短回路优化使用 continueLoop 变量追踪. 如果它是 false, 则跳出 循环和 $$digestOnce 函数.
@@ -124,7 +127,7 @@ export default class Scope {
 		let dirty;
 		let ttl = 10;
 		// 循环开始将其设置为null
-		this.$$lastDirtyWatch = null;
+		this.$root.$$lastDirtyWatch = null;
 		// 从外层循环设置阶段属性为 $digest
 		this.$beginPhase('$digest');
 		// 如果当前存在需要异步执行的 $$applyAsyncId, 取消该任务任务，并且通过 $$flushApplyAsync 执行所有的队列中的每个表达式
@@ -206,7 +209,7 @@ export default class Scope {
 			// js为单线程，执行完push操作才会执行此代码，这个时候$$asyncQueue长度为1，于是触发了$digest循环
 			setTimeout(() => {
 				if (this.$$asyncQueue.length) {
-					this.$digest();
+					this.$root.$digest();
 				}
 			}, 0);
 		}

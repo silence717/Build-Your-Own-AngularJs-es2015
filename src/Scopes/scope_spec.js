@@ -942,5 +942,27 @@ describe('Scope', function () {
 			child2.$apply(scope => { });
 			expect(parent.counter).toBe(1);
 		});
+		//
+		it('schedules a digest from root on $evalAsync', (done) => {
+			const parent = new Scope();
+			const child = parent.$new();
+			const child2 = child.$new();
+			parent.aValue = 'abc';
+			parent.counter = 0;
+
+			parent.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+
+			child2.$evalAsync(scope => { });
+
+			setTimeout(() => {
+				expect(parent.counter).toBe(1);
+				done();
+			}, 50);
+		});
 	});
 });

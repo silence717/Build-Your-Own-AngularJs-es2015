@@ -51,18 +51,16 @@ export default class Scope {
 		};
 		// 为了避免删除的时候数组塌陷，对其他的 watcher 造成影响，所以每次新加watcher从头开始添加
 		this.$$watchers.unshift(watcher);
-		// todo
-		this.$root.$$lastDirtyWatch = null;
+		// 新添加 watcher 的时候，无论在哪个 scope 执行scope，都把唯一的 $$lastDirtyWatch 置为 null
 		// 修复监听器中添加watcher不执行问题，重新设置 $$lastDirtyWatch 为 null
-		this.$$lastDirtyWatch = null;
+		this.$root.$$lastDirtyWatch = null;
 		// 为了销毁监听器，我们给$watch返回一个可以从 $$watcher 中删除监听器的函数
 		return () => {
 			const index = this.$$watchers.indexOf(watcher);
 			if (index >= 0) {
 				this.$$watchers.splice(index, 1);
-				// 当我们删除一个watcher的时候，将最后一次的脏值变为null
-				// this.$$lastDirtyWatch = null;
-				this.$root.$$lastDirtyWatch = null
+				// 当我们删除一个watcher的时候，也将最后一次的脏值变为null
+				this.$root.$$lastDirtyWatch = null;
 			}
 		};
 	}
@@ -73,7 +71,6 @@ export default class Scope {
 	 */
 	$$digestOnce() {
 		let dirty;
-		let continueLoop = true;
 		// 通过调用 $$everyScope 遍历整个当前scope的层级
 		this.$$everyScope(scope => {
 			let newValue, oldValue;
@@ -87,7 +84,7 @@ export default class Scope {
 						// 取出存取的last为旧值
 						oldValue = watcher.last;
 						// 不仅仅是新旧值的对比，加入是否基于值检测
-						if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
+						if (!scope.$$areEqual(newValue, oldValue, watcher.valueEq)) {
 							// 当新旧值不一样的时候，将$$lastDirtyWatch设置为当前的watcher
 							scope.$root.$$lastDirtyWatch = watcher;
 							// 每次新旧值不相同的时候，将新值存为last，用于下次和新值做比较，如果为基于值得脏检查，则使用深拷贝
@@ -110,7 +107,7 @@ export default class Scope {
 					console.error(e);
 				}
 			});
-			return continueLoop;
+			return dirty !== false;
 		});
 		return dirty;
 	}
@@ -126,7 +123,7 @@ export default class Scope {
 	$digest() {
 		let dirty;
 		let ttl = 10;
-		// 循环开始将其设置为null
+		// 循环开始时候将 rootScope 上的$$lastDirtyWatch设置为null
 		this.$root.$$lastDirtyWatch = null;
 		// 从外层循环设置阶段属性为 $digest
 		this.$beginPhase('$digest');
@@ -209,6 +206,8 @@ export default class Scope {
 			// js为单线程，执行完push操作才会执行此代码，这个时候$$asyncQueue长度为1，于是触发了$digest循环
 			setTimeout(() => {
 				if (this.$$asyncQueue.length) {
+					// 我们在每个 scope 上存储了 rootScope 的引用
+					// 子scope调用 $evalAsync 执行 digest循环的时候，也需要从 rootScope 开始
 					this.$root.$digest();
 				}
 			}, 0);
@@ -247,7 +246,9 @@ export default class Scope {
 			// 因为接下来进入$digest阶段，所以将$$phase清空，否则进入$digest会报错
 			this.$clearPhase();
 			// $digest的调用放置于finally块中，以确保即使函数抛出异常，也会执行digest。
-			//  在 $apply 方法中用在 Root Scope 直接调用 $digest 替换 在当前 Scope 上调用 $digest.
+			// 因为调用的是 this.$eval,所以执行的 expr 是当前Scope上的
+			// 我们在 Root Scope 直接调用 $digest 替换 在当前 Scope 上调用 $digest.
+			// 因为$apply是集成外部代码的首选方案，而我们并不能知道是在哪个scope上发生的改变，最安全的方式就是执行所有的Scope
 			this.$root.$digest();
 		}
 	}

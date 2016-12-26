@@ -942,8 +942,8 @@ describe('Scope', function () {
 			child2.$apply(scope => { });
 			expect(parent.counter).toBe(1);
 		});
-		//
-		it('schedules a digest from root on $evalAsync', (done) => {
+		// 子 scope 调用 $evalAsync ，digest 也必须从 rootScope 开始
+		it('schedules a digest from root on $evalAsync', done => {
 			const parent = new Scope();
 			const child = parent.$new();
 			const child2 = child.$new();

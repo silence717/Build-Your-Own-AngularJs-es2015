@@ -98,7 +98,7 @@ export default class Scope {
 							// $$lastDirtyWatch采用的是rootScope的，如果为当前scope设置,就会造成属性覆盖，我们必须保证scope中所有的监听器。
 							// 循环内部遍历 Scope 的层级, 直到所有 Scope 被访问或者缩短回路优化生效.
 							// 缩短回路优化使用 continueLoop 变量追踪. 如果它是 false, 则跳出 循环和 $$digestOnce 函数.
-							continueLoop = false;
+							dirty = false;
 							// 当检测到的结果是一个干净的watcher。lodash 中的 return false 可跳出循环。
 							return false;
 						}

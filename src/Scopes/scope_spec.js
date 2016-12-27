@@ -964,5 +964,12 @@ describe('Scope', function () {
 				done();
 			}, 50);
 		});
+		// Isolated Scopes 隔离作用域
+		it('does not have access to parent attributes when isolated', () => {
+			const parent = new Scope();
+			const child = parent.$new(true);
+			parent.aValue = 'abc';
+			expect(child.aValue).toBeUndefined();
+		});
 	});
 });

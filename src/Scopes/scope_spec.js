@@ -964,12 +964,111 @@ describe('Scope', function () {
 				done();
 			}, 50);
 		});
-		// Isolated Scopes 隔离作用域
+		// 隔离作用域的时候，没有访问父 scope 属性的入口
 		it('does not have access to parent attributes when isolated', () => {
 			const parent = new Scope();
 			const child = parent.$new(true);
 			parent.aValue = 'abc';
 			expect(child.aValue).toBeUndefined();
+		});
+		// 隔离作用域的时候，访问不到父 scope 的属性，那么也无法 watch 这些属性的变化
+		it('cannot watch parent attributes when isolated', () => {
+			const parent = new Scope();
+			const child = parent.$new(true);
+			parent.aValue = 'abc';
+			child.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.aValueWas = newValue;
+				}
+			);
+			child.$digest();
+			expect(child.aValueWas).toBeUndefined();
+		});
+		// 虽然我们改变了隔离作用域，但是我们希望$digest还能运行当前scope以及子scope的监听器
+		it('digests its isolated children', () => {
+			const parent = new Scope();
+			const child = parent.$new(true);
+			child.aValue = 'abc';
+			child.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.aValueWas = newValue;
+				}
+			);
+			parent.$digest();
+			expect(child.aValueWas).toBe('abc');
+		});
+		// 隔离作用域的时候调用$apply的时候需要从rootScope开始执行 digest
+		it('digests from root on $apply when isolated', () => {
+			const parent = new Scope();
+			const child = parent.$new(true);
+			const child2 = child.$new();
+			parent.aValue = 'abc';
+			parent.counter = 0;
+			parent.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			child2.$apply(scope => { });
+			expect(parent.counter).toBe(1);
+		});
+		// 隔离作用域的时候调用 $evalAsync 的时候需要从rootScope开始执行 digest
+		it('schedules a digest from root on $evalAsync when isolated', done => {
+			const parent = new Scope();
+			const child = parent.$new(true);
+			const child2 = child.$new();
+			parent.aValue = 'abc';
+			parent.counter = 0;
+			parent.$watch(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			child2.$evalAsync(scope => { });
+			setTimeout(() => {
+				expect(parent.counter).toBe(1);
+				done();
+			}, 50);
+		});
+		// 在隔离作用域执行 $evalAsync 方法
+		it('executes $evalAsync functions on isolated scopes', done => {
+			const parent = new Scope();
+			const child = parent.$new(true);
+			child.$evalAsync(scope => {
+				scope.didEvalAsync = true;
+			});
+			setTimeout(() => {
+				expect(child.didEvalAsync).toBe(true);
+				done();
+			}, 50);
+		});
+		// 在隔离作用域执行 $$postDigest 方法
+		it('executes $$postDigest functions on isolated scopes', () => {
+			const parent = new Scope();
+			const child = parent.$new(true);
+			child.$$postDigest(() => {
+				child.didPostDigest = true;
+			});
+			parent.$digest();
+			expect(child.didPostDigest).toBe(true);
+		});
+		// 在隔离作用域执行 $applyAsync 方法
+		// $$applyAsyncQueue和其余队列不一样：因为清理队列是被 $$applyAsyncId 属性控制的，
+		// 并且现在整个scope层级的每个 scope 可能都有这个属性的实例，整个 $applyAsync 目的是合并 $apply 调用
+		// 做法：1、现在创建隔离scope的时候为它创建一个引用。2、我们需要共享 $$applyAsyncId 属性
+		it('executes $applyAsync functions on isolated scopes', () => {
+			const parent = new Scope();
+			const child = parent.$new(true);
+			let applied = false;
+			parent.$applyAsync(() => {
+				applied = true;
+			});
+			child.$digest();
+			expect(applied).toBe(true);
 		});
 	});
 });

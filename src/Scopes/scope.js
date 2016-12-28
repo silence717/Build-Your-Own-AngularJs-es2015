@@ -129,8 +129,8 @@ export default class Scope {
 		this.$beginPhase('$digest');
 		// 如果当前存在需要异步执行的 $$applyAsyncId, 取消该任务任务，并且通过 $$flushApplyAsync 执行所有的队列中的每个表达式
 		// 因为目前已经进入了一轮 digest 循环，由于 $apply 方法最终也会触发 $digest,那么在这里直接执行 $apply，这样既可减少一次不必要的 digest 调用。
-		if (this.$$applyAsyncId) {
-			clearTimeout(this.$$applyAsyncId);
+		if (this.$root.$$applyAsyncId) {
+			clearTimeout(this.$root.$$applyAsyncId);
 			this.$$flushApplyAsync();
 		}
 		do {
@@ -262,8 +262,8 @@ export default class Scope {
 			this.$eval(expr);
 		});
 		// 我们需要保证当前只有$applyAsync执行，也就是队列中的按插入顺序执行
-		if (this.$$applyAsyncId === null) {
-			this.$$applyAsyncId = setTimeout(() => {
+		if (this.$root.$$applyAsyncId === null) {
+			this.$root.$$applyAsyncId = setTimeout(() => {
 				// _.bind: Creates a function that invokes func with the this binding of thisArg and partials prepended to the arguments it receives.
 				this.$apply(_.bind(this.$$flushApplyAsync, this));
 			}, 0);
@@ -284,7 +284,7 @@ export default class Scope {
 			}
 		}
 		// 将 $$applyAsyncId 置为空表明执行完毕
-		this.$$applyAsyncId = null;
+		this.$root.$$applyAsyncId = null;
 	}
 
 	/**
@@ -357,15 +357,29 @@ export default class Scope {
 	/**
 	 * 新建一个 scope
 	 * 关于这一块可以参考创建对象：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create
+	 * @param isolated  boolean值，判断是否为隔离作用域 true -- 创建子scope为隔离作用域，false就为原型继承
 	 * @returns {ChildScope}
 	 */
-	$new() {
-		// 首先我们创建一个构造函数，并且存储为局部变量
-		const ChildScope = () => {};
-		// 将 ChildScope 的原型设置为当前 Scope
-		ChildScope.prototype = this;
-		// 利用 ChildScope 创建一个 child 对象并返回
-		const child = new ChildScope();
+	$new(isolated) {
+		let child;
+		if (isolated) {
+			child = new Scope();
+			// 同样各个延迟执行的队列也是唯一的
+			// 不管隔离作用域还是非隔离，我们都希望 $root 是唯一的
+			// 非隔离作用域继承原型，自动 copy 了一份
+			// 隔离作用域需要我们明确地给他赋值一下
+			child.$root = this.$root;
+			child.$$asyncQueue = this.$$asyncQueue;
+			child.$$postDigestQueue = this.$$postDigestQueue;
+			child.$$applyAsyncQueue = this.$$applyAsyncQueue;
+		} else {
+			// 首先我们创建一个构造函数，并且存储为局部变量
+			const ChildScope = () => {};
+			// 将 ChildScope 的原型设置为当前 Scope
+			ChildScope.prototype = this;
+			// 利用 ChildScope 创建一个 child 对象并返回
+			child = new ChildScope();
+		}
 		// 每次新建一个child的时候都将其存入对应的children数组
 		this.$$children.push(child);
 		// 我们为每个子scope添加独立的$$watchers,这样就会做到覆盖属性，子scope执行$digest循环的时候就不会影响到父scope

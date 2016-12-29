@@ -71,6 +71,7 @@ export default class Scope {
 	 */
 	$$digestOnce() {
 		let dirty;
+		let continueLoop = true;
 		// 通过调用 $$everyScope 遍历整个当前scope的层级
 		this.$$everyScope(scope => {
 			let newValue, oldValue;
@@ -98,7 +99,7 @@ export default class Scope {
 							// $$lastDirtyWatch采用的是rootScope的，如果为当前scope设置,就会造成属性覆盖，我们必须保证scope中所有的监听器。
 							// 循环内部遍历 Scope 的层级, 直到所有 Scope 被访问或者缩短回路优化生效.
 							// 缩短回路优化使用 continueLoop 变量追踪. 如果它是 false, 则跳出 循环和 $$digestOnce 函数.
-							dirty = false;
+							continueLoop = false;
 							// 当检测到的结果是一个干净的watcher。lodash 中的 return false 可跳出循环。
 							return false;
 						}
@@ -107,7 +108,7 @@ export default class Scope {
 					console.error(e);
 				}
 			});
-			return dirty !== false;
+			return continueLoop;
 		});
 		return dirty;
 	}
@@ -142,7 +143,7 @@ export default class Scope {
 					const asyncTask = this.$$asyncQueue.shift();
 					asyncTask.scope.$eval(asyncTask.expression);
 				} catch (e) {
-					console.log(e);
+					console.error(e);
 				}
 			}
 			dirty = this.$$digestOnce();
@@ -160,7 +161,7 @@ export default class Scope {
 			try {
 				this.$$postDigestQueue.shift()();
 			} catch (e) {
-				console.log(e);
+				console.error(e);
 			}
 		}
 	}
@@ -358,20 +359,22 @@ export default class Scope {
 	 * 新建一个 scope
 	 * 关于这一块可以参考创建对象：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create
 	 * @param isolated  boolean值，判断是否为隔离作用域 true -- 创建子scope为隔离作用域，false就为原型继承
+	 * @param parent 指定当前scope的父级
 	 * @returns {ChildScope}
 	 */
-	$new(isolated) {
+	$new(isolated, parent) {
 		let child;
+		parent = parent || this;
 		if (isolated) {
 			child = new Scope();
 			// 同样各个延迟执行的队列也是唯一的
 			// 不管隔离作用域还是非隔离，我们都希望 $root 是唯一的
 			// 非隔离作用域继承原型，自动 copy 了一份
 			// 隔离作用域需要我们明确地给他赋值一下
-			child.$root = this.$root;
-			child.$$asyncQueue = this.$$asyncQueue;
-			child.$$postDigestQueue = this.$$postDigestQueue;
-			child.$$applyAsyncQueue = this.$$applyAsyncQueue;
+			child.$root = parent.$root;
+			child.$$asyncQueue = parent.$$asyncQueue;
+			child.$$postDigestQueue = parent.$$postDigestQueue;
+			child.$$applyAsyncQueue = parent.$$applyAsyncQueue;
 		} else {
 			// 首先我们创建一个构造函数，并且存储为局部变量
 			const ChildScope = () => {};
@@ -381,7 +384,7 @@ export default class Scope {
 			child = new ChildScope();
 		}
 		// 每次新建一个child的时候都将其存入对应的children数组
-		this.$$children.push(child);
+		parent.$$children.push(child);
 		// 我们为每个子scope添加独立的$$watchers,这样就会做到覆盖属性，子scope执行$digest循环的时候就不会影响到父scope
 		child.$$watchers = [];
 		// 为子scope也设置children存储

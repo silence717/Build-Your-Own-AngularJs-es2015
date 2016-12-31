@@ -416,13 +416,46 @@ export default class Scope {
 	 * 在$destroy中，我们需要一个对父scope的引用。我们在$new中添加一个。当子scope被创建时，它的$parent属性直接指向父scope使用。
 	 */
 	$destroy() {
+		// 判断当前scope是否有 $parent 属性，这样可以排除 rootScope
 		if (this.$parent) {
+			// 获取当前scope父scope的所有子scope
 			const siblings = this.$parent.$$children;
+			// 获取当前 scope 的index
 			const indexOfThis = siblings.indexOf(this);
+			// 如果存在，那么从父scope的children中删除
 			if (indexOfThis >= 0) {
 				siblings.splice(indexOfThis, 1);
 			}
 		}
+		// 将当前scope的watchers全部清空
 		this.$$watchers = null;
+	}
+
+	/**
+	 * 监测array和object
+	 * @returns {*}
+	 */
+	$watchCollection(watchFn, listenerFn) {
+		// 在外面设置新旧值，这样 watchFn 和 listenerFn 都可以调用这两个值
+		let newValue;
+		let oldValue;
+		// digest 是否调用listenerFn，通过比较 watchFn 返回值，引入一个整数变量，每次检测到变化自增
+		let changeCount = 0;
+		const internalWatchFn = scope => {
+			newValue = watchFn(scope);
+			// 通过判断新旧值是否一样，决定counter是否++
+			// 这样使用 $$areEqual 函数判断，可以处理NaN的情况
+			if (!this.$$areEqual(newValue, oldValue, false)) {
+				changeCount++;
+			}
+			// check for changes
+			oldValue = newValue;
+			return changeCount;
+		};
+		const internalListenerFn = () => {
+			listenerFn(newValue, oldValue, this);
+		};
+
+		return this.$watch(internalWatchFn, internalListenerFn);
 	}
 }

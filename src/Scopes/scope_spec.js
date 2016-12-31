@@ -1129,4 +1129,51 @@ describe('Scope', function () {
 			// expect(child.counter).toBe(2);
 		});
 	});
+
+	describe('$watchCollection', () => {
+		let scope;
+		beforeEach(() => {
+			scope = new Scope();
+		});
+		// $watchCollection可以正常监测非集合数据
+		it('works like a normal watch for non-collections', () => {
+			let valueProvided;
+			scope.aValue = 42;
+			scope.counter = 0;
+			scope.$watchCollection(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					valueProvided = newValue;
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+			expect(valueProvided).toBe(scope.aValue);
+
+			scope.aValue = 43;
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 检测特殊值NaN，因为NaN不和任何值相等
+		it('works like a normal watch for NaNs', () => {
+			scope.aValue = 0 / 0;
+			scope.counter = 0;
+			scope.$watchCollection(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
+
+	});
 });

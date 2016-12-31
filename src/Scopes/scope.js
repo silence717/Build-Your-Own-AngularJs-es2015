@@ -6,6 +6,14 @@ import _ from 'lodash';
 
 // 引入一个初始化函数
 function initWatchVal() {}
+// 添加一个类数组的判断方法，数组元素必须有一个length数字的属性
+function isArrayLike(obj) {
+	if (_.isNull(obj) || _.isUndefined(obj)) {
+		return false;
+	}
+	const length = obj.length;
+	return _.isNumber(length);
+}
 
 export default class Scope {
 
@@ -443,13 +451,39 @@ export default class Scope {
 		let changeCount = 0;
 		const internalWatchFn = scope => {
 			newValue = watchFn(scope);
-			// 通过判断新旧值是否一样，决定counter是否++
-			// 这样使用 $$areEqual 函数判断，可以处理NaN的情况
-			if (!this.$$areEqual(newValue, oldValue, false)) {
-				changeCount++;
+			// 首先判断是否为对象，然后再判断是否为数组，因为数组也是对象
+			if (_.isObject(newValue)) {
+				// 新值为一个数组，而旧值非数组，这个时候就可以检测到从非数组到数组的变化
+				if (isArrayLike(newValue)) {
+					// 非数组到数组监测
+					if (!_.isArray(oldValue)) {
+						changeCount++;
+						oldValue = [];
+					}
+					// 数组新加、删除元素，判断新旧值的长度即可知道
+					if (newValue.length !== oldValue.length) {
+						changeCount++;
+						oldValue.length = newValue.length;
+					}
+					// 判断数组的值和顺序是否发生改变
+					_.forEach(newValue, (newItem, i) => {
+						// 判断新旧值都不为NaN
+						const bothNaN = _.isNaN(newItem) && _.isNaN(oldValue[i]);
+						if (!bothNaN && newItem !== oldValue[i]) {
+							changeCount++;
+							oldValue[i] = newItem;
+						}
+					});
+				}
+			} else {
+				// 通过判断新旧值是否一样，决定counter是否++
+				// 这样使用 $$areEqual 函数判断，可以处理NaN的情况
+				if (!this.$$areEqual(newValue, oldValue, false)) {
+					changeCount++;
+				}
+				// check for changes
+				oldValue = newValue;
 			}
-			// check for changes
-			oldValue = newValue;
 			return changeCount;
 		};
 		const internalListenerFn = () => {

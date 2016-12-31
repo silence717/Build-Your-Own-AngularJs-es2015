@@ -1174,6 +1174,166 @@ describe('Scope', function () {
 			scope.$digest();
 			expect(scope.counter).toBe(1);
 		});
+		// 监测 value 变为一个数组
+		it('notices when the value becomes an array', () => {
+			scope.counter = 0;
+			scope.$watchCollection(
+				scope => scope.arr,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
 
+			scope.arr = [1, 2, 3];
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 监测数组新加入一个值的时候变化
+		it('notices an item added to an array', () => {
+			scope.arr = [1, 2, 3];
+			scope.counter = 0;
+			scope.$watchCollection(
+				scope => scope.arr,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			scope.arr.push(4);
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 监测数组删除一个元素的变化
+		it('notices an item removed from an array', () => {
+			scope.arr = [1, 2, 3];
+			scope.counter = 0;
+			scope.$watchCollection(
+				scope => scope.arr,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			scope.arr.shift();
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 监测数组的某个值发生改变的时候
+		it('notices an item replaced in an array', () => {
+			scope.arr = [1, 2, 3];
+			scope.counter = 0;
+			scope.$watchCollection(
+				scope => scope.arr,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			scope.arr[1] = 42;
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 数组值顺序发生改变
+		it('notices items reordered in an array', () => {
+			scope.arr = [2, 1, 3];
+			scope.counter = 0;
+			scope.$watchCollection(
+				scope => scope.arr,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			scope.arr.sort();
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 数组中的值含有NaN的时候
+		it('does not fail on NaNs in arrays', () => {
+			scope.arr = [2, NaN, 3];
+			scope.counter = 0;
+			scope.$watchCollection(
+				scope => scope.arr,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
+		// 使用arguments替换数组的值
+		it('notices an item replaced in an arguments object', () => {
+			// 使用一个自执行函数将参数存储到 scope.arrayLike
+			(function() {
+				scope.arrayLike = arguments;
+			})(1, 2, 3);
+			scope.counter = 0;
+
+			scope.$watchCollection(
+				scope => scope.arrayLike,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			scope.arrayLike[1] = 42;
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 存储一个nodeList类数组元素，通过 querySelectorAll 和 getElementsByTagName 获取到的dom元素均为类数组元素
+		it('notices an item replaced in a NodeList object', () => {
+			// 先给DOM上添加一个一个idv,再去获取
+			document.documentElement.appendChild(document.createElement('div'));
+			scope.arrayLike = document.getElementsByTagName('div');
+
+			scope.counter = 0;
+			scope.$watchCollection(
+				scope => scope.arrayLike,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			document.documentElement.appendChild(document.createElement('div'));
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
 	});
 });

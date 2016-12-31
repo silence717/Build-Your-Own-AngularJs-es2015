@@ -389,6 +389,8 @@ export default class Scope {
 		child.$$watchers = [];
 		// 为子scope也设置children存储
 		child.$$children = [];
+		// 添加一个$parent属性，指向它的父scope
+		child.$parent = parent;
 		return child;
 	}
 
@@ -405,5 +407,22 @@ export default class Scope {
 		} else {
 			return false;
 		}
+	}
+
+	/**
+	 * 一个典型的angularJs应用的生命周期，页面元素变化是通过不同的视图和数据呈现给用户，随着越来越多的controller和directive会导致scope层级越来越复杂
+	 * 在目前的实现里面，我们可以创建子scope，但是没有删除它的机制。当考虑性能时，一个日益壮大的scope层级是非常不合适的，因此我们需要一种方式销毁scope.
+	 * 销毁一个scope意味着，scope上的所有监听器要删除并且把它自己从父scope上的$$children属性删除，该scope不在需要再被任何地方引用，它在某个时间会被javascript垃圾回收器回收。
+	 * 在$destroy中，我们需要一个对父scope的引用。我们在$new中添加一个。当子scope被创建时，它的$parent属性直接指向父scope使用。
+	 */
+	$destroy() {
+		if (this.$parent) {
+			const siblings = this.$parent.$$children;
+			const indexOfThis = siblings.indexOf(this);
+			if (indexOfThis >= 0) {
+				siblings.splice(indexOfThis, 1);
+			}
+		}
+		this.$$watchers = null;
 	}
 }

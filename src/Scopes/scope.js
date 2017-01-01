@@ -12,7 +12,10 @@ function isArrayLike(obj) {
 		return false;
 	}
 	const length = obj.length;
-	return _.isNumber(length);
+	// 处理含有length属性的对象
+	// 带有数组类型 length 属性的对象, 并且这个对象有一个比这个 length 属性小于 1 的 key.
+	// 如果一个对象有一个 length 为 42 的属性, 那它也一定有叫做 41 的属性.
+	return length === 0 || (_.isNumber(length) && length > 0 && (length - 1) in obj);
 }
 
 export default class Scope {
@@ -447,9 +450,13 @@ export default class Scope {
 		// 在外面设置新旧值，这样 watchFn 和 listenerFn 都可以调用这两个值
 		let newValue;
 		let oldValue;
+		// 存储一个旧值的长度，为了优化对象进行两次不必要的循环
+		let oldLength;
 		// digest 是否调用listenerFn，通过比较 watchFn 返回值，引入一个整数变量，每次检测到变化自增
 		let changeCount = 0;
 		const internalWatchFn = scope => {
+			// 存储新值长度
+			let newLength;
 			newValue = watchFn(scope);
 			// 首先判断是否为对象，然后再判断是否为数组，因为数组也是对象
 			if (_.isObject(newValue)) {
@@ -474,6 +481,42 @@ export default class Scope {
 							oldValue[i] = newItem;
 						}
 					});
+				} else {
+					// 由于数组也是一个对象，所以我们需要使用 isArrayLike 判断旧值是否为一个数组或者类数组对象
+					if (!_.isObject(oldValue) || isArrayLike(oldValue)) {
+						changeCount++;
+						oldValue = {};
+						oldLength = 0;
+					}
+					newLength = 0;
+					// LoDash 的 _.forOwn 方法遍历对象的属性, 但是它只遍历对象自己定义的属性. 从原型链上继承的属性会被排除在外. 因此 $watchCollection 不监控对象上继承自原型链的属性.
+					_.forOwn(newValue, (newVal, key) => {
+						// 通过这一轮循环我们就得到新值的长度
+						newLength++;
+						if (oldValue.hasOwnProperty(key)) {
+							const bothNaN = _.isNaN(newVal) && _.isNaN(oldValue[key]);
+							if (!bothNaN && oldValue[key] !== newVal) {
+								changeCount++;
+								oldValue[key] = newVal;
+							}
+						} else {
+							// 如果旧值不含有当前属性，则对其长度加1
+							changeCount++;
+							oldLength++;
+							oldValue[key] = newVal;
+						}
+					});
+					// 通过循环我们就可得到新值和旧值的长度，如果旧值大于新值，那么继续第二轮循环，小于则跳出
+					if (oldLength > newLength) {
+						changeCount++;
+						// 判断是否删除一个一个元素，看看新增是否包含旧值的每个属性，如果没有则属性已被删除
+						_.forOwn(oldValue, (oldVal, key) => {
+							if (!newValue.hasOwnProperty(key)) {
+								oldLength--;
+								delete oldValue[key];
+							}
+						});
+					}
 				}
 			} else {
 				// 通过判断新旧值是否一样，决定counter是否++

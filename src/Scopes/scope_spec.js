@@ -1335,5 +1335,124 @@ describe('Scope', function () {
 			scope.$digest();
 			expect(scope.counter).toBe(2);
 		});
+		// 一个非集合数据转为对象时候
+		it('notices when the value becomes an object', () => {
+			scope.counter = 0;
+
+			scope.$watchCollection(
+				scope => scope.obj,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			scope.obj = {a: 1};
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 对象新增一个属性
+		it('notices when an attribute is added to an object', () => {
+			scope.counter = 0;
+			scope.obj = {a: 1};
+
+			scope.$watchCollection(
+				scope => scope.obj,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			scope.obj.b = 2;
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 更改对象一个属性值
+		it('notices when an attribute is changed in an object', () => {
+			scope.counter = 0;
+			scope.obj = {a: 1};
+
+			scope.$watchCollection(
+				scope => scope.obj,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			scope.obj.a = 2;
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// NaN需要特殊处理
+		it('does not fail on NaN attributes in objects', () => {
+			scope.counter = 0;
+			scope.obj = {a: NaN};
+
+			scope.$watchCollection(
+				scope => scope.obj,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
+		// 删除元素上的一个属性
+		it('notices when an attribute is removed from an object', function() {
+			scope.counter = 0;
+			scope.obj = {a: 1};
+
+			scope.$watchCollection(
+				scope => scope.obj,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+
+			delete scope.obj.a;
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+		// 处理具有length属性的对象
+		it('does not consider any object with a length property an array', () => {
+			scope.obj = {length: 42, otherKey: 'abc'};
+			scope.counter = 0;
+
+			scope.$watchCollection(
+				scope => scope.obj,
+				(newValue, oldValue, scope) => {
+					scope.counter++;
+				}
+			);
+
+			scope.$digest();
+
+			scope.obj.newKey = 'def';
+			scope.$digest();
+
+			expect(scope.counter).toBe(2);
+		});
 	});
 });

@@ -452,8 +452,13 @@ export default class Scope {
 		let oldValue;
 		// 存储一个旧值的长度，为了优化对象进行两次不必要的循环
 		let oldLength;
+		// 存储最原始的未改变的旧值
+		let veryOldValue;
+		let trackVeryOldValue = (listenerFn.length > 1);
 		// digest 是否调用listenerFn，通过比较 watchFn 返回值，引入一个整数变量，每次检测到变化自增
 		let changeCount = 0;
+		// 是否为第一次调用
+		let firstRun = true;
 		const internalWatchFn = scope => {
 			// 存储新值长度
 			let newLength;
@@ -529,8 +534,18 @@ export default class Scope {
 			}
 			return changeCount;
 		};
+		// 内部监听函数
 		const internalListenerFn = () => {
-			listenerFn(newValue, oldValue, this);
+			if (firstRun) {
+				listenerFn(newValue, newValue, this);
+				firstRun = false;
+			} else {
+				listenerFn(newValue, veryOldValue, this);
+			}
+
+			if (trackVeryOldValue) {
+				veryOldValue = _.clone(newValue);
+			}
 		};
 
 		return this.$watch(internalWatchFn, internalListenerFn);

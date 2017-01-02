@@ -1414,7 +1414,7 @@ describe('Scope', function () {
 			expect(scope.counter).toBe(1);
 		});
 		// 删除元素上的一个属性
-		it('notices when an attribute is removed from an object', function() {
+		it('notices when an attribute is removed from an object', () => {
 			scope.counter = 0;
 			scope.obj = {a: 1};
 
@@ -1453,6 +1453,77 @@ describe('Scope', function () {
 			scope.$digest();
 
 			expect(scope.counter).toBe(2);
+		});
+		// 对listener函数处理旧集合的值
+		// 这个是非数据集合测试
+		it('gives the old non-collection value to listeners', () => {
+			scope.aValue = 42;
+			let oldValueGiven;
+
+			scope.$watchCollection(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					oldValueGiven = oldValue;
+				}
+			);
+
+			scope.$digest();
+
+			scope.aValue = 43;
+			scope.$digest();
+
+			expect(oldValueGiven).toBe(42);
+		});
+		// 数组测试
+		it('gives the old array value to listeners', () => {
+			scope.aValue = [1, 2, 3];
+			let oldValueGiven;
+
+			scope.$watchCollection(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					oldValueGiven = oldValue;
+				}
+			);
+
+			scope.$digest();
+
+			scope.aValue.push(4);
+			scope.$digest();
+			expect(oldValueGiven).toEqual([1, 2, 3]);
+		});
+		// 对象测试
+		it('gives the old object value to listeners', () => {
+			scope.aValue = {a: 1, b: 2};
+			let oldValueGiven;
+
+			scope.$watchCollection(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					oldValueGiven = oldValue;
+				}
+			);
+			scope.$digest();
+
+			scope.aValue.c = 3;
+			scope.$digest();
+
+			expect(oldValueGiven).toEqual({a: 1, b: 2});
+		});
+		// 在listenerFn第一次的调用中将新值赋值给旧值
+		it('uses the new value as the old value on first digest', () => {
+			scope.aValue = {a: 1, b: 2};
+			let oldValueGiven;
+
+			scope.$watchCollection(
+				scope => scope.aValue,
+				(newValue, oldValue, scope) => {
+					oldValueGiven = oldValue;
+				}
+			);
+
+			scope.$digest();
+			expect(oldValueGiven).toEqual({a: 1, b: 2});
 		});
 	});
 });

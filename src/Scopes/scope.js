@@ -570,4 +570,26 @@ export default class Scope {
 		// 存储监听函数
 		listeners.push(listener);
 	}
+
+	/**
+	 * 事件向上传递，触发当前 scope 和它的父 scope
+	 * @param eventName  事件名称
+	 */
+	$emit(eventName) {
+		const listeners = this.$$listeners[eventName] || [];
+		_.forEach(listeners, listener => {
+			listener();
+		});
+	}
+
+	/**
+	 *事件向下广播，触发当前 scope 和它的子 scope
+	 * @param eventName  事件名称
+	 */
+	$broadcast(eventName) {
+		const listeners = this.$$listeners[eventName] || [];
+		_.forEach(listeners, listener => {
+			listener();
+		});
+	};
 }

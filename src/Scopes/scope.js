@@ -575,12 +575,16 @@ export default class Scope {
 	 * 抽取 $emit 和 $broadcast的公共代码部分
 	 * @param eventName
 	 */
-	$$fireEventOnScope(eventName) {
+	$$fireEventOnScope(eventName, additionalArgs) {
 		// 创建事件对象，并且将它传入listener函数
 		const event = {name: eventName};
+		// 将方式名称与其余参数拼接
+		const listenerArgs = [event].concat(additionalArgs);
+		// 从监听器中获取相同名字的listener
 		const listeners = this.$$listeners[eventName] || [];
+		// 一次执行每个监听器的方法
 		_.forEach(listeners, listener => {
-			listener(event);
+			listener.apply(null, listenerArgs);
 		});
 	}
 	/**
@@ -588,7 +592,9 @@ export default class Scope {
 	 * @param eventName  事件名称
 	 */
 	$emit(eventName) {
-		this.$$fireEventOnScope(eventName);
+		// _.tail方法是除第一个元素之外的所有
+		const additionalArgs = _.tail(arguments);
+		this.$$fireEventOnScope(eventName, additionalArgs);
 	}
 
 	/**
@@ -596,6 +602,7 @@ export default class Scope {
 	 * @param eventName  事件名称
 	 */
 	$broadcast(eventName) {
-		this.$$fireEventOnScope(eventName);
+		const additionalArgs = _.tail(arguments);
+		this.$$fireEventOnScope(eventName, additionalArgs);
 	};
 }

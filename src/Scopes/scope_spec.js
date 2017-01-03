@@ -1606,6 +1606,17 @@ describe('Scope', function () {
 
 				expect(event1).toBe(event2);
 			});
+			// 为事件传递更多参数,并验证是否相符
+			it('passes additional arguments to listeners on ' + method, () => {
+				const listener = jasmine.createSpy();
+				scope.$on('someEvent', listener);
+
+				scope[method]('someEvent', 'and', ['additional', 'arguments'], '...');
+
+				expect(listener.calls.mostRecent().args[1]).toEqual('and');
+				expect(listener.calls.mostRecent().args[2]).toEqual(['additional', 'arguments']);
+				expect(listener.calls.mostRecent().args[3]).toEqual('...');
+			});
 		});
 	});
 });

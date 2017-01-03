@@ -569,6 +569,14 @@ export default class Scope {
 		}
 		// 存储监听函数
 		listeners.push(listener);
+		// 想注销watcher一样注销事件监听器，一旦注销被调用，事件监听器将不会接收任何事件
+		return () => {
+			const index = listeners.indexOf(listener);
+			if (index >= 0) {
+				// 为了防止listener数组执行过程中删除自己，然后数组循环过程中跳过下一个，所以我们将其置为空
+				listeners[index] = null;
+			}
+		};
 	}
 
 	/**
@@ -582,10 +590,18 @@ export default class Scope {
 		const listenerArgs = [event].concat(additionalArgs);
 		// 从监听器中获取相同名字的listener
 		const listeners = this.$$listeners[eventName] || [];
-		// 一次执行每个监听器的方法
-		_.forEach(listeners, listener => {
-			listener.apply(null, listenerArgs);
-		});
+		// 定义一个变量i
+		let i = 0;
+		// 由于上面对listener做了为null的处理，所以改为使用while循环添加判断
+		while (i < listeners.length) {
+			if (listeners[i] === null) {
+				listeners.splice(i, 1);
+			} else {
+				// 执行每个监听器的方法
+				listeners[i].apply(null, listenerArgs);
+				i++;
+			}
+		}
 		return event;
 	}
 	/**

@@ -1624,6 +1624,32 @@ describe('Scope', function () {
 				expect(returnedEvent).toBeDefined();
 				expect(returnedEvent.name).toEqual('someEvent');
 			});
+			// 注销事件监听器
+			it('can be deregistered ' + method, () => {
+				const listener = jasmine.createSpy();
+				const deregister = scope.$on('someEvent', listener);
+
+				deregister();
+
+				scope[method]('someEvent');
+
+				expect(listener).not.toHaveBeenCalled();
+			});
+			// 在监听器触发时删除自己是非常常见的, 举例当我们只调用 listener 一次. 这种删除发生在循环 listeners 数组时, 会导致跳过一个 listener.
+			it('does not skip the next listener when removed on ' + method, () => {
+				let deregister;
+
+				const listener = () => {
+					deregister();
+				};
+				const nextListener = jasmine.createSpy();
+
+				deregister = scope.$on('someEvent', listener);
+				scope.$on('someEvent', nextListener);
+
+				scope[method]('someEvent');
+				expect(nextListener).toHaveBeenCalled();
+			});
 		});
 	});
 });

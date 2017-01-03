@@ -572,14 +572,21 @@ export default class Scope {
 	}
 
 	/**
-	 * 事件向上传递，触发当前 scope 和它的父 scope
-	 * @param eventName  事件名称
+	 * 抽取 $emit 和 $broadcast的公共代码部分
+	 * @param eventName
 	 */
-	$emit(eventName) {
+	$$fireEventOnScope(eventName) {
 		const listeners = this.$$listeners[eventName] || [];
 		_.forEach(listeners, listener => {
 			listener();
 		});
+	}
+	/**
+	 * 事件向上传递，触发当前 scope 和它的父 scope
+	 * @param eventName  事件名称
+	 */
+	$emit(eventName) {
+		this.$$fireEventOnScope(eventName);
 	}
 
 	/**
@@ -587,9 +594,6 @@ export default class Scope {
 	 * @param eventName  事件名称
 	 */
 	$broadcast(eventName) {
-		const listeners = this.$$listeners[eventName] || [];
-		_.forEach(listeners, listener => {
-			listener();
-		});
+		this.$$fireEventOnScope(eventName);
 	};
 }

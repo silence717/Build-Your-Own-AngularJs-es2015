@@ -1591,5 +1591,19 @@ describe('Scope', function () {
 			expect(listener1).toHaveBeenCalled();
 			expect(listener2).not.toHaveBeenCalled();
 		});
+		// 提取公共代码
+		_.forEach(['$emit', '$broadcast'], method => {
+			it('calls listeners registered for matching events on ' + method, () => {
+				const listener1 = jasmine.createSpy();
+				const listener2 = jasmine.createSpy();
+				scope.$on('someEvent', listener1);
+
+				scope.$on('someOtherEvent', listener2);
+
+				scope[method]('someEvent');
+				expect(listener1).toHaveBeenCalled();
+				expect(listener2).not.toHaveBeenCalled();
+			});
+		});
 	});
 });

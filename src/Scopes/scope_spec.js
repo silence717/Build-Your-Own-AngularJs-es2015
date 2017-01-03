@@ -1526,4 +1526,46 @@ describe('Scope', function () {
 			expect(oldValueGiven).toEqual({a: 1, b: 2});
 		});
 	});
+
+	describe('Events', () => {
+		let parent;
+		let scope;
+		let child;
+		let isolatedChild;
+
+		beforeEach(() => {
+			parent = new Scope();
+			scope = parent.$new();
+			child = scope.$new();
+			isolatedChild = scope.$new(true);
+		});
+		// 允许存储 listener 函数
+		it('allows registering listeners', () => {
+			const listener1 = () => { };
+			const listener2 = () => { };
+			const listener3 = () => { };
+			scope.$on('someEvent', listener1);
+			scope.$on('someEvent', listener2);
+			scope.$on('someOtherEvent', listener3);
+
+			expect(scope.$$listeners).toEqual({
+				someEvent: [listener1, listener2],
+				someOtherEvent: [listener3]
+			});
+		});
+		// 不同的scope有不同的listener
+		it('registers different listeners for every scope', () => {
+			const listener1 = () => { };
+			const listener2 = () => { };
+			const listener3 = () => { };
+
+			scope.$on('someEvent', listener1);
+			child.$on('someEvent', listener2);
+			isolatedChild.$on('someEvent', listener3);
+
+			expect(scope.$$listeners).toEqual({someEvent: [listener1]});
+			expect(child.$$listeners).toEqual({someEvent: [listener2]});
+			expect(isolatedChild.$$listeners).toEqual({someEvent: [listener3]});
+		});
+	});
 });

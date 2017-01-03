@@ -40,6 +40,8 @@ export default class Scope {
 		this.$$children = [];
 		// 添加一个rootScope的引用
 		this.$root = this;
+		// 存储 $on 的监听函数
+		this.$$listeners = [];
 	}
 
 	/**
@@ -402,6 +404,8 @@ export default class Scope {
 		child.$$children = [];
 		// 添加一个$parent属性，指向它的父scope
 		child.$parent = parent;
+		// 为每个子scope添加自己的监听器
+		child.$$listeners = {};
 		return child;
 	}
 
@@ -549,5 +553,21 @@ export default class Scope {
 		};
 
 		return this.$watch(internalWatchFn, internalListenerFn);
+	}
+
+	/**
+	 * 注册事件监听器 $on
+	 * @param eventName  事件名称
+	 * @param listener   事件响应
+	 */
+	$on(eventName, listener) {
+		// 先去判断当前是否已经存储了这个监听器
+		let listeners = this.$$listeners[eventName];
+		// 如果没有，将其置为空
+		if (!listeners) {
+			this.$$listeners[eventName] = listeners = [];
+		}
+		// 存储监听函数
+		listeners.push(listener);
 	}
 }

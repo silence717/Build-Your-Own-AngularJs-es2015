@@ -1606,7 +1606,7 @@ describe('Scope', function () {
 
 				expect(event1).toBe(event2);
 			});
-			// 为事件传递更多参数,并验证是否相符
+			// 为事件传递更多参数，并验证是否相符
 			it('passes additional arguments to listeners on ' + method, () => {
 				const listener = jasmine.createSpy();
 				scope.$on('someEvent', listener);
@@ -1616,6 +1616,13 @@ describe('Scope', function () {
 				expect(listener.calls.mostRecent().args[1]).toEqual('and');
 				expect(listener.calls.mostRecent().args[2]).toEqual(['additional', 'arguments']);
 				expect(listener.calls.mostRecent().args[3]).toEqual('...');
+			});
+			// $emit 和 $broadcast 都有的一个额外的特性就是它们都返回自己构建的事件对象, 因此事件的发起者在事件完成后可以检测事件的状态.
+			it('returns the event object on ' + method, () => {
+				const returnedEvent = scope[method]('someEvent');
+
+				expect(returnedEvent).toBeDefined();
+				expect(returnedEvent.name).toEqual('someEvent');
 			});
 		});
 	});

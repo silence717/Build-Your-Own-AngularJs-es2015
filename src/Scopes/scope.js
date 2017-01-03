@@ -586,6 +586,7 @@ export default class Scope {
 		_.forEach(listeners, listener => {
 			listener.apply(null, listenerArgs);
 		});
+		return event;
 	}
 	/**
 	 * 事件向上传递，触发当前 scope 和它的父 scope
@@ -594,7 +595,7 @@ export default class Scope {
 	$emit(eventName) {
 		// _.tail方法是除第一个元素之外的所有
 		const additionalArgs = _.tail(arguments);
-		this.$$fireEventOnScope(eventName, additionalArgs);
+		return this.$$fireEventOnScope(eventName, additionalArgs);
 	}
 
 	/**
@@ -603,6 +604,6 @@ export default class Scope {
 	 */
 	$broadcast(eventName) {
 		const additionalArgs = _.tail(arguments);
-		this.$$fireEventOnScope(eventName, additionalArgs);
+		return this.$$fireEventOnScope(eventName, additionalArgs);
 	};
 }

@@ -1567,42 +1567,44 @@ describe('Scope', function () {
 			expect(child.$$listeners).toEqual({someEvent: [listener2]});
 			expect(isolatedChild.$$listeners).toEqual({someEvent: [listener3]});
 		});
-		// 调用 $emit 的时候，触发对应的listener
-		it('calls the listeners of the matching event on $emit', () => {
-			const listener1 = jasmine.createSpy();
-			const listener2 = jasmine.createSpy();
-			scope.$on('someEvent', listener1);
-			scope.$on('someOtherEvent', listener2);
-
-			scope.$emit('someEvent');
-
-			expect(listener1).toHaveBeenCalled();
-			expect(listener2).not.toHaveBeenCalled();
-		});
-		// 调用 $broadcast 的时候，触发对应的listener
-		it('calls the listeners of the matching event on $broadcast', () => {
-			const listener1 = jasmine.createSpy();
-			const listener2 = jasmine.createSpy();
-			scope.$on('someEvent', listener1);
-			scope.$on('someOtherEvent', listener2);
-
-			scope.$broadcast('someEvent');
-
-			expect(listener1).toHaveBeenCalled();
-			expect(listener2).not.toHaveBeenCalled();
-		});
-		// 提取公共代码
+		// 提取 $emit,$broadcast 公共代码
 		_.forEach(['$emit', '$broadcast'], method => {
+			// 调用与方法匹配的listener
 			it('calls listeners registered for matching events on ' + method, () => {
 				const listener1 = jasmine.createSpy();
 				const listener2 = jasmine.createSpy();
 				scope.$on('someEvent', listener1);
-
 				scope.$on('someOtherEvent', listener2);
 
 				scope[method]('someEvent');
+
 				expect(listener1).toHaveBeenCalled();
 				expect(listener2).not.toHaveBeenCalled();
+			});
+			// 通过传递事件对象为事件添加一个名称
+			it('passes an event object with a name to listeners on ' + method, () => {
+				const listener = jasmine.createSpy();
+				scope.$on('someEvent', listener);
+
+				scope[method]('someEvent');
+
+				expect(listener).toHaveBeenCalled();
+				// calls.mostRecent()包含最后一次调用spy的方法信息
+				expect(listener.calls.mostRecent().args[0].name).toEqual('someEvent');
+			});
+			// 对每个listener传递相同的事件对象
+			it('passes the same event object to each listener on ' + method, () => {
+				const listener1 = jasmine.createSpy();
+				const listener2 = jasmine.createSpy();
+				scope.$on('someEvent', listener1);
+				scope.$on('someEvent', listener2);
+
+				scope[method]('someEvent');
+
+				const event1 = listener1.calls.mostRecent().args[0];
+				const event2 = listener2.calls.mostRecent().args[0];
+
+				expect(event1).toBe(event2);
 			});
 		});
 	});

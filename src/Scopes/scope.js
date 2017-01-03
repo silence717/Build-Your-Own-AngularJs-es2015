@@ -576,9 +576,11 @@ export default class Scope {
 	 * @param eventName
 	 */
 	$$fireEventOnScope(eventName) {
+		// 创建事件对象，并且将它传入listener函数
+		const event = {name: eventName};
 		const listeners = this.$$listeners[eventName] || [];
 		_.forEach(listeners, listener => {
-			listener();
+			listener(event);
 		});
 	}
 	/**

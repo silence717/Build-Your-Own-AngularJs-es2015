@@ -431,6 +431,8 @@ export default class Scope {
 	 * 在$destroy中，我们需要一个对父scope的引用。我们在$new中添加一个。当子scope被创建时，它的$parent属性直接指向父scope使用。
 	 */
 	$destroy() {
+		// 当前scope被删除的时候，将这个事件广播出去，它下面的子scope监听器都会接收到
+		this.$broadcast('$destroy');
 		// 判断当前scope是否有 $parent 属性，这样可以排除 rootScope
 		if (this.$parent) {
 			// 获取当前scope父scope的所有子scope

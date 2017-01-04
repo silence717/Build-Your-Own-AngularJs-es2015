@@ -1829,5 +1829,23 @@ describe('Scope', function () {
 			scope.$emit('someEvent');
 			expect(listener2).toHaveBeenCalled();
 		});
+		// 当删除调用销毁方法的时候触发 $destroy 监听器
+		it('fires $destroy when destroyed', () => {
+			const listener = jasmine.createSpy();
+			scope.$on('$destroy', listener);
+
+			scope.$destroy();
+
+			expect(listener).toHaveBeenCalled();
+		});
+		// 当一个scope被销毁的时候，它的子scope都会触发监听器
+		it('fires $destroy on children destroyed', () => {
+			const listener = jasmine.createSpy();
+			child.$on('$destroy', listener);
+
+			scope.$destroy();
+
+			expect(listener).toHaveBeenCalled();
+		});
 	});
 });

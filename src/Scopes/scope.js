@@ -605,8 +605,17 @@ export default class Scope {
 	 * $emit 在一个直线上向上传播事件, 通常 Scope 的层级也不会很深.
 	 */
 	$emit(eventName) {
+		// 创建一个是否调用冒泡的flag
+		let propagationStopped = false;
 		// 创建事件对象，并且将它传入listener函数
-		const event = {name: eventName, targetScope: this};
+		const event = {
+			name: eventName,
+			targetScope: this,
+			// 调用该事件之后，表示组织冒泡
+			stopPropagation: () => {
+				propagationStopped = true;
+			}
+		};
 		// 将方式名称与其余参数拼接，其中_.tail方法是除第一个元素之外的所有
 		const listenerArgs = [event].concat(_.tail(arguments));
 		let scope = this;
@@ -615,7 +624,7 @@ export default class Scope {
 			event.currentScope = scope;
 			scope.$$fireEventOnScope(eventName, listenerArgs);
 			scope = scope.$parent;
-		} while (scope);
+		} while (scope && !propagationStopped);
 		// 因为 currentScope 是用来沟通事件传播的当前状态, 事件传播结束后应该被清除掉.
 		event.currentScope = null;
 		return event;
@@ -628,7 +637,10 @@ export default class Scope {
 	 */
 	$broadcast(eventName) {
 		// 创建事件对象，并且将它传入listener函数
-		const event = {name: eventName, targetScope: this};
+		const event = {
+			name: eventName,
+			targetScope: this,
+		};
 		// 将方式名称与其余参数拼接，其中_.tail方法是除第一个元素之外的所有
 		const listenerArgs = [event].concat(_.tail(arguments));
 		// 在当前的Scope上调用一次fn,并且递归调用当前scope的子Scope

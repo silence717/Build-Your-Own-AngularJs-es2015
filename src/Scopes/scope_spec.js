@@ -1792,6 +1792,31 @@ describe('Scope', function () {
 
 			expect(event.currentScope).toBe(null);
 		});
+		// 阻止事件冒泡，停止后事件不会向上传播
+		it('does not propagate to parents when stopped', () => {
+			const scopeListener = event => {
+				event.stopPropagation();
+			};
+			const parentListener = jasmine.createSpy();
 
+			scope.$on('someEvent', scopeListener);
+			parent.$on('someEvent', parentListener);
+
+			scope.$emit('someEvent');
+			expect(parentListener).not.toHaveBeenCalled();
+		});
+		// 事件仍然会传递给当前scope中所剩余的listener，只是阻止向父scope传递
+		it('is received by listeners on current scope after being stopped', function() {
+			const listener1 = event => {
+				event.stopPropagation();
+			};
+			const listener2 = jasmine.createSpy();
+
+			scope.$on('someEvent', listener1);
+			scope.$on('someEvent', listener2);
+
+			scope.$emit('someEvent');
+			expect(listener2).toHaveBeenCalled();
+		});
 	});
 });

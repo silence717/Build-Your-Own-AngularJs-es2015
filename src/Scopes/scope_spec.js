@@ -1817,7 +1817,7 @@ describe('Scope', function () {
 			expect(parentListener).not.toHaveBeenCalled();
 		});
 		// 事件仍然会传递给当前scope中所剩余的listener，只是阻止向父scope传递
-		it('is received by listeners on current scope after being stopped', function() {
+		it('is received by listeners on current scope after being stopped', () => {
 			const listener1 = event => {
 				event.stopPropagation();
 			};
@@ -1846,6 +1846,16 @@ describe('Scope', function () {
 			scope.$destroy();
 
 			expect(listener).toHaveBeenCalled();
+		});
+		// 销毁scope之后，使listener失效
+		it('no longers calls listeners after destroyed', () => {
+			const listener = jasmine.createSpy();
+			scope.$on('myEvent', listener);
+
+			scope.$destroy();
+
+			scope.$emit('myEvent');
+			expect(listener).not.toHaveBeenCalled();
 		});
 	});
 });

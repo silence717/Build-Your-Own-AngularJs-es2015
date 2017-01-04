@@ -446,6 +446,8 @@ export default class Scope {
 		}
 		// 将当前scope的watchers全部清空
 		this.$$watchers = null;
+		// 销毁以后将所有的listener清空
+		this.$$listeners = {};
 	}
 
 	/**

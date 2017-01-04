@@ -1651,5 +1651,32 @@ describe('Scope', function () {
 				expect(nextListener).toHaveBeenCalled();
 			});
 		});
+		// $emit调用的时候事件向上传播，当前scope和父scope都会被调用
+		xit('propagates up the scope hierarchy on $emit', () => {
+			const parentListener = jasmine.createSpy();
+			const scopeListener = jasmine.createSpy();
+
+			parent.$on('someEvent', parentListener);
+			scope.$on('someEvent', scopeListener);
+
+			scope.$emit('someEvent');
+
+			expect(scopeListener).toHaveBeenCalled();
+			expect(parentListener).toHaveBeenCalled();
+		});
+		// $emit传播的时候父、子scope触发的应该是同一事件
+		xit('propagates the same event up on $emit', () => {
+			const parentListener = jasmine.createSpy();
+			const scopeListener = jasmine.createSpy();
+
+			parent.$on('someEvent', parentListener);
+			scope.$on('someEvent', scopeListener);
+
+			scope.$emit('someEvent');
+
+			const scopeEvent = scopeListener.calls.mostRecent().args[0];
+			const parentEvent = parentListener.calls.mostRecent().args[0];
+			expect(scopeEvent).toBe(parentEvent);
+		});
 	});
 });

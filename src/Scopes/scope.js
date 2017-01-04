@@ -583,11 +583,7 @@ export default class Scope {
 	 * 抽取 $emit 和 $broadcast的公共代码部分
 	 * @param eventName
 	 */
-	$$fireEventOnScope(eventName, additionalArgs) {
-		// 创建事件对象，并且将它传入listener函数
-		const event = {name: eventName};
-		// 将方式名称与其余参数拼接
-		const listenerArgs = [event].concat(additionalArgs);
+	$$fireEventOnScope(eventName, listenerArgs) {
 		// 从监听器中获取相同名字的listener
 		const listeners = this.$$listeners[eventName] || [];
 		// 定义一个变量i
@@ -602,24 +598,35 @@ export default class Scope {
 				i++;
 			}
 		}
-		return event;
 	}
 	/**
 	 * 事件向上传递，触发当前 scope 和它的父 scope
 	 * @param eventName  事件名称
 	 */
 	$emit(eventName) {
-		// _.tail方法是除第一个元素之外的所有
-		const additionalArgs = _.tail(arguments);
-		return this.$$fireEventOnScope(eventName, additionalArgs);
+		// 创建事件对象，并且将它传入listener函数
+		const event = {name: eventName};
+		// 将方式名称与其余参数拼接，其中_.tail方法是除第一个元素之外的所有
+		const listenerArgs = [event].concat(_.tail(arguments));
+		let scope = this;
+		// 使用do while循环，判断当前scope是否存在parent
+		do {
+			this.$$fireEventOnScope(eventName, listenerArgs);
+			scope = scope.$parent;
+		} while (scope);
+		return event;
 	}
 
 	/**
-	 *事件向下广播，触发当前 scope 和它的子 scope
+	 * 事件向下广播，触发当前 scope 和它的子 scope
 	 * @param eventName  事件名称
 	 */
 	$broadcast(eventName) {
-		const additionalArgs = _.tail(arguments);
-		return this.$$fireEventOnScope(eventName, additionalArgs);
+		// 创建事件对象，并且将它传入listener函数
+		const event = {name: eventName};
+		// 将方式名称与其余参数拼接，其中_.tail方法是除第一个元素之外的所有
+		const listenerArgs = [event].concat(_.tail(arguments));
+		this.$$fireEventOnScope(eventName, listenerArgs);
+		return event;
 	};
 }

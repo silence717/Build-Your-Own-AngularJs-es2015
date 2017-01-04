@@ -602,35 +602,43 @@ export default class Scope {
 	/**
 	 * 事件向上传递，触发当前 scope 和它的父 scope
 	 * @param eventName  事件名称
+	 * $emit 在一个直线上向上传播事件, 通常 Scope 的层级也不会很深.
 	 */
 	$emit(eventName) {
 		// 创建事件对象，并且将它传入listener函数
-		const event = {name: eventName};
+		const event = {name: eventName, targetScope: this};
 		// 将方式名称与其余参数拼接，其中_.tail方法是除第一个元素之外的所有
 		const listenerArgs = [event].concat(_.tail(arguments));
 		let scope = this;
 		// 使用do while循环，判断当前scope是否存在parent
 		do {
-			this.$$fireEventOnScope(eventName, listenerArgs);
+			event.currentScope = scope;
+			scope.$$fireEventOnScope(eventName, listenerArgs);
 			scope = scope.$parent;
 		} while (scope);
+		// 因为 currentScope 是用来沟通事件传播的当前状态, 事件传播结束后应该被清除掉.
+		event.currentScope = null;
 		return event;
 	}
 
 	/**
 	 * 事件向下广播，触发当前 scope 和它的子 scope
 	 * @param eventName  事件名称
+	 * $broadcast 却要遍历一个树， 如果在rootScope, 将要访问整个应用的每一个 Scope.
 	 */
 	$broadcast(eventName) {
 		// 创建事件对象，并且将它传入listener函数
-		const event = {name: eventName};
+		const event = {name: eventName, targetScope: this};
 		// 将方式名称与其余参数拼接，其中_.tail方法是除第一个元素之外的所有
 		const listenerArgs = [event].concat(_.tail(arguments));
 		// 在当前的Scope上调用一次fn,并且递归调用当前scope的子Scope
 		this.$$everyScope(scope => {
+			event.currentScope = scope;
 			scope.$$fireEventOnScope(eventName, listenerArgs);
 			return true;
 		});
+		// 因为 currentScope 是用来沟通事件传播的当前状态, 事件传播结束后应该被清除掉.
+		event.currentScope = null;
 		this.$$fireEventOnScope(eventName, listenerArgs);
 		return event;
 	};

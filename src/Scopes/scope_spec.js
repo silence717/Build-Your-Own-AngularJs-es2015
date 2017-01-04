@@ -1652,7 +1652,7 @@ describe('Scope', function () {
 			});
 		});
 		// $emit调用的时候事件向上传播，当前scope和父scope都会被调用
-		xit('propagates up the scope hierarchy on $emit', () => {
+		it('propagates up the scope hierarchy on $emit', () => {
 			const parentListener = jasmine.createSpy();
 			const scopeListener = jasmine.createSpy();
 
@@ -1665,7 +1665,7 @@ describe('Scope', function () {
 			expect(parentListener).toHaveBeenCalled();
 		});
 		// $emit传播的时候父、子scope触发的应该是同一事件
-		xit('propagates the same event up on $emit', () => {
+		it('propagates the same event up on $emit', () => {
 			const parentListener = jasmine.createSpy();
 			const scopeListener = jasmine.createSpy();
 
@@ -1679,7 +1679,7 @@ describe('Scope', function () {
 			expect(scopeEvent).toBe(parentEvent);
 		});
 		// $broadcast向下传递事件
-		it('propagates down the scope hierarchy on $broadcast', function() {
+		it('propagates down the scope hierarchy on $broadcast', () => {
 			const scopeListener = jasmine.createSpy();
 			const childListener = jasmine.createSpy();
 			const isolatedChildListener = jasmine.createSpy();
@@ -1708,5 +1708,90 @@ describe('Scope', function () {
 			const childEvent = childListener.calls.mostRecent().args[0];
 			expect(scopeEvent).toBe(childEvent);
 		});
+		// $emit获取targetScope
+		it('attaches targetScope on $emit', () => {
+			const scopeListener = jasmine.createSpy();
+			const parentListener = jasmine.createSpy();
+
+			scope.$on('someEvent', scopeListener);
+			parent.$on('someEvent', parentListener);
+
+			scope.$emit('someEvent');
+			expect(scopeListener.calls.mostRecent().args[0].targetScope).toBe(scope);
+			expect(parentListener.calls.mostRecent().args[0].targetScope).toBe(scope);
+		});
+		// $broadcast获取targetScope
+		it('attaches targetScope on $broadcast', () => {
+			const scopeListener = jasmine.createSpy();
+			const childListener = jasmine.createSpy();
+
+			scope.$on('someEvent', scopeListener);
+			child.$on('someEvent', childListener);
+
+			scope.$broadcast('someEvent');
+			expect(scopeListener.calls.mostRecent().args[0].targetScope).toBe(scope);
+			expect(childListener.calls.mostRecent().args[0].targetScope).toBe(scope);
+		});
+		// $emit获取currentScope
+		it('attaches currentScope on $emit', () => {
+			let currentScopeOnScope, currentScopeOnParent;
+			const scopeListener = event => {
+				currentScopeOnScope = event.currentScope;
+			};
+			const parentListener = event => {
+				currentScopeOnParent = event.currentScope;
+			};
+
+			scope.$on('someEvent', scopeListener);
+			parent.$on('someEvent', parentListener);
+
+			scope.$emit('someEvent');
+
+			expect(currentScopeOnScope).toBe(scope);
+			expect(currentScopeOnParent).toBe(parent);
+		});
+		// $broadcast获取currentScope
+		xit('attaches currentScope on $broadcast', () => {
+			let currentScopeOnScope, currentScopeOnChild;
+			const scopeListener = event => {
+				currentScopeOnScope = event.currentScope;
+			};
+			const childListener = event => {
+				currentScopeOnChild = event.currentScope;
+			};
+
+			scope.$on('someEvent', scopeListener);
+			child.$on('someEvent', childListener);
+
+			scope.$broadcast('someEvent');
+
+			expect(currentScopeOnScope).toBe(scope);
+			expect(currentScopeOnChild).toBe(child);
+		});
+		// $emit事件传播成功后，清空currentScope
+		it('sets currentScope to null after propagation on $emit', () => {
+			let event;
+			const scopeListener = evt => {
+				event = evt;
+			};
+			scope.$on('someEvent', scopeListener);
+
+			scope.$emit('someEvent');
+
+			expect(event.currentScope).toBe(null);
+		});
+		// $broadcast事件传播成功后，清空currentScope
+		it('sets currentScope to null after propagation on $broadcast', () => {
+			let event;
+			const scopeListener = evt => {
+				event = evt;
+			};
+			scope.$on('someEvent', scopeListener);
+
+			scope.$broadcast('someEvent');
+
+			expect(event.currentScope).toBe(null);
+		});
+
 	});
 });

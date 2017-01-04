@@ -1678,5 +1678,35 @@ describe('Scope', function () {
 			const parentEvent = parentListener.calls.mostRecent().args[0];
 			expect(scopeEvent).toBe(parentEvent);
 		});
+		// $broadcast向下传递事件
+		it('propagates down the scope hierarchy on $broadcast', function() {
+			const scopeListener = jasmine.createSpy();
+			const childListener = jasmine.createSpy();
+			const isolatedChildListener = jasmine.createSpy();
+
+			scope.$on('someEvent', scopeListener);
+			child.$on('someEvent', childListener);
+			isolatedChild.$on('someEvent', isolatedChildListener);
+
+			scope.$broadcast('someEvent');
+
+			expect(scopeListener).toHaveBeenCalled();
+			expect(childListener).toHaveBeenCalled();
+			expect(isolatedChildListener).toHaveBeenCalled();
+		});
+		// $broadcast向下传递事件, 当前scope和子scope触发相同名称的事件
+		it('propagates the same event down on $broadcast', () => {
+			const scopeListener = jasmine.createSpy();
+			const childListener = jasmine.createSpy();
+
+			scope.$on('someEvent', scopeListener);
+			child.$on('someEvent', childListener);
+
+			scope.$broadcast('someEvent');
+
+			const scopeEvent = scopeListener.calls.mostRecent().args[0];
+			const childEvent = childListener.calls.mostRecent().args[0];
+			expect(scopeEvent).toBe(childEvent);
+		});
 	});
 });

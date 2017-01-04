@@ -626,6 +626,11 @@ export default class Scope {
 		const event = {name: eventName};
 		// 将方式名称与其余参数拼接，其中_.tail方法是除第一个元素之外的所有
 		const listenerArgs = [event].concat(_.tail(arguments));
+		// 在当前的Scope上调用一次fn,并且递归调用当前scope的子Scope
+		this.$$everyScope(scope => {
+			scope.$$fireEventOnScope(eventName, listenerArgs);
+			return true;
+		});
 		this.$$fireEventOnScope(eventName, listenerArgs);
 		return event;
 	};

@@ -614,6 +614,10 @@ export default class Scope {
 			// 调用该事件之后，表示组织冒泡
 			stopPropagation: () => {
 				propagationStopped = true;
+			},
+			// 为事件对象设置 defaultPrevented boolean值来阻止事件默认行为
+			preventDefault: () => {
+				event.defaultPrevented = true;
 			}
 		};
 		// 将方式名称与其余参数拼接，其中_.tail方法是除第一个元素之外的所有
@@ -640,6 +644,9 @@ export default class Scope {
 		const event = {
 			name: eventName,
 			targetScope: this,
+			preventDefault: () => {
+				event.defaultPrevented = true;
+			}
 		};
 		// 将方式名称与其余参数拼接，其中_.tail方法是除第一个元素之外的所有
 		const listenerArgs = [event].concat(_.tail(arguments));

@@ -1650,6 +1650,17 @@ describe('Scope', function () {
 				scope[method]('someEvent');
 				expect(nextListener).toHaveBeenCalled();
 			});
+			// 当默认事件被调用的时候设置 defaultPrevented 值
+			it('is sets defaultPrevented when preventDefault called on ' + method, () => {
+				const listener = event => {
+					event.preventDefault();
+				};
+				scope.$on('someEvent', listener);
+
+				const event = scope[method]('someEvent');
+
+				expect(event.defaultPrevented).toBe(true);
+			});
 		});
 		// $emit调用的时候事件向上传播，当前scope和父scope都会被调用
 		it('propagates up the scope hierarchy on $emit', () => {

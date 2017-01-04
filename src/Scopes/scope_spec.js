@@ -1661,6 +1661,19 @@ describe('Scope', function () {
 
 				expect(event.defaultPrevented).toBe(true);
 			});
+			// 处理异常
+			it('does not stop on exceptions on ' + method, () => {
+				const listener1 = event => {
+					throw 'listener1 throwing an exception';
+				};
+				const listener2 = jasmine.createSpy();
+				scope.$on('someEvent', listener1);
+				scope.$on('someEvent', listener2);
+
+				scope[method]('someEvent');
+
+				expect(listener2).toHaveBeenCalled();
+			});
 		});
 		// $emit调用的时候事件向上传播，当前scope和父scope都会被调用
 		it('propagates up the scope hierarchy on $emit', () => {

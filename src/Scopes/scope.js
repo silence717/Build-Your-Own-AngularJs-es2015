@@ -597,8 +597,13 @@ export default class Scope {
 			if (listeners[i] === null) {
 				listeners.splice(i, 1);
 			} else {
-				// 执行每个监听器的方法
-				listeners[i].apply(null, listenerArgs);
+				// 当调用$emit或者$broadcast发生异常的时候应该继续往下走，抛出错误
+				try {
+					// 执行每个监听器的方法
+					listeners[i].apply(null, listenerArgs);
+				} catch (e) {
+					console.error(e);
+				}
 				i++;
 			}
 		}

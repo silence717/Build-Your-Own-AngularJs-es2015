@@ -3,7 +3,6 @@ Angular 表达式解析的代码将放在`src/parse.js`的新文件中，该文�
 
 在该文件中，将对外提供一个叫做`parse`的方法。它接收一个Angular表达式字符串，并且返回一个在函数在确定的上下问中执行：
 ```js
-// src/parse.js
 'use strict';
 function parse(expr) {
 // return ...
@@ -23,7 +22,7 @@ AST Builder 接收此法分析器生成的标记数组，并从中构建`bstract
   type: AST.BinaryExpression,
   operator: '+',
   left: {
-    type: AST.Identi er,
+    type: AST.Identifier,
     name: 'a'
     },
     right: {
@@ -39,3 +38,60 @@ function(scope) {
   return scope.a + scope.b;
 }
 ```
+
+Parser 负责组合上述的几个步骤。它本身不会做太多事情，而是将重任委托到 Lexer、AST Builder 和 AST Compiler。
+
+这就意味着，无论什么时候使用Angular中的表达式，JavaScript函数都会在幕后生成。这些函数在 digest 循环期间不断地计算表达式的值。
+
+我们为每一个对象创建一个脚手架。首先，`Lexer`被定义为一个构造函数。它包含一个lex方法，执行标记化：
+```js
+function Lexer() {
+}
+Lexer.prototype.lex = function(text) {
+  // Tokenization will be done here
+};
+```
+
+`AST Builder`(在代码中由AST表示)是另一个构造函数。它需要一个 Lexer 作为参数。它还有一个`ast`方法，它将执行给定表达式标记的构建：
+```js
+function AST(lexer) {
+  this.lexer = lexer;
+}
+AST.prototype.ast = function(text) {
+  this.tokens = this.lexer.lex(text);
+  // AST building will be done here
+};
+```
+
+`AST Compiler`也是另一个构造函数，它需要一个AST Builder作为参数。它含有一个叫`compile`的方法，它将表达式编译为一个表达式函数:
+```js
+function ASTCompiler(astBuilder) {
+  this.astBuilder = astBuilder;
+}
+ASTCompiler.prototype.compile = function(text) {
+  var ast = this.astBuilder.ast(text);
+  // AST compilation will be done here
+};
+```
+
+最后，`Parse`是一个从上面概述的部分构造完整的解析管道的构造函数。它需要一个Lexer作为参数，并且有一个叫做`parse`的方法：
+```js
+function Parser(lexer) {
+  this.lexer = lexer;
+  this.ast = new AST(this.lexer);
+  this.astCompiler = new ASTCompiler(this.ast);
+}
+Parser.prototype.parse = function(text) {
+  return this.astCompiler.compile(text);
+};
+```
+
+现在我们可以扩充一下公共的`parse`函数，我们创建一个Lexer,Parser，然后调用Parser.parse：
+```js
+function parse(expr) {
+  var lexer = new Lexer();
+  var parser = new Parser(lexer);
+  return parser.parse(expr);
+}
+```
+这是`parse.js`的高级结构。在剩下来的章节里面，我们将填充这些可以发生奇妙作用的方法。

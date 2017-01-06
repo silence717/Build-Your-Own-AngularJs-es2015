@@ -6,7 +6,7 @@
 import Scope from './scope';
 import _ from 'lodash';
 
-describe('Scope', function () {
+xdescribe('Scope', function () {
 	// Angular的Scope对象是POJO（简单的JavaScript对象），在它们上面，可以像对其他对象一样添加属性。
 	xit('can be constructed and used as an object', () => {
 		const scope = new Scope();

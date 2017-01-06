@@ -2,14 +2,13 @@
  * @author  https://github.com/silence717
  * @date on 2017/1/4
  */
-export default class parse {
 
-	constructor(expr) {
-		const lexer = new Lexer();
-		const parser = new Parser(lexer);
-		return parser.parse(expr);
-	}
+function parse(expr) {
+	const lexer = new Lexer();
+	const parser = new Parser(lexer);
+	return parser.parse(expr);
 }
+module.exports = parse;
 
 /**
  * Lexer  start
@@ -46,7 +45,7 @@ class AST {
 /**
  * ASTCompiler  start
  */
-class AST {
+class ASTCompiler {
 
 	constructor(astBuilder) {
 		this.astBuilder = astBuilder;
@@ -61,7 +60,7 @@ class AST {
 
 
 /**
- * ASTCompiler  start
+ * Parser  start
  */
 class Parser {
 
@@ -75,5 +74,5 @@ class Parser {
 	}
 }
 /**
- * ASTCompiler  end
+ * Parser  end
  */

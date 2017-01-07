@@ -19,7 +19,47 @@ class Lexer {
 
 	}
 	lex(text) {
+		this.text = text;
+		this.index = 0;
+		this.ch = undefined;
+		this.tokens = [];
+		while (this.index < this.text.length) {
+			this.ch = this.text.charAt(this.index);
+			if (this.isNumber(this.ch)) {
+				this.readNumber();
+			} else {
+				throw 'Unexpected next character: ' + this.ch;
+			}
+		}
+		return this.tokens;
+	}
 
+	/**
+	 * 判断是否为数字
+	 * @param ch
+	 */
+	isNumber(ch) {
+		return ch >= '0' && ch <= '9';
+	}
+
+	/**
+	 * 读取数字
+	 */
+	readNumber() {
+		let number = '';
+		while (this.index < this.text.length) {
+			let ch = this.text.charAt(this.index);
+			if (this.isNumber(ch)) {
+				number += ch;
+			} else {
+				break;
+			}
+			this.index++;
+		}
+		this.tokens.push({
+			text: number,
+			value: Number(number)
+		});
 	}
 }
 /**
@@ -36,8 +76,18 @@ class AST {
 	}
 	ast(text) {
 		this.tokens = this.lexer.lex(text);
+		return this.program();
+	}
+	program() {
+		return {type: AST.Program, body: this.constant()};
+	}
+	constant() {
+		return {type: AST.Literal, value: this.tokens[0].value};
 	}
 }
+AST.Program = 'Program';
+AST.Literal = 'Literal';
+
 /**
  * AST  end
  */
@@ -52,6 +102,18 @@ class ASTCompiler {
 	}
 	compile(text) {
 		const ast = this.astBuilder.ast(text);
+		this.state = {body: []};
+		this.recurse(ast);
+		return new Function(this.state.body.join(''));
+	}
+	recurse(ast) {
+		switch (ast.type) {
+			case AST.Program:
+				this.state.body.push('return ', this.recurse(ast.body), ';');
+				break;
+			case AST.Literal:
+				return ast.value;
+		}
 	}
 }
 /**

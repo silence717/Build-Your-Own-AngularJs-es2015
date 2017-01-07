@@ -25,7 +25,7 @@ class Lexer {
 		this.tokens = [];
 		while (this.index < this.text.length) {
 			this.ch = this.text.charAt(this.index);
-			if (this.isNumber(this.ch)) {
+			if (this.isNumber(this.ch) || (this.ch === '.' && this.isNumber(this.peek()))) {
 				this.readNumber();
 			} else {
 				throw 'Unexpected next character: ' + this.ch;
@@ -49,7 +49,7 @@ class Lexer {
 		let number = '';
 		while (this.index < this.text.length) {
 			let ch = this.text.charAt(this.index);
-			if (this.isNumber(ch)) {
+			if (ch === '.' || this.isNumber(ch)) {
 				number += ch;
 			} else {
 				break;
@@ -60,6 +60,14 @@ class Lexer {
 			text: number,
 			value: Number(number)
 		});
+	}
+
+	/**
+	 *返回下一个字符的文本，而不向前移动当前的索引。如果没有下一个字符，`peek`会返回`false`
+	 * @returns {*}
+	 */
+	peek() {
+		return this.index < this.text.length - 1 ? this.text.charAt(this.index + 1) : false;
 	}
 }
 /**

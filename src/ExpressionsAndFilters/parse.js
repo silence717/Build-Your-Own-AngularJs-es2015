@@ -48,11 +48,22 @@ class Lexer {
 	readNumber() {
 		let number = '';
 		while (this.index < this.text.length) {
-			let ch = this.text.charAt(this.index);
+			// 为了兼容科学计数法的字符 e 大小写问题，全部转为小写
+			let ch = this.text.charAt(this.index).toLowerCase();
 			if (ch === '.' || this.isNumber(ch)) {
 				number += ch;
 			} else {
-				break;
+				const nextCh = this.peek();
+				const prevCh = number.charAt(number.length - 1);
+				if (ch === 'e' && this.isExpOperator(nextCh)) {
+					number += ch;
+				} else if (this.isExpOperator(ch) && prevCh === 'e' && nextCh && this.isNumber(nextCh)) {
+					number += ch;
+				} else if (this.isExpOperator(ch) && prevCh === 'e' && (!nextCh || !this.isNumber(nextCh))) {
+					throw 'Invalid exponent';
+				} else {
+					break;
+				}
 			}
 			this.index++;
 		}
@@ -68,6 +79,15 @@ class Lexer {
 	 */
 	peek() {
 		return this.index < this.text.length - 1 ? this.text.charAt(this.index + 1) : false;
+	}
+
+	/**
+	 * 判断当前字符是否为运算符
+	 * @param ch
+	 * @returns {boolean|*}
+	 */
+	isExpOperator(ch) {
+		return ch === '-' || ch === '+' || this.isNumber(ch);
 	}
 }
 /**

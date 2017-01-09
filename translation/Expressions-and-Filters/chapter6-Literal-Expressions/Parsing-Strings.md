@@ -345,4 +345,4 @@ Lexer.prototype.readString = function(quote) {
   throw 'Unmatched quote';
 };
 ```
-现在我们能敢解析字符串！
+现在我们能够解析字符串！

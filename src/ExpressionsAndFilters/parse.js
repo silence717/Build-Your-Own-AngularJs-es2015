@@ -35,6 +35,8 @@ class Lexer {
 			} else if (this.ch === '\'' || this.ch === '"') {
 				// 传入开始的引号，判断字符串结束和开始引号是否相同
 				this.readString(this.ch);
+			} else if (this.isIdent(this.ch)) {
+				this.readIdent();
 			} else {
 				throw 'Unexpected next character: ' + this.ch;
 			}
@@ -132,6 +134,24 @@ class Lexer {
 		}
 		throw 'Unmatched quote';
 	}
+
+	/**
+	 * 读取标识符
+	 */
+	readIdent() {
+		let text = '';
+		while (this.index < this.text.length) {
+			const ch = this.text.charAt(this.index);
+			if (this.isIdent(ch) || this.isNumber(ch)) {
+				text += ch;
+			} else {
+				break;
+			}
+			this.index++;
+		}
+		const token = {text: text};
+		this.tokens.push(token);
+	}
 	/**
 	 *返回下一个字符的文本，而不向前移动当前的索引。如果没有下一个字符，`peek`会返回`false`
 	 * @returns {*}
@@ -148,6 +168,13 @@ class Lexer {
 	isExpOperator(ch) {
 		return ch === '-' || ch === '+' || this.isNumber(ch);
 	}
+	/**
+	 * 是否标识符
+	 * @param ch
+	 */
+	isIdent(ch) {
+		return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_' || ch === '$';
+	}
 }
 /**
  * Lexer  end
@@ -160,13 +187,26 @@ class AST {
 
 	constructor(lexer) {
 		this.lexer = lexer;
+		// 定义一些特殊常量
+		this.constants = {
+			'null': {type: AST.Literal, value: null},
+			'true': {type: AST.Literal, value: true},
+			'false': {type: AST.Literal, value: false}
+		};
 	}
 	ast(text) {
 		this.tokens = this.lexer.lex(text);
 		return this.program();
 	}
 	program() {
-		return {type: AST.Program, body: this.constant()};
+		return {type: AST.Program, body: this.primary()};
+	}
+	primary() {
+		if (this.constants.hasOwnProperty(this.tokens[0].text)) {
+			return this.constants[this.tokens[0].text];
+		} else {
+			return this.constant();
+		}
 	}
 	constant() {
 		return {type: AST.Literal, value: this.tokens[0].value};
@@ -212,6 +252,8 @@ class ASTCompiler {
 	escape(value) {
 		if (_.isString(value)) {
 			return '\'' + value.replace(this.stringEscapeRegex, this.stringEscapeFn) + '\'';
+		} else if (_.isNull(value)) {
+			return 'null';
 		} else {
 			return value;
 		}

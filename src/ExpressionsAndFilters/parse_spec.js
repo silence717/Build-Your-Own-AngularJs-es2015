@@ -83,4 +83,19 @@ describe('parse', () => {
 	it('will not parse a string with invalid unicode escapes', () => {
 		expect(() => { parse('"\\u00T0"'); }).toThrow();
 	});
+	// 可以解析null
+	it('will parse null', () => {
+		const fn = parse('null');
+		expect(fn()).toBe(null);
+	});
+	// 可以解析true
+	it('will parse true', () => {
+		const fn = parse('true');
+		expect(fn()).toBe(true);
+	});
+	// 可以解析false
+	it('will parse false', () => {
+		const fn = parse('false');
+		expect(fn()).toBe(false);
+	});
 });

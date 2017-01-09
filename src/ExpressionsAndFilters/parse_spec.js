@@ -98,4 +98,9 @@ describe('parse', () => {
 		const fn = parse('false');
 		expect(fn()).toBe(false);
 	});
+	// 忽略空格
+	it('ignores whitespace', () => {
+		const fn = parse(' \n42 ');
+		expect(fn()).toEqual(42);
+	});
 });

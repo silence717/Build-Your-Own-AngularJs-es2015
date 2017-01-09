@@ -37,6 +37,8 @@ class Lexer {
 				this.readString(this.ch);
 			} else if (this.isIdent(this.ch)) {
 				this.readIdent();
+			} else if (this.isWhitespace(this.ch)) {
+				this.index++;
 			} else {
 				throw 'Unexpected next character: ' + this.ch;
 			}
@@ -99,6 +101,7 @@ class Lexer {
 		let escape = false;
 		while (this.index < this.text.length) {
 			const ch = this.text.charAt(this.index);
+			// 是否需要转义
 			if (escape) {
 				// 如果为unicode编码
 				if (ch === 'u') {
@@ -119,6 +122,7 @@ class Lexer {
 				}
 				escape = false;
 			} else if (ch === quote) {
+				// 是否为引号
 				this.index++;
 				this.tokens.push({
 					text: string,
@@ -174,6 +178,14 @@ class Lexer {
 	 */
 	isIdent(ch) {
 		return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_' || ch === '$';
+	}
+
+	/**
+	 * 是否为空白符
+	 * @param ch
+	 */
+	isWhitespace(ch) {
+		return ch === ' ' || ch === '\r' || ch === '\t' || ch === '\n' || ch === '\v' || ch === '\u00A0';
 	}
 }
 /**

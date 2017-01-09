@@ -50,4 +50,37 @@ describe('parse', () => {
 		expect(() => { parse('42e-'); }).toThrow();
 		expect(() => { parse('42e-a'); }).toThrow();
 	});
+	// 可以解析单引号字符串
+	it('can parse a string in single quotes', () => {
+		const fn = parse("'abc'");
+		expect(fn()).toEqual('abc');
+	});
+	// 可以解析双引号字符串
+	it('can parse a string in double quotes', () => {
+		const fn = parse('"abc"');
+		expect(fn()).toEqual('abc');
+	});
+	// 字符串开始和结束的引号应该保持一致，不同则抛出异常
+	it('will not parse a string with mismatching quotes', () => {
+		expect(() => { parse('"abc\''); }).toThrow();
+	});
+	// 可以解析里面含单引号的字符串
+	it('can parse a string with single quotes inside', () => {
+		const fn = parse("'a\\\'b'");
+		expect(fn()).toEqual('a\'b');
+	});
+	// 可以解析里面含双引号的字符串
+	it('can parse a string with double quotes inside', () => {
+		const fn = parse('"a\\\"b"');
+		expect(fn()).toEqual('a\"b');
+	});
+	// unicode本身为输入表达式
+	it('will parse a string with unicode escapes', () => {
+		const fn = parse('"\\u00A0"');
+		expect(fn()).toEqual('\u00A0');
+	});
+	// u后面不是一个正确的unicode编码，需要抛出一个异常
+	it('will not parse a string with invalid unicode escapes', () => {
+		expect(() => { parse('"\\u00T0"'); }).toThrow();
+	});
 });

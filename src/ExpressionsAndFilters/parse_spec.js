@@ -125,7 +125,13 @@ describe('parse', () => {
 	});
 	// 可以解析一个对象，
 	it('will parse an object with identifier keys', () => {
-		var fn = parse('{a: 1, b: [2, 3], c: {d: 4}}');
+		const fn = parse('{a: 1, b: [2, 3], c: {d: 4}}');
 		expect(fn()).toEqual({a: 1, b: [2, 3], c: {d: 4}});
+	});
+	// 查找scope的属性
+	it('looks up an attribute from the scope', () => {
+		const fn = parse('aKey');
+		expect(fn({aKey: 42})).toBe(42);
+		expect(fn({})).toBeUndefined();
 	});
 });

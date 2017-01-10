@@ -297,3 +297,4 @@ case AST.ObjectExpression:
   }, this));
 return '{' + properties.join(',') + '}';
 ```
+最后我们可以解析所有Angular表达式语言支持的literals。

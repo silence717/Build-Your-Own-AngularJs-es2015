@@ -113,4 +113,19 @@ describe('parse', () => {
 		const fn = parse('[1, "two", [3], true]');
 		expect(fn()).toEqual([1, 'two', [3], true]);
 	});
+	// 解析空对象
+	it('will parse an empty object', () => {
+		const fn = parse('{}');
+		expect(fn()).toEqual({});
+	});
+	// 解析不为空的对象，key值为字符串
+	it('will parse a non-empty object', () => {
+		const fn = parse('{"a key": 1, \'another-key\': 2}');
+		expect(fn()).toEqual({'a key': 1, 'another-key': 2});
+	});
+	// 可以解析一个对象，
+	it('will parse an object with identifier keys', () => {
+		var fn = parse('{a: 1, b: [2, 3], c: {d: 4}}');
+		expect(fn()).toEqual({a: 1, b: [2, 3], c: {d: 4}});
+	});
 });

@@ -30,12 +30,12 @@ class Lexer {
 		while (this.index < this.text.length) {
 			this.ch = this.text.charAt(this.index);
 			// 当前字符是一个数字，或者当前字符为.,下一个字符是数字，这兼容整数和浮点数两种
-			if (this.isNumber(this.ch) || (this.ch === '.' && this.isNumber(this.peek()))) {
+			if (this.isNumber(this.ch) || (this.is('.') && this.isNumber(this.peek()))) {
 				this.readNumber();
-			} else if (this.ch === '\'' || this.ch === '"') {
+			} else if (this.is('\'"')) {
 				// 传入开始的引号，判断字符串结束和开始引号是否相同
 				this.readString(this.ch);
-			} else if (this.ch === '[' || this.ch === ']' || this.ch === ',') {
+			} else if (this.is('[],{}:')) {
 				this.tokens.push({
 					text: this.ch
 				});
@@ -158,7 +158,10 @@ class Lexer {
 			}
 			this.index++;
 		}
-		const token = {text: text};
+		const token = {
+			text: text,
+			indentifier: true
+		};
 		this.tokens.push(token);
 	}
 	/**
@@ -191,6 +194,15 @@ class Lexer {
 	 */
 	isWhitespace(ch) {
 		return ch === ' ' || ch === '\r' || ch === '\t' || ch === '\n' || ch === '\v' || ch === '\u00A0';
+	}
+
+	/**
+	 * 检查是否包含当前字符
+	 * @param chs
+	 * @returns {boolean}
+	 */
+	is(chs) {
+		return chs.indexOf(this.ch) >= 0;
 	}
 }
 /**
@@ -226,6 +238,8 @@ class AST {
 	primary() {
 		if (this.expect('[')) {
 			return this.arrayDeclaration();
+		} else if (this.expect('{')) {
+			return this.object();
 		} else if (this.constants.hasOwnProperty(this.tokens[0].text)) {
 			return this.constants[this.consume().text];
 		} else {
@@ -280,6 +294,29 @@ class AST {
 	}
 
 	/**
+	 * 构建对象
+	 * @returns {{type: string}}
+	 */
+	object() {
+		const properties = [];
+		if (!this.peek('}')) {
+			do {
+				const property = { type: AST.Property };
+				if (this.peek().indentifier) {
+					property.key = this.identifier();
+				} else {
+					property.key = this.constant();
+				}
+				this.consume(':');
+				property.value = this.primary();
+				properties.push(property);
+			} while (this.expect(','));
+		}
+		this.constant('}');
+		return { type: AST.ObjectExpression, properties: properties };
+	}
+
+	/**
 	 * 移除闭合中括号
 	 * @param e
 	 */
@@ -290,10 +327,24 @@ class AST {
 		}
 		return token;
 	}
+	/**
+	* 标识符类型
+	*/
+	identifier() {
+		return {type: AST.Identifier, name: this.consume().text};
+	}
+
 }
 AST.Program = 'Program';
+// 常量类型
 AST.Literal = 'Literal';
+// 数组类型
 AST.ArrayExpression = 'ArrayExpression';
+// 对象类型
+AST.ObjectExpression = 'ObjectExpression';
+// 属性类型
+AST.Property = 'Property';
+AST.Identifier = 'Identifier';
 
 /**
  * AST  end
@@ -338,6 +389,13 @@ class ASTCompiler {
 					return this.recurse(element);
 				}, this));
 				return '[' + elements.join(',') + ']';
+			case AST.ObjectExpression:
+				const properties = _.map(ast.properties, _.bind(property => {
+					var key = property.key.type === AST.Identifier ? property.key.name : this.escape(property.key.value);
+					const value = this.recurse(property.value);
+					return key + ':' + value;
+				}, this));
+				return '{' + properties.join(',') + '}';
 		}
 	}
 

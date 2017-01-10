@@ -4,7 +4,7 @@
  */
 import _ from 'lodash';
 
-var ESCAPES = {'n': '\n', 'f': '\f', 'r': '\r', 't': '\t', 'v': '\v', '\'': '\'', '"': '"'};
+const ESCAPES = {'n': '\n', 'f': '\f', 'r': '\r', 't': '\t', 'v': '\v', '\'': '\'', '"': '"'};
 
 function parse(expr) {
 	const lexer = new Lexer();
@@ -35,6 +35,11 @@ class Lexer {
 			} else if (this.ch === '\'' || this.ch === '"') {
 				// 传入开始的引号，判断字符串结束和开始引号是否相同
 				this.readString(this.ch);
+			} else if (this.ch === '[' || this.ch === ']' || this.ch === ',') {
+				this.tokens.push({
+					text: this.ch
+				});
+				this.index++;
 			} else if (this.isIdent(this.ch)) {
 				this.readIdent();
 			} else if (this.isWhitespace(this.ch)) {
@@ -213,19 +218,82 @@ class AST {
 	program() {
 		return {type: AST.Program, body: this.primary()};
 	}
+
+	/**
+	 * 构建节点树
+	 * @returns {*}
+	 */
 	primary() {
-		if (this.constants.hasOwnProperty(this.tokens[0].text)) {
-			return this.constants[this.tokens[0].text];
+		if (this.expect('[')) {
+			return this.arrayDeclaration();
+		} else if (this.constants.hasOwnProperty(this.tokens[0].text)) {
+			return this.constants[this.consume().text];
 		} else {
 			return this.constant();
 		}
 	}
 	constant() {
-		return {type: AST.Literal, value: this.tokens[0].value};
+		return {type: AST.Literal, value: this.consume().value};
+	}
+
+	/**
+	 * 移除开始中括号
+	 * 判断当前下一个token是不是我们期望的，如果是从this.tokens删除并返回
+	 * @param e  期望的字符
+	 * @returns {T|*}
+	 */
+	expect(e) {
+		const token = this.peek(e);
+		if (token) {
+			return this.tokens.shift();
+		}
+	}
+
+	/**
+	 * 查找元素
+	 * @param e
+	 */
+	peek(e) {
+		if (this.tokens.length > 0) {
+			const text = this.tokens[0].text;
+			if (text === e || !e) {
+				return this.tokens[0];
+			}
+		}
+	}
+
+	/**
+	 * 声明数组
+	 */
+	arrayDeclaration() {
+		const elements = [];
+		if (!this.peek(']')) {
+			do {
+				if (this.peek(']')) {
+					break;
+				}
+				elements.push(this.primary());
+			} while (this.expect(','));
+		}
+		this.consume(']');
+		return { type: AST.ArrayExpression, elements: elements };
+	}
+
+	/**
+	 * 移除闭合中括号
+	 * @param e
+	 */
+	consume(e) {
+		const token = this.expect(e);
+		if (!token) {
+			throw 'Unexpected. Expecting: ' + e;
+		}
+		return token;
 	}
 }
 AST.Program = 'Program';
 AST.Literal = 'Literal';
+AST.ArrayExpression = 'ArrayExpression';
 
 /**
  * AST  end
@@ -240,12 +308,24 @@ class ASTCompiler {
 		this.astBuilder = astBuilder;
 		this.stringEscapeRegex = /[^ a-zA-Z0-9]/g;
 	}
+
+	/**
+	 * 编译为javaScript表达式
+	 * @param text
+	 * @returns {*}
+	 */
 	compile(text) {
 		const ast = this.astBuilder.ast(text);
 		this.state = {body: []};
 		this.recurse(ast);
 		return new Function(this.state.body.join(''));
 	}
+
+	/**
+	 * 判断类型处理
+	 * @param ast
+	 * @returns {*}
+	 */
 	recurse(ast) {
 		switch (ast.type) {
 			case AST.Program:
@@ -253,6 +333,11 @@ class ASTCompiler {
 				break;
 			case AST.Literal:
 				return this.escape(ast.value);
+			case AST.ArrayExpression:
+				const elements = _.map(ast.elements, _.bind(element => {
+					return this.recurse(element);
+				}, this));
+				return '[' + elements.join(',') + ']';
 		}
 	}
 

@@ -103,4 +103,14 @@ describe('parse', () => {
 		const fn = parse(' \n42 ');
 		expect(fn()).toEqual(42);
 	});
+	// 解析空数组
+	it('will parse an empty array', () => {
+		const fn = parse('[]');
+		expect(fn()).toEqual([]);
+	});
+	// 解析非空数组
+	it('will parse a non-empty array', () => {
+		const fn = parse('[1, "two", [3], true]');
+		expect(fn()).toEqual([1, 'two', [3], true]);
+	});
 });

@@ -134,4 +134,9 @@ describe('parse', () => {
 		expect(fn({aKey: 42})).toBe(42);
 		expect(fn({})).toBeUndefined();
 	});
+	// 从undefined里面查找属性返回undefined
+	it('returns undefined when looking up attribute from undefined', () => {
+		const fn = parse('aKey');
+		expect(fn()).toBeUndefined();
+	});
 });

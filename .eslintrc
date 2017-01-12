@@ -140,7 +140,7 @@
     //当我们使用new操作符去调用构造函数时，需要把调用结果赋值给一个变量。
     "no-new": 2,
     //该规则保证了不使用new Function(); 语句。
-    "no-new-func": 2,
+    // "no-new-func": 2,
     //不要通过new Object（），来定义对象
     "no-new-object": 2,
     //禁止把require方法和new操作符一起使用。

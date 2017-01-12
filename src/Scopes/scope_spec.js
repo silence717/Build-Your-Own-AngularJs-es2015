@@ -1290,7 +1290,7 @@ xdescribe('Scope', function () {
 		// 使用arguments替换数组的值
 		it('notices an item replaced in an arguments object', () => {
 			// 使用一个自执行函数将参数存储到 scope.arrayLike
-			(function() {
+			(function () {
 				scope.arrayLike = arguments;
 			})(1, 2, 3);
 			scope.counter = 0;

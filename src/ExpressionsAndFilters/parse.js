@@ -242,6 +242,8 @@ class AST {
 			return this.object();
 		} else if (this.constants.hasOwnProperty(this.tokens[0].text)) {
 			return this.constants[this.consume().text];
+		} else if (this.peek().identifier) {
+			return this.identifier();
 		} else {
 			return this.constant();
 		}
@@ -331,6 +333,7 @@ class AST {
 	* 标识符类型
 	*/
 	identifier() {
+		this.if_('s', '');
 		return {type: AST.Identifier, name: this.consume().text};
 	}
 
@@ -367,9 +370,9 @@ class ASTCompiler {
 	 */
 	compile(text) {
 		const ast = this.astBuilder.ast(text);
-		this.state = {body: []};
+		this.state = {body: [], nextId: 0, vars: []};
 		this.recurse(ast);
-		return new Function(this.state.body.join(''));
+		return new Function('s', (this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') + this.state.body.join(''));
 	}
 
 	/**
@@ -391,11 +394,15 @@ class ASTCompiler {
 				return '[' + elements.join(',') + ']';
 			case AST.ObjectExpression:
 				const properties = _.map(ast.properties, _.bind(property => {
-					var key = property.key.type === AST.Identifier ? property.key.name : this.escape(property.key.value);
+					const key = property.key.type === AST.Identifier ? property.key.name : this.escape(property.key.value);
 					const value = this.recurse(property.value);
 					return key + ':' + value;
 				}, this));
 				return '{' + properties.join(',') + '}';
+			case AST.Identifier:
+				const intoId = this.nextId();
+				this.if_('s', this.assign(intoId, this.nonComputedMember('s', ast.name)));
+				return intoId;
 		}
 	}
 
@@ -421,6 +428,45 @@ class ASTCompiler {
 	 */
 	stringEscapeFn(c) {
 		return '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4);
+	}
+
+	/**
+	 * 非计算获取成员
+	 * @param left 查找的对象
+	 * @param right 被查找的属性
+	 * @returns {string}
+	 */
+	nonComputedMember(left, right) {
+		return '(' + left + ').' + right;
+	}
+
+	/**
+	 * 生成一个JavaScript语句
+	 * @param test
+	 * @param consequent
+	 * @private
+	 */
+	if_(test, consequent) {
+		this.state.body.push('if(', test, '){', consequent, '}');
+	}
+
+	/**
+	 * 变量赋值
+	 * @param id
+	 * @param value
+	 */
+	assign(id, value) {
+		return id + '=' + value + ';';
+	}
+
+	/**
+	 * 生成一个变量名称呢过，并且count自增
+	 * @returns {string}
+	 */
+	nextId() {
+		const id = 'v' + (this.state.nextId++);
+		this.state.vars.push(id);
+		return id;
 	}
 }
 

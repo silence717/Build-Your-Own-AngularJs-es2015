@@ -139,4 +139,11 @@ describe('parse', () => {
 		const fn = parse('aKey');
 		expect(fn()).toBeUndefined();
 	});
+	// 解析this
+	it('will parse this', () => {
+		const fn = parse('this');
+		const scope = {};
+		expect(fn(scope)).toBe(scope);
+		expect(fn()).toBeUndefined();
+	});
 });

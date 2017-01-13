@@ -220,7 +220,8 @@ class AST {
 		this.constants = {
 			'null': {type: AST.Literal, value: null},
 			'true': {type: AST.Literal, value: true},
-			'false': {type: AST.Literal, value: false}
+			'false': {type: AST.Literal, value: false},
+			'this': {type: AST.ThisExpression}
 		};
 	}
 	ast(text) {
@@ -346,7 +347,10 @@ AST.ArrayExpression = 'ArrayExpression';
 AST.ObjectExpression = 'ObjectExpression';
 // 属性类型
 AST.Property = 'Property';
+// 标识符
 AST.Identifier = 'Identifier';
+// this表达式
+AST.ThisExpression = 'ThisExpression';
 
 /**
  * AST  end
@@ -402,6 +406,8 @@ class ASTCompiler {
 				const intoId = this.nextId();
 				this.if_('s', this.assign(intoId, this.nonComputedMember('s', ast.name)));
 				return intoId;
+			case AST.ThisExpression:
+				return 's';
 		}
 	}
 

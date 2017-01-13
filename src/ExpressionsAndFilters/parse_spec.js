@@ -146,4 +146,16 @@ describe('parse', () => {
 		expect(fn(scope)).toBe(scope);
 		expect(fn()).toBeUndefined();
 	});
+	// 在scope中查找一个两层的identifier
+	it('looks up a 2-part identifier path from the scope', () => {
+		const fn = parse('aKey.anotherKey');
+		expect(fn({aKey: {anotherKey: 42}})).toBe(42);
+		expect(fn({aKey: {}})).toBeUndefined();
+		expect(fn({})).toBeUndefined();
+	});
+	// 查找对象的一个成员
+	it('looks up a member from an object', () => {
+		const fn = parse('{aKey: 42}.aKey');
+		expect(fn()).toBe(42);
+	});
 });

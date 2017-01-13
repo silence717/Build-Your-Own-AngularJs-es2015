@@ -160,7 +160,7 @@ class Lexer {
 		}
 		const token = {
 			text: text,
-			indentifier: true
+			identifier: true
 		};
 		this.tokens.push(token);
 	}
@@ -304,7 +304,7 @@ class AST {
 		if (!this.peek('}')) {
 			do {
 				const property = { type: AST.Property };
-				if (this.peek().indentifier) {
+				if (this.peek().identifier) {
 					property.key = this.identifier();
 				} else {
 					property.key = this.constant();
@@ -333,7 +333,6 @@ class AST {
 	* 标识符类型
 	*/
 	identifier() {
-		this.if_('s', '');
 		return {type: AST.Identifier, name: this.consume().text};
 	}
 

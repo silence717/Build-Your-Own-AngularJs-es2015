@@ -250,7 +250,11 @@ class AST {
 			primary = this.constant();
 		}
 		if (this.expect('.')) {
-
+			primary = {
+				type: AST.MemberExpression,
+				object: primary,
+				property: this.identifier()
+			};
 		}
 		return primary;
 	}
@@ -357,7 +361,7 @@ AST.Property = 'Property';
 AST.Identifier = 'Identifier';
 // this表达式
 AST.ThisExpression = 'ThisExpression';
-
+AST.MemberExpression = 'MemberExpression';
 /**
  * AST  end
  */

@@ -46,4 +46,31 @@ AST.prototype.primary = function() {
     return primary;
 };
 ```
+If a dot is found, this primary expression becomes a MemberExpression node. 
+We reuse the ini- tial primary node as the object of the member expression, 
+and expect to have an identifier after the dot, which we’ll use as the property name to look up:
 如果查找到dot,这个基本节点成为一个`MemberExpression`节点。
+```js
+AST.prototype.primary = function() {
+  var primary;
+  if (this.expect('[')) {
+    primary = this.arrayDeclaration();
+  } else if (this.expect('{')) {
+    primary = this.object();
+  } else if (this.constants.hasOwnProperty(this.tokens[0].text)) {
+    primary = this.constants[this.consume().text];
+  } else if (this.peek().identi er) {
+    primary = this.identi er();
+  } else {
+    primary = this.constant();
+  }
+  if (this.expect('.')) {
+    primary = {
+      type: AST.MemberExpression,
+      object: primary,
+      property: this.identi er()
+    };
+  }
+  return primary;
+};
+```

@@ -250,12 +250,24 @@ class AST {
 		} else {
 			primary = this.constant();
 		}
-		while (this.expect('.')) {
-			primary = {
-				type: AST.MemberExpression,
-				object: primary,
-				property: this.identifier()
-			};
+		let next;
+		while ((next = this.expect('.', '['))) {
+			if (next.text === '[') {
+				primary = {
+					type: AST.MemberExpression,
+					object: primary,
+					property: this.primary(),
+					computed: true
+				};
+				this.consume(']');
+			} else {
+				primary = {
+					type: AST.MemberExpression,
+					object: primary,
+					property: this.identifier(),
+					computed: false
+				};
+			}
 		}
 		return primary;
 	}
@@ -270,8 +282,8 @@ class AST {
 	 * @param e  期望的字符
 	 * @returns {T|*}
 	 */
-	expect(e) {
-		const token = this.peek(e);
+	expect(e1, e2, e3, e4) {
+		const token = this.peek(e1, e2, e3, e4);
 		if (token) {
 			return this.tokens.shift();
 		}
@@ -281,10 +293,10 @@ class AST {
 	 * 查找元素
 	 * @param e
 	 */
-	peek(e) {
+	peek(e1, e2, e3, e4) {
 		if (this.tokens.length > 0) {
 			const text = this.tokens[0].text;
-			if (text === e || !e) {
+			if (text === e1 || text === e2 || text === e3 || text === e4 || (!e1 && !e2 && !e3 && !e4)) {
 				return this.tokens[0];
 			}
 		}
@@ -425,7 +437,12 @@ class ASTCompiler {
 			case AST.MemberExpression:
 				intoId = this.nextId();
 				const left = this.recurse(ast.object);
-				this.if_(left, this.assign(intoId, this.nonComputedMember(left, ast.property.name)));
+				if (ast.computed) {
+					const right = this.recurse(ast.property);
+					this.if_(left, this.assign(intoId, this.computedMember(left, right)));
+				} else {
+					this.if_(left, this.assign(intoId, this.nonComputedMember(left, ast.property.name)));
+				}
 				return intoId;
 			case AST.LocalsExpression:
 				return 'l';
@@ -511,6 +528,16 @@ class ASTCompiler {
 	 */
 	getHasOwnProperty(object, property) {
 		return object + '&&(' + this.escape(property) + ' in ' + object + ')';
+	}
+
+	/**
+	 * 生成JavaScript computed属性访问
+	 * @param left
+	 * @param right
+	 * @returns {string}
+	 */
+	computedMember(left, right) {
+		return '(' + left + ')[' + right + ']';
 	}
 }
 

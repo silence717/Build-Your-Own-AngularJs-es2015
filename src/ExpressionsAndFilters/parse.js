@@ -249,7 +249,7 @@ class AST {
 		} else {
 			primary = this.constant();
 		}
-		if (this.expect('.')) {
+		while (this.expect('.')) {
 			primary = {
 				type: AST.MemberExpression,
 				object: primary,
@@ -394,6 +394,7 @@ class ASTCompiler {
 	 * @returns {*}
 	 */
 	recurse(ast) {
+		let intoId;
 		switch (ast.type) {
 			case AST.Program:
 				this.state.body.push('return ', this.recurse(ast.body), ';');
@@ -413,11 +414,16 @@ class ASTCompiler {
 				}, this));
 				return '{' + properties.join(',') + '}';
 			case AST.Identifier:
-				const intoId = this.nextId();
+				intoId = this.nextId();
 				this.if_('s', this.assign(intoId, this.nonComputedMember('s', ast.name)));
 				return intoId;
 			case AST.ThisExpression:
 				return 's';
+			case AST.MemberExpression:
+				intoId = this.nextId();
+				const left = this.recurse(ast.object);
+				this.if_(left, this.assign(intoId, this.nonComputedMember(left, ast.property.name)));
+				return intoId;
 		}
 	}
 

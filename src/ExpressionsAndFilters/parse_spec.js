@@ -158,4 +158,12 @@ describe('parse', () => {
 		const fn = parse('{aKey: 42}.aKey');
 		expect(fn()).toBe(42);
 	});
+	// 在scope中查找一个4层的identifier
+	it('looks up a 4-part identifier path from the scope', () => {
+		const fn = parse('aKey.secondKey.thirdKey.fourthKey');
+		expect(fn({aKey: {secondKey: {thirdKey: {fourthKey: 42}}}})).toBe(42);
+		expect(fn({aKey: {secondKey: {thirdKey: {}}}})).toBeUndefined();
+		expect(fn({aKey: {}})).toBeUndefined();
+		expect(fn()).toBeUndefined();
+	});
 });

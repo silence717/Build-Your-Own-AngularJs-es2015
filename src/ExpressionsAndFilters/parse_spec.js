@@ -3,6 +3,7 @@
  * @date on 2017/1/5
  */
 import parse from './parse';
+import _ from 'lodash';
 describe('parse', () => {
 	// 可以解析整数
 	it('can parse an integer', () => {
@@ -212,5 +213,32 @@ describe('parse', () => {
 	it('parses computed access with another access as property', () => {
 		const fn = parse('lock[keys["aKey"]]');
 		expect(fn({keys: {aKey: 'theKey'}, lock: {theKey: 42}})).toBe(42);
+	});
+	it('parses a function call', () => {
+		const fn = parse('aFunction()');
+		expect(fn({aFunction: () => { return 42; }})).toBe(42);
+	});
+	it('parses a function call with a single number argument', () => {
+		const fn = parse('aFunction(42)');
+		expect(fn({aFunction: n => { return n; }})).toBe(42);
+	});
+	it('parses a function call with a single identifier argument', () => {
+		const fn = parse('aFunction(n)');
+		expect(fn({n: 42, aFunction: arg => { return arg; }})).toBe(42);
+	});
+	it('parses a function call with a single function call argument', () => {
+		const fn = parse('aFunction(argFn())');
+		expect(fn({
+			argFn: _.constant(42),
+			aFunction: arg => { return arg; }
+		})).toBe(42);
+	});
+	it('parses a function call with multiple arguments', () => {
+		const fn = parse('aFunction(37, n, argFn())');
+		expect(fn({
+			n: 3,
+			argFn: _.constant(2),
+			aFunction: (a1, a2, a3) => { return a1 + a2 + a3; }
+		})).toBe(42);
 	});
 });

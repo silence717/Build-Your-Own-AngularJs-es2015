@@ -35,7 +35,7 @@ class Lexer {
 			} else if (this.is('\'"')) {
 				// 传入开始的引号，判断字符串结束和开始引号是否相同
 				this.readString(this.ch);
-			} else if (this.is('[],{}:.')) {
+			} else if (this.is('[],{}:.()')) {
 				this.tokens.push({
 					text: this.ch
 				});
@@ -251,7 +251,7 @@ class AST {
 			primary = this.constant();
 		}
 		let next;
-		while ((next = this.expect('.', '['))) {
+		while ((next = this.expect('.', '[', '('))) {
 			if (next.text === '[') {
 				primary = {
 					type: AST.MemberExpression,
@@ -260,13 +260,20 @@ class AST {
 					computed: true
 				};
 				this.consume(']');
-			} else {
+			} else if (next.text === '.') {
 				primary = {
 					type: AST.MemberExpression,
 					object: primary,
 					property: this.identifier(),
 					computed: false
 				};
+			} else if (next.text === '(') {
+				primary = {
+					type: AST.CallExpression,
+					callee: primary,
+					arguments: this.parseArguments()
+				};
+				this.consume(')');
 			}
 		}
 		return primary;
@@ -360,6 +367,20 @@ class AST {
 		return {type: AST.Identifier, name: this.consume().text};
 	}
 
+	/**
+	 *
+	 * @returns {Array}
+	 */
+	parseArguments() {
+		const args = [];
+		if (!this.peek(')')) {
+			do {
+				args.push(this.primary());
+			} while (this.expect(','));
+		}
+		return args;
+	}
+
 }
 AST.Program = 'Program';
 // 常量类型
@@ -376,6 +397,8 @@ AST.Identifier = 'Identifier';
 AST.ThisExpression = 'ThisExpression';
 AST.LocalsExpression = 'LocalsExpression';
 AST.MemberExpression = 'MemberExpression';
+AST.CallExpression = 'CallExpression';
+
 /**
  * AST  end
  */
@@ -446,6 +469,12 @@ class ASTCompiler {
 				return intoId;
 			case AST.LocalsExpression:
 				return 'l';
+			case AST.CallExpression:
+				const callee = this.recurse(ast.callee);
+				const args = _.map(ast.arguments, _.bind(arg => {
+					return this.recurse(arg);
+				}, this));
+				return callee + '&&' + callee + '(' + args.join(',') + ')';
 		}
 	}
 

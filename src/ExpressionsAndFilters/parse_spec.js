@@ -166,4 +166,35 @@ describe('parse', () => {
 		expect(fn({aKey: {}})).toBeUndefined();
 		expect(fn()).toBeUndefined();
 	});
+	// 匹配到key值的时候使用本地替代scope
+	it('uses locals instead of scope when there is a matching key', () => {
+		const fn = parse('aKey');
+		const scope = {aKey: 42};
+		const locals = {aKey: 43};
+		expect(fn(scope, locals)).toBe(43);
+	});
+	// 匹配不到key值的时候不使用本地替代scope
+	it('does not use locals instead of scope when no matching key', () => {
+		const fn = parse('aKey');
+		const scope = {aKey: 42};
+		const locals = {otherKey: 43};
+		expect(fn(scope, locals)).toBe(42);
+	});
+	it('uses locals instead of scope when the first part matches', () => {
+		const fn = parse('aKey.anotherKey');
+		const scope = {aKey: {anotherKey: 42}};
+		const locals = {aKey: {}};
+		expect(fn(scope, locals)).toBeUndefined();
+	});
+	it('will parse $locals', () => {
+		let fn = parse('$locals');
+		let scope = {};
+		let locals = {};
+		expect(fn(scope, locals)).toBe(locals);
+		expect(fn(scope)).toBeUndefined();
+		fn = parse('$locals.aKey');
+		scope = {aKey: 42};
+		locals = {aKey: 43};
+		expect(fn(scope, locals)).toBe(43);
+	});
 });

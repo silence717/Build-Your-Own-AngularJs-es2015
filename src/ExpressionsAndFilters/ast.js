@@ -21,7 +21,7 @@ export default class AST {
 		return this.program();
 	}
 	program() {
-		return {type: AST.Program, body: this.primary()};
+		return {type: AST.Program, body: this.assignment()};
 	}
 
 	/**
@@ -110,7 +110,7 @@ export default class AST {
 				if (this.peek(']')) {
 					break;
 				}
-				elements.push(this.primary());
+				elements.push(this.assignment());
 			} while (this.expect(','));
 		}
 		this.consume(']');
@@ -132,7 +132,7 @@ export default class AST {
 					property.key = this.constant();
 				}
 				this.consume(':');
-				property.value = this.primary();
+				property.value = this.assignment();
 				properties.push(property);
 			} while (this.expect(','));
 		}
@@ -166,10 +166,23 @@ export default class AST {
 		const args = [];
 		if (!this.peek(')')) {
 			do {
-				args.push(this.primary());
+				args.push(this.assignment());
 			} while (this.expect(','));
 		}
 		return args;
+	}
+
+	/**
+	 * 赋值
+	 * @returns {*}
+	 */
+	assignment() {
+		const left = this.primary();
+		if (this.expect('=')) {
+			const right = this.primary();
+			return {type: AST.AssignmentExpression, left: left, right: right};
+		}
+		return left;
 	}
 
 }
@@ -189,3 +202,4 @@ AST.ThisExpression = 'ThisExpression';
 AST.LocalsExpression = 'LocalsExpression';
 AST.MemberExpression = 'MemberExpression';
 AST.CallExpression = 'CallExpression';
+AST.AssignmentExpression = 'AssignmentExpression';

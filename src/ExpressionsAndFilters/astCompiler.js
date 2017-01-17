@@ -30,7 +30,7 @@ export default class ASTCompiler {
 	 * @param ast
 	 * @returns {*}
 	 */
-	recurse(ast, context) {
+	recurse(ast, context, create) {
 		let intoId;
 		switch (ast.type) {
 			case AST.Program:
@@ -53,6 +53,9 @@ export default class ASTCompiler {
 			case AST.Identifier:
 				intoId = this.nextId();
 				this.if_(this.getHasOwnProperty('l', ast.name), this.assign(intoId, this.nonComputedMember('l', ast.name)));
+				if (create) {
+					this.if_(this.not(this.getHasOwnProperty('l', ast.name)) + ' && s && ' + this.not(this.getHasOwnProperty('s', ast.name)), this.assign(this.nonComputedMember('s', ast.name), '{}'));
+				}
 				this.if_(this.not(this.getHasOwnProperty('l', ast.name)) + ' && s', this.assign(intoId, this.nonComputedMember('s', ast.name)));
 				if (context) {
 					context.context = this.getHasOwnProperty('l', ast.name) + '?l:s';
@@ -64,18 +67,24 @@ export default class ASTCompiler {
 				return 's';
 			case AST.MemberExpression:
 				intoId = this.nextId();
-				const left = this.recurse(ast.object);
+				const left = this.recurse(ast.object, undefined, create);
 				if (context) {
 					context.context = left;
 				}
 				if (ast.computed) {
 					const right = this.recurse(ast.property);
+					if (create) {
+						this.if_(this.not(this.computedMember(left, right)), this.assign(this.computedMember(left, right), '{}'));
+					}
 					this.if_(left, this.assign(intoId, this.computedMember(left, right)));
 					if (context) {
 						context.name = right;
 						context.computed = true;
 					}
 				} else {
+					if (create) {
+						this.if_(this.not(this.nonComputedMember(left, ast.property.name)), this.assign(this.nonComputedMember(left, ast.property.name), '{}'));
+					}
 					this.if_(left, this.assign(intoId, this.nonComputedMember(left, ast.property.name)));
 					if (context) {
 						context.name = ast.property.name;
@@ -99,6 +108,16 @@ export default class ASTCompiler {
 					}
 				}
 				return callee + '&&' + callee + '(' + args.join(',') + ')';
+			case AST.AssignmentExpression:
+				const leftContext = {};
+				this.recurse(ast.left, leftContext, true);
+				let leftExpr;
+				if (leftContext.computed) {
+					leftExpr = this.computedMember(leftContext.context, leftContext.name);
+				} else {
+					leftExpr = this.nonComputedMember(leftContext.context, leftContext.name);
+				}
+				return this.assign(leftExpr, this.recurse(ast.right));
 		}
 	}
 

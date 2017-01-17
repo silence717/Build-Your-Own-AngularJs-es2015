@@ -320,4 +320,40 @@ describe('parse', () => {
 		fn(scope);
 		expect(scope.some.nested.property.path).toBe(42);
 	});
+	it('does not allow calling the function constructor', () => {
+		expect(() => {
+			const fn = parse('aFunction.constructor("return window;")()');
+			fn({aFunction: () => { }});
+		}).toThrow();
+	});
+	it('does not allow accessing __proto__', () => {
+		expect(() => {
+			const fn = parse('obj.__proto__');
+			fn({obj: { }});
+		}).toThrow();
+	});
+	it('does not allow calling __defineGetter__', () => {
+		expect(() => {
+			const fn = parse('obj.__defineGetter__("evil", fn)');
+			fn({obj: { }, fn: () => { }});
+		}).toThrow();
+	});
+	it('does not allow calling __defineSetter__', () => {
+		expect(() => {
+			const fn = parse('obj.__defineSetter__("evil", fn)');
+			fn({obj: { }, fn: () => { }});
+		}).toThrow();
+	});
+	it('does not allow calling __lookupGetter__', () => {
+		expect(() => {
+			const fn = parse('obj.__lookupGetter__("evil")');
+			fn({obj: { }});
+		}).toThrow();
+	});
+	it('does not allow calling __lookupSetter__', () => {
+		expect(() => {
+			const fn = parse('obj.__lookupSetter__("evil")');
+			fn({obj: { }});
+		}).toThrow();
+	});
 });

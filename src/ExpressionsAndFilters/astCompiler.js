@@ -6,6 +6,14 @@
 import _ from 'lodash';
 import AST from './ast';
 
+function ensureSafeMemberName(name) {
+	if (name === 'constructor' || name === '__proto__' ||
+		name === '__defineGetter__' || name === '__defineSetter__' ||
+		name === '__lookupGetter__' || name === '__lookupSetter__') {
+		throw 'Attempting to access a disallowed field in Angular expressions!';
+	}
+}
+
 export default class ASTCompiler {
 
 	constructor(astBuilder) {
@@ -22,7 +30,8 @@ export default class ASTCompiler {
 		const ast = this.astBuilder.ast(text);
 		this.state = {body: [], nextId: 0, vars: []};
 		this.recurse(ast);
-		return new Function('s', 'l', (this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') + this.state.body.join(''));
+		const fnString = 'var fn=function(s,l){' + (this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') + this.state.body.join('') + '}; return fn;';
+		return new Function('ensureSafeMemberName', fnString)(ensureSafeMemberName);
 	}
 
 	/**
@@ -51,6 +60,7 @@ export default class ASTCompiler {
 				}, this));
 				return '{' + properties.join(',') + '}';
 			case AST.Identifier:
+				ensureSafeMemberName(ast.name);
 				intoId = this.nextId();
 				this.if_(this.getHasOwnProperty('l', ast.name), this.assign(intoId, this.nonComputedMember('l', ast.name)));
 				if (create) {
@@ -73,6 +83,7 @@ export default class ASTCompiler {
 				}
 				if (ast.computed) {
 					const right = this.recurse(ast.property);
+					this.addEnsureSafeMemberName(right);
 					if (create) {
 						this.if_(this.not(this.computedMember(left, right)), this.assign(this.computedMember(left, right), '{}'));
 					}
@@ -82,6 +93,7 @@ export default class ASTCompiler {
 						context.computed = true;
 					}
 				} else {
+					ensureSafeMemberName(ast.property.name);
 					if (create) {
 						this.if_(this.not(this.nonComputedMember(left, ast.property.name)), this.assign(this.nonComputedMember(left, ast.property.name), '{}'));
 					}
@@ -210,5 +222,13 @@ export default class ASTCompiler {
 	 */
 	computedMember(left, right) {
 		return '(' + left + ')[' + right + ']';
+	}
+
+	/**
+	 * 添加安全的成员名称
+	 * @param expr
+	 */
+	addEnsureSafeMemberName(expr) {
+		this.state.body.push('ensureSafeMemberName(' + expr + ');');
 	}
 };

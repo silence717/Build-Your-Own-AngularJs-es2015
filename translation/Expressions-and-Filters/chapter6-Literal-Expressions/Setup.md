@@ -13,7 +13,7 @@ module.exports = parse;
 
 这个文件将包含四个对象，它将字符串表达式转为方法：Lexer, AST Builder, AST Compiler, Parser。他们在不同的阶段有不同的职责：  
 
-Lexer 获取最原始的字符串表达式，并返回该字符串解析的标记数组。例如，字符串"`a+b`"将会返回标记`a`,`+`，和 `b`。  
+Lexer 获取最原始的字符串表达式，并返回该字符串解析的token数组。例如，字符串"`a+b`"将会返回标记`a`,`+`，和 `b`。
 
 AST Builder 接收此法分析器生成的标记数组，并从中构建`bstract Syntax Tree (AST)`(抽象语法树)。这个树表示表达式作为嵌套JavaScript
 对象的句法结构。例如，标记`a`,`+`，和 `b`会生成下面的结构：

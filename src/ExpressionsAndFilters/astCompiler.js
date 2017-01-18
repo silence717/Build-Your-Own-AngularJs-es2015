@@ -28,6 +28,20 @@ function ensureSafeObject(obj) {
 	}
 	return obj;
 }
+const CALL = Function.prototype.call;
+const APPLY = Function.prototype.apply;
+const BIND = Function.prototype.bind;
+// 确保函数是安全
+function ensureSafeFunction(obj) {
+	if (obj) {
+		if (obj.constructor === obj) {
+			throw 'Referencing Function in Angular expressions is disallowed!';
+		} else if (obj === CALL || obj === APPLY || obj === BIND) {
+			throw 'Referencing call, apply, or bind in Angular expressions is disallowed!';
+		}
+	}
+	return obj;
+}
 
 export default class ASTCompiler {
 
@@ -46,7 +60,7 @@ export default class ASTCompiler {
 		this.state = {body: [], nextId: 0, vars: []};
 		this.recurse(ast);
 		const fnString = 'var fn=function(s,l){' + (this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') + this.state.body.join('') + '}; return fn;';
-		return new Function('ensureSafeMemberName', 'ensureSafeObject', fnString)(ensureSafeMemberName, ensureSafeObject);
+		return new Function('ensureSafeMemberName', 'ensureSafeObject', 'ensureSafeFunction', fnString)(ensureSafeMemberName, ensureSafeObject, ensureSafeFunction);
 	}
 
 	/**
@@ -136,6 +150,7 @@ export default class ASTCompiler {
 						callee = this.nonComputedMember(callContext.context, callContext.name);
 					}
 				}
+				this.addEnsureSafeFunction(callee);
 				return callee + '&&ensureSafeObject(' + callee + '(' + args.join(',') + '))';
 			case AST.AssignmentExpression:
 				const leftContext = {};
@@ -255,5 +270,13 @@ export default class ASTCompiler {
 	 */
 	addEnsureSafeObject(expr) {
 		this.state.body.push('ensureSafeObject(' + expr + ');');
+	}
+
+	/**
+	 * 添加安全函数
+	 * @param expr
+	 */
+	addEnsureSafeFunction(expr) {
+		this.state.body.push('ensureSafeFunction(' + expr + ');');
 	}
 };

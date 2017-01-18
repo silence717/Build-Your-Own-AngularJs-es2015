@@ -408,4 +408,12 @@ describe('parse', () => {
 			fn({obj: Object});
 		}).toThrow();
 	});
+	it('does not allow calling call', () => {
+		const fn = parse('fun.call(obj)');
+		expect(() => { fn({fun: () => { }, obj: {}}); }).toThrow();
+	});
+	it('does not allow calling apply', () => {
+		const fn = parse('fun.apply(obj)');
+		expect(() => { fn({fun: () => { }, obj: {}}); }).toThrow();
+	});
 });

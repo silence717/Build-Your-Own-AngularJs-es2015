@@ -356,4 +356,56 @@ describe('parse', () => {
 			fn({obj: { }});
 		}).toThrow();
 	});
+	it('does not allow accessing window as computed property', () => {
+		const fn = parse('anObject["wnd"]');
+		expect(() => { fn({anObject: {wnd: window}}); }).toThrow();
+	});
+	it('does not allow accessing window as non-computed property', () => {
+		const fn = parse('anObject.wnd');
+		expect(() => { fn({anObject: {wnd: window}}); }).toThrow();
+	});
+	it('does not allow passing window as function argument', () => {
+		const fn = parse('aFunction(wnd)');
+		expect(() => {
+			fn({aFunction: () => { }, wnd: window});
+		}).toThrow();
+	});
+	it('does not allow calling methods on window', () => {
+		const fn = parse('wnd.scrollTo(0)');
+		expect(() => {
+			fn({wnd: window});
+		}).toThrow();
+	});
+	it('does not allow functions to return window', () => {
+		const fn = parse('getWnd()');
+		expect(() => { fn({getWnd: _.constant(window)}); }).toThrow();
+	});
+	it('does not allow assigning window', () => {
+		const fn = parse('wnd = anObject');
+		expect(() => {
+			fn({anObject: window});
+		}).toThrow();
+	});
+	it('does not allow referencing window', () => {
+		const fn = parse('wnd');
+		expect(() => {
+			fn({wnd: window});
+		}).toThrow();
+	});
+	it('does not allow calling functions on DOM elements', () => {
+		const fn = parse('el.setAttribute("evil", "true")');
+		expect(() => { fn({el: document.documentElement}); }).toThrow();
+	});
+	it('does not allow calling the aliased function constructor', () => {
+		const fn = parse('fnConstructor("return window;")');
+		expect(() => {
+			fn({fnConstructor: (() => { }).constructor});
+		}).toThrow();
+	});
+	it('does not allow calling functions on Object', () => {
+		const fn = parse('obj.create({})');
+		expect(() => {
+			fn({obj: Object});
+		}).toThrow();
+	});
 });

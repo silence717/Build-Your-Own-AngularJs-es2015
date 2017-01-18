@@ -5,13 +5,28 @@
  */
 import _ from 'lodash';
 import AST from './ast';
-
+// 确保是安全的成员属性访问
 function ensureSafeMemberName(name) {
 	if (name === 'constructor' || name === '__proto__' ||
 		name === '__defineGetter__' || name === '__defineSetter__' ||
 		name === '__lookupGetter__' || name === '__lookupSetter__') {
 		throw 'Attempting to access a disallowed field in Angular expressions!';
 	}
+}
+// 确保是安全的对象
+function ensureSafeObject(obj) {
+	if (obj) {
+		if (obj.window === obj) {
+			throw 'Referencing window in Angular expressions is disallowed!';
+		} else if (obj.children && (obj.nodeName || (obj.prop && obj.attr && obj.find))) {
+			throw 'Referencing DOM nodes in Angular expressions is disallowed!';
+		} else if (obj.constructor === obj) {
+			throw 'Referencing Function in Angular expressions is disallowed!';
+		} else if (obj === Object) {
+			throw 'Referencing Object in Angular expressions is disallowed!';
+		}
+	}
+	return obj;
 }
 
 export default class ASTCompiler {
@@ -31,7 +46,7 @@ export default class ASTCompiler {
 		this.state = {body: [], nextId: 0, vars: []};
 		this.recurse(ast);
 		const fnString = 'var fn=function(s,l){' + (this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') + this.state.body.join('') + '}; return fn;';
-		return new Function('ensureSafeMemberName', fnString)(ensureSafeMemberName);
+		return new Function('ensureSafeMemberName', fnString)(ensureSafeMemberName, ensureSafeObject);
 	}
 
 	/**
@@ -72,6 +87,7 @@ export default class ASTCompiler {
 					context.name = ast.name;
 					context.computed = false;
 				}
+				this.addEnsureSafeObject(intoId);
 				return intoId;
 			case AST.ThisExpression:
 				return 's';
@@ -87,7 +103,7 @@ export default class ASTCompiler {
 					if (create) {
 						this.if_(this.not(this.computedMember(left, right)), this.assign(this.computedMember(left, right), '{}'));
 					}
-					this.if_(left, this.assign(intoId, this.computedMember(left, right)));
+					this.if_(left, this.assign(intoId, 'ensureSafeObject(' + this.computedMember(left, right) + ')'));
 					if (context) {
 						context.name = right;
 						context.computed = true;
@@ -97,7 +113,7 @@ export default class ASTCompiler {
 					if (create) {
 						this.if_(this.not(this.nonComputedMember(left, ast.property.name)), this.assign(this.nonComputedMember(left, ast.property.name), '{}'));
 					}
-					this.if_(left, this.assign(intoId, this.nonComputedMember(left, ast.property.name)));
+					this.if_(left, this.assign(intoId, 'ensureSafeObject(' + this.nonComputedMember(left, ast.property.name) + ')'));
 					if (context) {
 						context.name = ast.property.name;
 						context.computed = false;
@@ -110,16 +126,17 @@ export default class ASTCompiler {
 				const callContext = {};
 				let callee = this.recurse(ast.callee, callContext);
 				const args = _.map(ast.arguments, _.bind(arg => {
-					return this.recurse(arg);
+					return 'ensureSafeObject(' + this.recurse(arg) + ')';
 				}, this));
 				if (callContext.name) {
+					this.addEnsureSafeObject(callContext.context);
 					if (callContext.computed) {
 						callee = this.computedMember(callContext.context, callContext.name);
 					} else {
 						callee = this.nonComputedMember(callContext.context, callContext.name);
 					}
 				}
-				return callee + '&&' + callee + '(' + args.join(',') + ')';
+				return callee + '&&ensureSafeObject(' + callee + '(' + args.join(',') + '))';
 			case AST.AssignmentExpression:
 				const leftContext = {};
 				this.recurse(ast.left, leftContext, true);
@@ -129,7 +146,7 @@ export default class ASTCompiler {
 				} else {
 					leftExpr = this.nonComputedMember(leftContext.context, leftContext.name);
 				}
-				return this.assign(leftExpr, this.recurse(ast.right));
+				return this.assign(leftExpr, 'ensureSafeObject(' + this.recurse(ast.right) + ')');
 		}
 	}
 
@@ -230,5 +247,13 @@ export default class ASTCompiler {
 	 */
 	addEnsureSafeMemberName(expr) {
 		this.state.body.push('ensureSafeMemberName(' + expr + ');');
+	}
+
+	/**
+	 * 添加安全的对象
+	 * @param expr
+	 */
+	addEnsureSafeObject(expr) {
+		this.state.body.push('ensureSafeObject(' + expr + ');');
 	}
 };

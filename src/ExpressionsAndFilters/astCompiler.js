@@ -46,7 +46,7 @@ export default class ASTCompiler {
 		this.state = {body: [], nextId: 0, vars: []};
 		this.recurse(ast);
 		const fnString = 'var fn=function(s,l){' + (this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') + this.state.body.join('') + '}; return fn;';
-		return new Function('ensureSafeMemberName', fnString)(ensureSafeMemberName, ensureSafeObject);
+		return new Function('ensureSafeMemberName', 'ensureSafeObject', fnString)(ensureSafeMemberName, ensureSafeObject);
 	}
 
 	/**

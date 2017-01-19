@@ -6,18 +6,24 @@
 const ESCAPES = {'n': '\n', 'f': '\f', 'r': '\r', 't': '\t', 'v': '\v', '\'': '\'', '"': '"'};
 
 const OPERATORS = {
-	'+': true
+	'+': true,
+	'!': true
 };
 
 export default class Lexer {
 
 	lex(text) {
+		// 输入待解析的东西
 		this.text = text;
+		// 当前索引
 		this.index = 0;
+		// 当前字符
 		this.ch = undefined;
+		// 存储标识、令牌
 		this.tokens = [];
 		// 循环读取每个输入字符
 		while (this.index < this.text.length) {
+			// 通过当前索引获取当前字符
 			this.ch = this.text.charAt(this.index);
 			// 当前字符是一个数字，或者当前字符为.,下一个字符是数字，这兼容整数和浮点数两种
 			if (this.isNumber(this.ch) || (this.is('.') && this.isNumber(this.peek()))) {
@@ -31,10 +37,13 @@ export default class Lexer {
 				});
 				this.index++;
 			} else if (this.isIdent(this.ch)) {
+				// 判断为a-z,A-Z,_,$
 				this.readIdent();
 			} else if (this.isWhitespace(this.ch)) {
+				// 空格处理
 				this.index++;
 			} else {
+				// 一元表达式
 				const op = OPERATORS[this.ch];
 				if (op) {
 					this.tokens.push({text: this.ch});
@@ -106,11 +115,14 @@ export default class Lexer {
 			if (escape) {
 				// 如果为unicode编码
 				if (ch === 'u') {
+					// 截取出16进制的code
 					const hex = this.text.substring(this.index + 1, this.index + 5);
 					if (!hex.match(/[\da-f]{4}/i)) {
 						throw 'Invalid unicode escape';
 					}
+					// 将index值提高跳过16值代表的字符
 					this.index += 4;
+					// 获取16进制code对应的字符
 					string += String.fromCharCode(parseInt(hex, 16));
 				} else {
 					// 如果是字符字符，从常量 ESCAPES 中获取可以替换的值
@@ -123,7 +135,7 @@ export default class Lexer {
 				}
 				escape = false;
 			} else if (ch === quote) {
-				// 是否为引号
+				// 当前字符为引号
 				this.index++;
 				this.tokens.push({
 					text: string,
@@ -161,7 +173,7 @@ export default class Lexer {
 		this.tokens.push(token);
 	}
 	/**
-	 *返回下一个字符的文本，而不向前移动当前的索引。如果没有下一个字符，`peek`会返回`false`
+	 * 返回下一个字符的文本，而不向前移动当前的索引。如果没有下一个字符，`peek`会返回`false`
 	 * @returns {*}
 	 */
 	peek() {

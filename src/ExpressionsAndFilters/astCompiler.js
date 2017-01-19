@@ -63,8 +63,21 @@ export default class ASTCompiler {
 		const ast = this.astBuilder.ast(text);
 		this.state = {body: [], nextId: 0, vars: []};
 		this.recurse(ast);
-		const fnString = 'var fn=function(s,l){' + (this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') + this.state.body.join('') + '}; return fn;';
-		return new Function('ensureSafeMemberName', 'ensureSafeObject', 'ensureSafeFunction', 'ifDefined', fnString)(ensureSafeMemberName, ensureSafeObject, ensureSafeFunction, ifDefined);
+		const fnString = 'var fn=function(s,l){' +
+			(this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') +
+			this.state.body.join('') + '}; return fn;';
+		return new Function(
+				'ensureSafeMemberName',
+				'ensureSafeObject',
+				'ensureSafeFunction',
+				'ifDefined',
+				fnString
+			)(
+				ensureSafeMemberName,
+				ensureSafeObject,
+				ensureSafeFunction,
+				ifDefined
+			);
 	}
 
 	/**

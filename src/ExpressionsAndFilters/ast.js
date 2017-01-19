@@ -6,6 +6,7 @@
 export default class AST {
 
 	constructor(lexer) {
+		// lexer解析出来的tokens
 		this.lexer = lexer;
 		// 定义一些特殊常量
 		this.constants = {
@@ -190,11 +191,12 @@ export default class AST {
 	 * @returns {*}
 	 */
 	unary() {
-		if (this.expect('+')) {
+		let token;
+		if ((token = this.expect('+', '!'))) {
 			return {
 				type: AST.UnaryExpression,
-				operator: '+',
-				argument: this.primary()
+				operator: token.text,
+				argument: this.unary()
 			};
 		} else {
 			return this.primary();
@@ -216,9 +218,10 @@ AST.Identifier = 'Identifier';
 // this表达式
 AST.ThisExpression = 'ThisExpression';
 AST.LocalsExpression = 'LocalsExpression';
+// 成员表达式
 AST.MemberExpression = 'MemberExpression';
 AST.CallExpression = 'CallExpression';
+// 赋值表达式
 AST.AssignmentExpression = 'AssignmentExpression';
 // 一元表达式
 AST.UnaryExpression = 'UnaryExpression';
-

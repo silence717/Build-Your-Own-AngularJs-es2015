@@ -172,3 +172,52 @@ function ifDefined(value, defaultValue) {
     return typeof value === 'undefined' ? defaultValue : value;
 }
 ```
+我们现在对`+`已经处理完整了，让我们转到下一个一元运算符，这是一个很有意思的事情因为它做的事情：
+```js
+it('parses a unary !', function() {
+  expect(parse('!true')()).toBe(false);
+  expect(parse('!42')()).toBe(false);
+  expect(parse('!a')({a: false})).toBe(true);
+  expect(parse('!!a')({a: false})).toBe(false);
+});
+```
+取反操作符和JavaScript里面的有着相同的含义。测试的最后一个期望它可以展示一下如何连续使用多个。
+
+我们将这个操作符添加到`OPERATORS`对象：
+```js
+var OPERATORS = {
+  '+': true,
+  '!': true
+};
+```
+在AST builder的`unary`中，我们现在期望的是`+`或者`!`。我们就不能在AST节点的操作符中把`+`写死(hardcode)，但是必须使用我们实际的去代替：
+```js
+AST.prototype.unary = function() {
+  var token;
+  if ((token = this.expect('+', '!'))) {
+    return {
+      type: AST.UnaryExpression,
+      operator: token.text,
+      argument: this.primary()
+    };
+  } else {
+    return this.primary();
+  }
+};
+```
+我们已经解决了部分测试用例，为了使它工作我们不需要在AST compiler里面做任何改变。测试现在仍然是失败的，因为我们在一行中应用`!`多次。
+要修复它非常容易我们将另一个一元表达式作为`unary`的参数：
+```js
+AST.prototype.unary = function() {
+  var token;
+  if ((token = this.expect('+', '!'))) {
+    return {
+      type: AST.UnaryExpression,
+      operator: token.text,
+      argument: this.unary()
+    };
+  } else {
+    return this.primary();
+  }
+};
+```

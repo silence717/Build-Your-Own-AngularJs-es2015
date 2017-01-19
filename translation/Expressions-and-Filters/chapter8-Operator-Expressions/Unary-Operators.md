@@ -260,3 +260,51 @@ it('parses a ! in a string', function() {
   expect(parse('"!"')()).toBe('!');
 });
 ```
+现在这样会引起一个错误，因为字符串token包含一个`text`属性，并且值为`!`,AST builder会解读为一个一元操作符`!`。这肯定不会发生。
+
+我们需要修改我们的字符串tokens以便于他们的`text`属性在字符串里面不包含这个字符，而是代替持有整个原始字符串token包含引号。这样就不会和操作符混淆了。我们在Lexer的
+`readString`方法里面将收集"raw"原始字符串给`rawString`变量。
+```js
+Lexer.prototype.readString = function(quote) {
+    this.index++;
+    var string = '';
+    var rawString = quote;
+    var escape = false;
+    while (this.index < this.text.length) {
+      var ch = this.text.charAt(this.index);
+    rawString += ch;
+    if (escape) {
+      if (ch === 'u') {
+        var hex = this.text.substring(this.index + 1, this.index + 5);
+        if (!hex.match(/[\da-f]{4}/i)) {
+          throw 'Invalid unicode escape';
+        }
+        this.index += 4;
+        string += String.fromCharCode(parseInt(hex, 16));
+      } else {
+        var replacement = ESCAPES[ch];
+        if (replacement) {
+          string += replacement;
+        } else {
+          string += ch;
+        }
+    }
+      escape = false;
+    } else if (ch === quote) {
+      this.index++;
+      this.tokens.push({
+          text: rawString,
+          value: string
+      });
+      return;
+      } else if (ch === '\\') {
+        escape = true;
+      } else {
+        string += ch;
+      }
+      this.index++;
+    }
+};
+
+```
+这就是一元运算符！

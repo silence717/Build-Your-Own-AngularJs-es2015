@@ -108,10 +108,13 @@ export default class Lexer {
 	readString(quote) {
 		this.index++;
 		let string = '';
+		// 存取原始字符串
+		let rawString = quote;
 		// 转义标识
 		let escape = false;
 		while (this.index < this.text.length) {
 			const ch = this.text.charAt(this.index);
+			rawString += ch;
 			// 是否需要转义
 			if (escape) {
 				// 如果为unicode编码
@@ -139,7 +142,7 @@ export default class Lexer {
 				// 当前字符为引号
 				this.index++;
 				this.tokens.push({
-					text: string,
+					text: rawString,
 					value: string
 				});
 				return;

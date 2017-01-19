@@ -192,7 +192,7 @@ export default class AST {
 	 */
 	unary() {
 		let token;
-		if ((token = this.expect('+', '!'))) {
+		if ((token = this.expect('+', '!', '-'))) {
 			return {
 				type: AST.UnaryExpression,
 				operator: token.text,

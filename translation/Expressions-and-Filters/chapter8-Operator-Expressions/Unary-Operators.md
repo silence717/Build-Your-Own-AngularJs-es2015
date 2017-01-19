@@ -221,3 +221,42 @@ AST.prototype.unary = function() {
   }
 };
 ```
+第三个也是最后一个一元表达式我们将支持`-`数字取负：
+```js
+it('parses a unary -', function() {
+  expect(parse('-42')()).toBe(-42);
+  expect(parse('-a')({a: -42})).toBe(42);
+  expect(parse('--a')({a: -42})).toBe(-42);
+  expect(parse('-a')({})).toBe(0);
+});
+```
+首先要做的也是添加到`OPERATORS`对象：
+```js
+var OPERATORS = {
+  '+': true,
+  '!': true,
+  '-': true
+};
+```
+Then it should be expected by the AST builder in a unary position:
+接下来它在AST builder中unary的位置添加一个expected:
+```js
+AST.prototype.unary = function() {
+    var token;
+    if ((token = this.expect('+', '!', '-'))) {
+    return {
+        type: AST.UnaryExpression,
+        operator: token.text,
+        argument: this.unary()
+    };
+    } else {
+      return this.primary();
+    }
+};
+```
+现在我们在`OPERATORS`对象里面匹配一下字符的key，我们疏忽地引入了一个bug给字符串表达式。考虑一个包含一个感叹号的字符串，当在字符串外部使用时它也是一个操作符：
+```js
+it('parses a ! in a string', function() {
+  expect(parse('"!"')()).toBe('!');
+});
+```

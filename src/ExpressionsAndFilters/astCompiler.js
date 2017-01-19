@@ -28,6 +28,10 @@ function ensureSafeObject(obj) {
 	}
 	return obj;
 }
+// 是否被定义
+function ifDefined(value, defaultValue) {
+	return typeof value === 'undefined' ? defaultValue : value;
+}
 const CALL = Function.prototype.call;
 const APPLY = Function.prototype.apply;
 const BIND = Function.prototype.bind;
@@ -60,7 +64,7 @@ export default class ASTCompiler {
 		this.state = {body: [], nextId: 0, vars: []};
 		this.recurse(ast);
 		const fnString = 'var fn=function(s,l){' + (this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') + this.state.body.join('') + '}; return fn;';
-		return new Function('ensureSafeMemberName', 'ensureSafeObject', 'ensureSafeFunction', fnString)(ensureSafeMemberName, ensureSafeObject, ensureSafeFunction);
+		return new Function('ensureSafeMemberName', 'ensureSafeObject', 'ensureSafeFunction', 'ifDefined', fnString)(ensureSafeMemberName, ensureSafeObject, ensureSafeFunction, ifDefined);
 	}
 
 	/**
@@ -162,6 +166,8 @@ export default class ASTCompiler {
 					leftExpr = this.nonComputedMember(leftContext.context, leftContext.name);
 				}
 				return this.assign(leftExpr, 'ensureSafeObject(' + this.recurse(ast.right) + ')');
+			case AST.UnaryExpression:
+				return ast.operator + '(' + this.ifDefined(this.recurse(ast.argument), 0) + ')';
 		}
 	}
 
@@ -278,5 +284,14 @@ export default class ASTCompiler {
 	 */
 	addEnsureSafeFunction(expr) {
 		this.state.body.push('ensureSafeFunction(' + expr + ');');
+	}
+
+	/**
+	 *
+	 * @param value
+	 * @param defaultValue
+	 */
+	ifDefined(value, defaultValue) {
+		return 'ifDefined(' + value + ',' + this.escape(defaultValue) + ')';
 	}
 };

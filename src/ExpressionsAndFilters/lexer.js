@@ -5,6 +5,10 @@
  */
 const ESCAPES = {'n': '\n', 'f': '\f', 'r': '\r', 't': '\t', 'v': '\v', '\'': '\'', '"': '"'};
 
+const OPERATORS = {
+	'+': true
+};
+
 export default class Lexer {
 
 	lex(text) {
@@ -31,7 +35,13 @@ export default class Lexer {
 			} else if (this.isWhitespace(this.ch)) {
 				this.index++;
 			} else {
-				throw 'Unexpected next character: ' + this.ch;
+				const op = OPERATORS[this.ch];
+				if (op) {
+					this.tokens.push({text: this.ch});
+					this.index++;
+				} else {
+					throw 'Unexpected next character: ' + this.ch;
+				}
 			}
 		}
 		return this.tokens;

@@ -177,13 +177,29 @@ export default class AST {
 	 * @returns {*}
 	 */
 	assignment() {
-		const left = this.primary();
+		const left = this.unary();
 		if (this.expect('=')) {
-			const right = this.primary();
+			const right = this.unary();
 			return {type: AST.AssignmentExpression, left: left, right: right};
 		}
 		return left;
 	}
+
+	/**
+	 * 处理一元运算符
+	 * @returns {*}
+	 */
+	unary() {
+		if (this.expect('+')) {
+			return {
+				type: AST.UnaryExpression,
+				operator: '+',
+				argument: this.primary()
+			};
+		} else {
+			return this.primary();
+		}
+	};
 
 }
 AST.Program = 'Program';
@@ -203,3 +219,6 @@ AST.LocalsExpression = 'LocalsExpression';
 AST.MemberExpression = 'MemberExpression';
 AST.CallExpression = 'CallExpression';
 AST.AssignmentExpression = 'AssignmentExpression';
+// 一元表达式
+AST.UnaryExpression = 'UnaryExpression';
+

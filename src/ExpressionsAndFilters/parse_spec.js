@@ -416,4 +416,11 @@ describe('parse', () => {
 		const fn = parse('fun.apply(obj)');
 		expect(() => { fn({fun: () => { }, obj: {}}); }).toThrow();
 	});
+	it('parses a unary +', () => {
+		expect(parse('+42')()).toBe(42);
+		expect(parse('+a')({a: 42})).toBe(42);
+	});
+	it('replaces undefined with zero for unary +', () => {
+		expect(parse('+a')({})).toBe(0);
+	});
 });

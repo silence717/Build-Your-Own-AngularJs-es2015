@@ -8,7 +8,10 @@ const ESCAPES = {'n': '\n', 'f': '\f', 'r': '\r', 't': '\t', 'v': '\v', '\'': '\
 const OPERATORS = {
 	'+': true,
 	'!': true,
-	'-': true
+	'-': true,
+	'*': true,
+	'/': true,
+  	'%': true
 };
 
 export default class Lexer {

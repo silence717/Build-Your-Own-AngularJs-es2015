@@ -181,6 +181,8 @@ export default class ASTCompiler {
 				return this.assign(leftExpr, 'ensureSafeObject(' + this.recurse(ast.right) + ')');
 			case AST.UnaryExpression:
 				return ast.operator + '(' + this.ifDefined(this.recurse(ast.argument), 0) + ')';
+				case AST.BinaryExpression:
+					return '(' + this.recurse(ast.left) + ')' + ast.operator + '(' + this.recurse(ast.right) + ')';
 		}
 	}
 

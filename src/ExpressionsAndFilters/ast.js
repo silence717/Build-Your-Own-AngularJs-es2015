@@ -178,9 +178,9 @@ export default class AST {
 	 * @returns {*}
 	 */
 	assignment() {
-		const left = this.unary();
+		const left = this.multiplicative();
 		if (this.expect('=')) {
-			const right = this.unary();
+			const right = this.multiplicative();
 			return {type: AST.AssignmentExpression, left: left, right: right};
 		}
 		return left;
@@ -202,6 +202,23 @@ export default class AST {
 			return this.primary();
 		}
 	};
+	/**
+	 * [multiplicative 处理多元操作符]
+	 * @return {[type]} [description]
+	 */
+	multiplicative() {
+		const left = this.unary();
+		let token;
+		if ((token = this.expect('*', '/', '%'))) {
+		    left = {
+		      type: AST.BinaryExpression,
+		      left: left,
+		      operator: token.text,
+		      right: this.unary()
+			}; 
+		}
+ 	 	return left;
+	}
 
 }
 AST.Program = 'Program';
@@ -225,3 +242,4 @@ AST.CallExpression = 'CallExpression';
 AST.AssignmentExpression = 'AssignmentExpression';
 // 一元表达式
 AST.UnaryExpression = 'UnaryExpression';
+AST.BinaryExpression = 'BinaryExpression';

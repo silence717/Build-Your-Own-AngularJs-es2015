@@ -101,7 +101,26 @@ it('parses several multiplicatives', function() {
   expect(parse('36 * 2 % 5')()).toBe(2);
 });
 ```
-由于`multiplicative`仅仅只能解析一个操作数并返回所以目前还不能工作。
+由于`multiplicative`仅仅只能解析一个操作数并返回所以目前还不能工作。如果有比它更多的表达式，剩下的将会被忽略。
+
+为了修复这个问题，在`multiplicative`里面consuming tokens,如果有多个多元操作符需要解析。每一步的结果都会成为下一步的左半部分，增加语法树的深度。具体而言，没有比将`AST.multiplicative`的`if`切换为`while`语句需要做的更多了：
+
+```js
+AST.prototype.multiplicative = function() {
+  var left = this.unary();
+  var token;
+  while ((token = this.expect('*', '/', '%'))) {
+	left = {
+	      type: AST.BinaryExpression,
+	      left: left,
+	      operator: token.text,
+	      right: this.unary()
+	}; 
+  }
+  return left;
+};
+```
+由于三个multiplicative操作符有相同的优先级，所以他们应用从左到右，这就是我们现在的函数。
 
 
 

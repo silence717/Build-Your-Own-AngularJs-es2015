@@ -445,6 +445,6 @@ describe('parse', () => {
 		expect(parse('85 % 43')()).toBe(42);
 	});
 	it('parses several multiplicatives', () => {
- 	    expect(parse('36 * 2 % 5')()).toBe(2);
+		expect(parse('36 * 2 % 5')()).toBe(2);
 	});
 });

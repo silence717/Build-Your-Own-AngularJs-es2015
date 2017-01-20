@@ -207,17 +207,17 @@ export default class AST {
 	 * @return {[type]} [description]
 	 */
 	multiplicative() {
-		const left = this.unary();
+		let left = this.unary();
 		let token;
-		if ((token = this.expect('*', '/', '%'))) {
-		    left = {
-		      type: AST.BinaryExpression,
-		      left: left,
-		      operator: token.text,
-		      right: this.unary()
-			}; 
+		while ((token = this.expect('*', '/', '%'))) {
+			left = {
+				type: AST.BinaryExpression,
+				left: left,
+				operator: token.text,
+				right: this.unary()
+			};
 		}
- 	 	return left;
+		return left;
 	}
 
 }

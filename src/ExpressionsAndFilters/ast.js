@@ -178,9 +178,9 @@ export default class AST {
 	 * @returns {*}
 	 */
 	assignment() {
-		const left = this.additive();
+		const left = this.equality();
 		if (this.expect('=')) {
-			const right = this.additive();
+			const right = this.equality();
 			return {type: AST.AssignmentExpression, left: left, right: right};
 		}
 		return left;
@@ -238,6 +238,41 @@ export default class AST {
 		return left;
 	};
 
+	/**
+	 * [处理等值关系运算]
+	 * @returns {*}
+	 */
+	equality() {
+		let left = this.relational();
+		let token;
+		while ((token = this.expect('==', '!=', '===', '!=='))) {
+			left = {
+				type: AST.BinaryExpression,
+				left: left,
+				operator: token.text,
+				right: this.relational()
+			};
+		}
+		return left;
+	};
+
+	/**
+	 * [处理关系运算符]
+	 * @returns {type[]}
+	 */
+	relational() {
+		let left = this.additive();
+		let token;
+		while ((token = this.expect('<', '>', '<=', '>='))) {
+			left = {
+				type: AST.BinaryExpression,
+				left: left,
+				operator: token.text,
+				right: this.additive()
+			};
+		}
+		return left;
+	};
 
 }
 AST.Program = 'Program';

@@ -11,7 +11,16 @@ const OPERATORS = {
 	'-': true,
 	'*': true,
 	'/': true,
-	'%': true
+	'%': true,
+	'=': true,
+	'==': true,
+	'!=': true,
+	'===': true,
+	'!==': true,
+	'<': true,
+	'>': true,
+	'<=': true,
+	'>=': true
 };
 
 export default class Lexer {
@@ -35,7 +44,7 @@ export default class Lexer {
 			} else if (this.is('\'"')) {
 				// 传入开始的引号，判断字符串结束和开始引号是否相同
 				this.readString(this.ch);
-			} else if (this.is('[],{}:.()=')) {
+			} else if (this.is('[],{}:.()')) {
 				this.tokens.push({
 					text: this.ch
 				});
@@ -48,10 +57,16 @@ export default class Lexer {
 				this.index++;
 			} else {
 				// 一元表达式
-				const op = OPERATORS[this.ch];
-				if (op) {
-					this.tokens.push({text: this.ch});
-					this.index++;
+				const ch = this.ch;
+				const ch2 = this.ch + this.peek();
+				const ch3 = this.ch + this.peek() + this.peek(2);
+				const op = OPERATORS[ch];
+				const op2 = OPERATORS[ch2];
+				const op3 = OPERATORS[ch3];
+				if (op || op2 || op3) {
+					const token = op3 ? ch3 : (op2 ? ch2 : ch);
+					this.tokens.push({text: token});
+					this.index += token.length;
 				} else {
 					throw 'Unexpected next character: ' + this.ch;
 				}
@@ -180,11 +195,12 @@ export default class Lexer {
 		this.tokens.push(token);
 	}
 	/**
-	 * 返回下一个字符的文本，而不向前移动当前的索引。如果没有下一个字符，`peek`会返回`false`
+	 * 返回下 n 个字符的文本，而不向前移动当前的索引。如果没有第n个字符，`peek`会返回`false`
 	 * @returns {*}
 	 */
-	peek() {
-		return this.index < this.text.length - 1 ? this.text.charAt(this.index + 1) : false;
+	peek(n) {
+		n = n || 1;
+		return this.index + n < this.text.length ? this.text.charAt(this.index + n) : false;
 	}
 
 	/**

@@ -465,4 +465,18 @@ describe('parse', () => {
 		expect(parse('a - 22')()).toBe(-22);
 		expect(parse('42 - a')()).toBe(42);
 	});
+	it('parses relational operators', () => {
+		expect(parse('1 < 2')()).toBe(true);
+		expect(parse('1 > 2')()).toBe(false);
+		expect(parse('1 <= 2')()).toBe(true);
+		expect(parse('2 <= 2')()).toBe(true);
+		expect(parse('1 >= 2')()).toBe(false);
+		expect(parse('2 >= 2')()).toBe(true);
+	});
+	it('parses relationals on a higher precedence than equality', () => {
+		expect(parse('2 == "2" > 2 === "2"')()).toBe(false);
+	});
+	it('parses additives on a higher precedence than relationals', () => {
+		expect(parse('2 + 3 < 6 - 2')()).toBe(false);
+	});
 });

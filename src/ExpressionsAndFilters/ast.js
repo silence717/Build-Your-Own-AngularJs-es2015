@@ -178,9 +178,9 @@ export default class AST {
 	 * @returns {*}
 	 */
 	assignment() {
-		const left = this.multiplicative();
+		const left = this.additive();
 		if (this.expect('=')) {
-			const right = this.multiplicative();
+			const right = this.additive();
 			return {type: AST.AssignmentExpression, left: left, right: right};
 		}
 		return left;
@@ -203,7 +203,7 @@ export default class AST {
 		}
 	};
 	/**
-	 * [multiplicative 处理多元操作符]
+	 * [multiplicative 处理乘法操作符]
 	 * @return {[type]} [description]
 	 */
 	multiplicative() {
@@ -218,7 +218,26 @@ export default class AST {
 			};
 		}
 		return left;
-	}
+	};
+
+	/**
+	 * [处理加法操作]
+	 * @returns {type[]}
+	 */
+	additive() {
+		let left = this.multiplicative();
+		let token;
+		while ((token = this.expect('+')) || (token = this.expect('-'))) {
+			left = {
+				type: AST.BinaryExpression,
+				left: left,
+				operator: token.text,
+				right: this.multiplicative()
+			};
+		}
+		return left;
+	};
+
 
 }
 AST.Program = 'Program';

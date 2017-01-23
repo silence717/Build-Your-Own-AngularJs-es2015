@@ -447,4 +447,22 @@ describe('parse', () => {
 	it('parses several multiplicatives', () => {
 		expect(parse('36 * 2 % 5')()).toBe(2);
 	});
+	it('parses an addition', () => {
+		expect(parse('20 + 22')()).toBe(42);
+	});
+	it('parses a subtraction', () => {
+		expect(parse('42 - 22')()).toBe(20);
+	});
+	it('parses multiplicatives on a higher precedence than additives', () => {
+		expect(parse('2 + 3 * 5')()).toBe(17);
+		expect(parse('2 + 3 * 2 + 3')()).toBe(11);
+	});
+	it('substitutes undefined with zero in addition', () => {
+		expect(parse('a + 22')()).toBe(22);
+		expect(parse('42 + a')()).toBe(42);
+	});
+	it('substitutes undefined with zero in subtraction', () => {
+		expect(parse('a - 22')()).toBe(-22);
+		expect(parse('42 - a')()).toBe(42);
+	});
 });

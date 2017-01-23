@@ -181,8 +181,13 @@ export default class ASTCompiler {
 				return this.assign(leftExpr, 'ensureSafeObject(' + this.recurse(ast.right) + ')');
 			case AST.UnaryExpression:
 				return ast.operator + '(' + this.ifDefined(this.recurse(ast.argument), 0) + ')';
-				case AST.BinaryExpression:
+			case AST.BinaryExpression:
+				if (ast.operator === '+' || ast.operator === '-') {
+					return '(' + this.ifDefined(this.recurse(ast.left), 0) + ')' + ast.operator + '(' + this.ifDefined(this.recurse(ast.right), 0) + ')';
+				} else {
 					return '(' + this.recurse(ast.left) + ')' + ast.operator + '(' + this.recurse(ast.right) + ')';
+				}
+				break;
 		}
 	}
 

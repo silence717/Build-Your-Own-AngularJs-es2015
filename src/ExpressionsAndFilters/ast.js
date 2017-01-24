@@ -22,7 +22,15 @@ export default class AST {
 		return this.program();
 	}
 	program() {
-		return {type: AST.Program, body: this.assignment()};
+		const body = [];
+		while (true) {
+			if (this.tokens.length) {
+				body.push(this.assignment());
+			}
+			if (!this.expect(';')) {
+				return {type: AST.Program, body: body};
+			}
+		}
 	}
 
 	/**

@@ -89,7 +89,10 @@ export default class ASTCompiler {
 		let intoId;
 		switch (ast.type) {
 			case AST.Program:
-				this.state.body.push('return ', this.recurse(ast.body), ';');
+				_.forEach(_.initial(ast.body), _.bind(stmt => {
+					this.state.body.push(this.recurse(stmt), ';');
+				}, this));
+				this.state.body.push('return ', this.recurse(_.last(ast.body)), ';');
 				break;
 			case AST.Literal:
 				return this.escape(ast.value);

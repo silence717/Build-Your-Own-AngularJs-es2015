@@ -193,6 +193,13 @@ export default class ASTCompiler {
 				this.state.body.push(this.assign(intoId, this.recurse(ast.left)));
 				this.if_(ast.operator === '&&' ? intoId : this.not(intoId), this.assign(intoId, this.recurse(ast.right)));
 				return intoId;
+			case AST.ConditionalExpression:
+				intoId = this.nextId();
+				const testId = this.nextId();
+				this.state.body.push(this.assign(testId, this.recurse(ast.test)));
+				this.if_(testId, this.assign(intoId, this.recurse(ast.consequent)));
+				this.if_(this.not(testId), this.assign(intoId, this.recurse(ast.alternate)));
+				return intoId;
 		}
 	}
 

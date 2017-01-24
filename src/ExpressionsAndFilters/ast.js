@@ -178,9 +178,9 @@ export default class AST {
 	 * @returns {*}
 	 */
 	assignment() {
-		const left = this.logicalOR();
+		const left = this.ternary();
 		if (this.expect('=')) {
-			const right = this.logicalOR();
+			const right = this.ternary();
 			return {type: AST.AssignmentExpression, left: left, right: right};
 		}
 		return left;
@@ -310,6 +310,27 @@ export default class AST {
 		return left;
 	}
 
+	/**
+	 * [处理三元运算符]
+	 * @returns {*}
+	 */
+	ternary() {
+		const test = this.logicalOR();
+		if (this.expect('?')) {
+			const consequent = this.assignment();
+			if (this.consume(':')) {
+				const alternate = this.assignment();
+				return {
+					type: AST.ConditionalExpression,
+					test: test,
+					consequent: consequent,
+					alternate: alternate
+				};
+			}
+		}
+		return test;
+	}
+
 }
 AST.Program = 'Program';
 // 常量类型
@@ -335,4 +356,7 @@ AST.UnaryExpression = 'UnaryExpression';
 AST.BinaryExpression = 'BinaryExpression';
 // 逻辑表达式
 AST.LogicalExpression = 'LogicalExpression';
+// 条件表达式
+AST.ConditionalExpression = 'ConditionalExpression';
+
 

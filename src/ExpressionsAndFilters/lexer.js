@@ -46,7 +46,7 @@ export default class Lexer {
 			} else if (this.is('\'"')) {
 				// 传入开始的引号，判断字符串结束和开始引号是否相同
 				this.readString(this.ch);
-			} else if (this.is('[],{}:.()')) {
+			} else if (this.is('[],{}:.()?')) {
 				this.tokens.push({
 					text: this.ch
 				});

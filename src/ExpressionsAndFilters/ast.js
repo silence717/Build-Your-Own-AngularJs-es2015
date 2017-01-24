@@ -178,9 +178,9 @@ export default class AST {
 	 * @returns {*}
 	 */
 	assignment() {
-		const left = this.equality();
+		const left = this.logicalOR();
 		if (this.expect('=')) {
-			const right = this.equality();
+			const right = this.logicalOR();
 			return {type: AST.AssignmentExpression, left: left, right: right};
 		}
 		return left;
@@ -274,6 +274,42 @@ export default class AST {
 		return left;
 	};
 
+	/**
+	 * [处理逻辑或]
+	 * @returns {*}
+	 */
+	logicalOR() {
+		let left = this.logicalAND();
+		let token;
+		while ((token = this.expect('||'))) {
+			left = {
+				type: AST.LogicalExpression,
+				left: left,
+				operator: token.text,
+				right: this.logicalAND()
+			};
+		}
+		return left;
+	}
+
+	/**
+	 * [处理逻辑与]
+	 * @returns {*}
+	 */
+	logicalAND() {
+		let left = this.equality();
+		let token;
+		while ((token = this.expect('&&'))) {
+			left = {
+				type: AST.LogicalExpression,
+				left: left,
+				operator: token.text,
+				right: this.equality()
+			};
+		}
+		return left;
+	}
+
 }
 AST.Program = 'Program';
 // 常量类型
@@ -297,3 +333,6 @@ AST.AssignmentExpression = 'AssignmentExpression';
 // 一元表达式
 AST.UnaryExpression = 'UnaryExpression';
 AST.BinaryExpression = 'BinaryExpression';
+// 逻辑表达式
+AST.LogicalExpression = 'LogicalExpression';
+

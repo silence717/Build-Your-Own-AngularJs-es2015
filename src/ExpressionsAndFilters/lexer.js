@@ -20,7 +20,9 @@ const OPERATORS = {
 	'<': true,
 	'>': true,
 	'<=': true,
-	'>=': true
+	'>=': true,
+	'&&': true,
+	'||': true
 };
 
 export default class Lexer {

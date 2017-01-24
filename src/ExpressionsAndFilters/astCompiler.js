@@ -188,6 +188,11 @@ export default class ASTCompiler {
 					return '(' + this.recurse(ast.left) + ')' + ast.operator + '(' + this.recurse(ast.right) + ')';
 				}
 				break;
+			case AST.LogicalExpression:
+				intoId = this.nextId();
+				this.state.body.push(this.assign(intoId, this.recurse(ast.left)));
+				this.if_(ast.operator === '&&' ? intoId : this.not(intoId), this.assign(intoId, this.recurse(ast.right)));
+				return intoId;
 		}
 	}
 

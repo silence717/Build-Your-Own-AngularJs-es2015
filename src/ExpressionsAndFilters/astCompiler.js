@@ -5,6 +5,7 @@
  */
 import _ from 'lodash';
 import AST from './ast';
+import {filter} from '../Filter/filter';
 // 确保是安全的成员属性访问
 function ensureSafeMemberName(name) {
 	if (name === 'constructor' || name === '__proto__' ||
@@ -61,9 +62,14 @@ export default class ASTCompiler {
 	 */
 	compile(text) {
 		const ast = this.astBuilder.ast(text);
-		this.state = {body: [], nextId: 0, vars: []};
+		this.state = {
+			body: [],
+			nextId: 0,
+			vars: [],
+			filters: {}
+		};
 		this.recurse(ast);
-		const fnString = 'var fn=function(s,l){' +
+		const fnString = this.filterPrefix() + 'var fn=function(s,l){' +
 			(this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') +
 			this.state.body.join('') + '}; return fn;';
 		return new Function(
@@ -71,12 +77,13 @@ export default class ASTCompiler {
 				'ensureSafeObject',
 				'ensureSafeFunction',
 				'ifDefined',
-				fnString
-			)(
+				'filter',
+				fnString)(
 				ensureSafeMemberName,
 				ensureSafeObject,
 				ensureSafeFunction,
-				ifDefined
+				ifDefined,
+				filter
 			);
 	}
 
@@ -157,6 +164,7 @@ export default class ASTCompiler {
 				return 'l';
 			case AST.CallExpression:
 				let callContext, callee, args;
+				// 如果是filter表达式
 				if (ast.filter) {
 					callee = this.filter(ast.callee.name);
 					args = _.map(ast.arguments, _.bind(arg => {
@@ -271,11 +279,14 @@ export default class ASTCompiler {
 
 	/**
 	 * 生成一个变量名称呢过，并且count自增
+	 * @param skip 如果为true的时候就为filter生成，这个时候不需要将生成的id放到state.vars中
 	 * @returns {string}
 	 */
-	nextId() {
+	nextId(skip) {
 		const id = 'v' + (this.state.nextId++);
-		this.state.vars.push(id);
+		if (!skip) {
+			this.state.vars.push(id);
+		}
 		return id;
 	}
 
@@ -338,5 +349,35 @@ export default class ASTCompiler {
 	 */
 	ifDefined(value, defaultValue) {
 		return 'ifDefined(' + value + ',' + this.escape(defaultValue) + ')';
+	}
+
+	/**
+	 * 过滤器
+	 * @param name  过滤器名称
+	 * @returns {string}
+	 */
+	filter(name) {
+		// 判断过滤器之前是否已经被使用过
+		if (!this.state.filters.hasOwnProperty(name)) {
+			// filter没有被使用的话，调用的时候存储filter信息到state对象
+			this.state.filters[name] = this.nextId(true);
+		}
+		return this.state.filters[name];
+	}
+
+	/**
+	 * filter前缀
+	 * @returns {string}
+	 */
+	filterPrefix() {
+		// 如果表达式没有使用filter则返回空字符串
+		if (_.isEmpty(this.state.filters)) {
+			return '';
+		} else {
+			const parts = _.map(this.state.filters, _.bind((varName, filterName) => {
+				return varName + '=' + 'filter(' + this.escape(filterName) + ')';
+			}, this));
+			return 'var ' + parts.join(',') + ';';
+		}
 	}
 };

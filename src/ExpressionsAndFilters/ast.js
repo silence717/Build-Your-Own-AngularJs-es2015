@@ -21,6 +21,11 @@ export default class AST {
 		this.tokens = this.lexer.lex(text);
 		return this.program();
 	}
+
+	/**
+	 * 构建节点
+	 * @returns {{type: string, body: Array}}
+	 */
 	program() {
 		const body = [];
 		while (true) {
@@ -153,7 +158,7 @@ export default class AST {
 	}
 
 	/**
-	 * 移除闭合中括号
+	 * 移除字符
 	 * @param e
 	 */
 	consume(e) {

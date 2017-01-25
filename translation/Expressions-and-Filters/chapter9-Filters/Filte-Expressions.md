@@ -162,3 +162,159 @@ case AST.CallExpression:
   }
   break;
 ```
+我们现在期望compiler的`filter`方法返回一个表达式，在运行时候计算用户想应用的filter函数。我们知道获取它需要使用filter服务，但是怎么样把它嵌入到表达式生成的JavaScript呢？
+
+首先，在运行的时候在某些变量里面我们期望filter函数是有效的。我们仅仅生成一个变量并返回它：
+```js
+ASTCompiler.prototype.filter = function(name) {
+  var filterId = this.nextId();
+  return filterId;
+};
+```
+这个变量在我们没有写任何东西或者没有赋值给它的时候自然地是`undefined`。我们需要以某种方式将filter函数赋值给它。具体来说，我们需要生成一些代码从filter服务中
+获取过滤器，并在运行时将它放入变量。
+
+我们将需要在表达式之前跟踪那些已经使用的filter是否可用。我们可以将信息存储在compiler的状态中，使用一个新属性：
+```js
+ASTCompiler.prototype.compile = function(text) {
+  var ast = this.astBuilder.ast(text);
+  this.state = {
+    body: [],
+    nextId: 0,
+    vars: [],
+    filters: {}
+  };
+  // ...
+};
+```
+当`filter`被调用，我们将存储信息在状态对象中。我们可以使用filter的名称作为key,并且filter应该将变量的名字作为value值：
+```js
+ASTCompiler.prototype.filter = function(name) {
+  var filterId = this.nextId();
+  this.state.filters[name] = filterId;
+  return  filterId;
+};
+```
+如果filter已经被使用，我们应该重复使用最后一次生成的变量名而不是生成一个新的：
+```js
+ASTCompiler.prototype.filter = function(name) {
+    if (!this.state.filters.hasOwnProperty(name)) {
+      this.state.filters[name] = this.nextId();
+    }
+    return this.state.filters[name];
+};
+```
+在这个点上，一旦AST被递归，`state.filter`将会包含所有的在表达式里使用的filter。现在我们需要为filter中的变量生成代码。为了在运行时有`filter`服务，我们将它
+传递到生成的函数，就像之前的完成的其他几个函数一样：
+```js
+return new Function(
+  'ensureSafeMemberName',
+  'ensureSafeObject',
+  'ensureSafeFunction',
+  'ifDe ned',
+  'filter',
+fnString)(
+  ensureSafeMemberName,
+  ensureSafeObject,
+  ensureSafeFunction,
+  ifDefined,
+  filter);
+
+```
+`filter`服务之前没有被引入`parse.js`，现在这么做：
+```js
+'use strict';
+var _ = require('lodash');
+var  lter = require('./filter').filter;
+```
+用于查找filter的JavaScript代码是我们首先要生成的函数.我们将在一个帮助函数`filterPrefix`实现它：
+
+```js
+ASTCompiler.prototype.compile = function(text) {
+  var ast = this.astBuilder.ast(text);
+  this.state = {
+    body: [],
+    nextId: 0,
+    vars: [],
+     lters: {}
+  };
+  this.recurse(ast);
+  var fnString = this. lterPre x() +
+    'var fn=function(s,l){' +
+        (this.state.vars.length ?
+          'var ' + this.state.vars.join(',') + ';' :
+    ''
+    )+ this.state.body.join('') + '}; return fn;';
+    // ...
+};
+```
+如果没有在表达式里应用filter这个方法将返回一个空字符串：
+```js
+ASTCompiler.prototype.filterPrefix = function() {
+  if (_.isEmpty(this.state. lters)) {
+    return '';
+  } else {
+  }
+};
+```
+如果这里有filter,这个方法将构建一个变量初始化的几个，并且为它们生成一个`var`声明：
+```js
+ASTCompiler.prototype.filterPrefix = function() {
+  if (_.isEmpty(this.state. lters)) {
+    return '';
+  } else {
+    var parts = [];
+    return 'var ' + parts.join(',') + ';';
+  }
+};
+```
+每个filter使用的时候，我们返回一个之前在`ASTCompiler.prototype.filter`生成的变量名称，并且使用`filter`服务初始化查找filter,我们现在可以生成代码：
+```js
+ASTCompiler.prototype.filterPrefix = function() {
+  if (_.isEmpty(this.state. lters)) {
+    return '';
+  } else {
+    var parts = _.map(this.state. lters, _.bind(function(varName,  lterName) {
+      return varName + '=' + ' lter(' + this.escape( lterName) + ')';
+    }, this));
+    return 'var ' + parts.join(',') + ';';
+  }
+};
+```
+这里还有一个问题，即当我们使用`nextId`生成变量名称,我们也会将它们加入到`vars`状态的变量，因为这是`nextId`做的。这意味着它们实际上会在表达式函数里面声明，
+这样会覆盖我们刚刚创建的filter变量。如果我们有一个下面这样的表达式，实际上是：
+```js
+42 | increment
+```
+生成的东西是这样的：
+```js
+function(ensureSafeMemberName, ensureSafeObject, ensureSafeFunction,
+         ifDefined, filter) {
+    var v0 =  lter('increment');
+    var fn = function(s, l) {
+        var v0;
+        return v0(42);
+  };
+  return fn;
+}
+```
+第二个`var v0`就是问题。我们能做的是采用一种特殊的标记调用`nextId`去告诉它，只生成变量id而不声明 - 因为我们将在`filterPrefix`中单独处理声明：
+```js
+ASTCompiler.prototype. lter = function(name) {
+  if (!this.state. lters.hasOwnProperty(name)) {
+    this.state. lters[name] = this.nextId(true);
+  }
+  return this.state. lters[name];
+};
+```
+在`nextId`中我们仅仅只有在标识为假的时候将生成id存储到`state.vars`中，这对所有变量都是一样的除了从`filter`生成的：
+```js
+ASTCompiler.prototype.nextId = function(skip) {
+    var id = 'v' + (this.state.nextId++);
+    if (!skip) {
+      this.state.vars.push(id);
+    }
+    return id;
+};
+```
+现在我们又通过了一个测试套件。我们能敢在表达式中应用过滤器！

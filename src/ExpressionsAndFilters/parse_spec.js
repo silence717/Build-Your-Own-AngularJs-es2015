@@ -555,4 +555,18 @@ describe('parse', () => {
 		const fn = parse('aString | upcase');
 		expect(fn({aString: 'Hello'})).toEqual('HELLO');
 	});
+	it('can parse filter chain expressions', () => {
+		register('upcase', () => {
+			return s => {
+				return s.toUpperCase();
+			};
+		});
+		register('exclamate', () => {
+			return s => {
+				return s + '!';
+			};
+		});
+		const fn = parse('"hello" | upcase | exclamate');
+		expect(fn()).toEqual('HELLO!');
+	});
 });

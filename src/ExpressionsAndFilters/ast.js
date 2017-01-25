@@ -354,7 +354,7 @@ export default class AST {
 	filter() {
 		let left = this.assignment();
 		// 判断管道符
-		if (this.expect('|')) {
+		while (this.expect('|')) {
 			left = {
 				type: AST.CallExpression,
 				callee: this.identifier(),

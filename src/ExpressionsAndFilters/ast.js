@@ -25,7 +25,7 @@ export default class AST {
 		const body = [];
 		while (true) {
 			if (this.tokens.length) {
-				body.push(this.assignment());
+				body.push(this.filter());
 			}
 			if (!this.expect(';')) {
 				return {type: AST.Program, body: body};
@@ -40,7 +40,7 @@ export default class AST {
 	primary() {
 		let primary;
 		if (this.expect('(')) {
-			primary = this.assignment();
+			primary = this.filter();
 			this.consume(')');
 		} else if (this.expect('[')) {
 			primary = this.arrayDeclaration();
@@ -340,6 +340,24 @@ export default class AST {
 			}
 		}
 		return test;
+	}
+
+	/**
+	 * 处理filter表达式
+	 * @returns {{type, left, right}|*}
+	 */
+	filter() {
+		let left = this.assignment();
+		// 判断管道符
+		if (this.expect('|')) {
+			left = {
+				type: AST.CallExpression,
+				callee: this.identifier(),
+				arguments: [left],
+				filter: true
+			};
+		}
+		return left;
 	}
 
 }

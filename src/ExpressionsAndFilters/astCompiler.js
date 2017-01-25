@@ -86,7 +86,6 @@ export default class ASTCompiler {
 	 * @returns {*}
 	 */
 	recurse(ast, context, create) {
-		let intoId;
 		switch (ast.type) {
 			case AST.Program:
 				_.forEach(_.initial(ast.body), _.bind(stmt => {
@@ -157,21 +156,31 @@ export default class ASTCompiler {
 			case AST.LocalsExpression:
 				return 'l';
 			case AST.CallExpression:
-				const callContext = {};
-				let callee = this.recurse(ast.callee, callContext);
-				const args = _.map(ast.arguments, _.bind(arg => {
-					return 'ensureSafeObject(' + this.recurse(arg) + ')';
-				}, this));
-				if (callContext.name) {
-					this.addEnsureSafeObject(callContext.context);
-					if (callContext.computed) {
-						callee = this.computedMember(callContext.context, callContext.name);
-					} else {
-						callee = this.nonComputedMember(callContext.context, callContext.name);
+				let callContext, callee, args;
+				if (ast.filter) {
+					callee = this.filter(ast.callee.name);
+					args = _.map(ast.arguments, _.bind(arg => {
+						return this.recurse(arg);
+					}, this));
+					return callee + '(' + args + ')';
+				} else {
+					callContext = {};
+					callee = this.recurse(ast.callee, callContext);
+					args = _.map(ast.arguments, _.bind(arg => {
+						return 'ensureSafeObject(' + this.recurse(arg) + ')';
+					}, this));
+					if (callContext.name) {
+						this.addEnsureSafeObject(callContext.context);
+						if (callContext.computed) {
+							callee = this.computedMember(callContext.context, callContext.name);
+						} else {
+							callee = this.nonComputedMember(callContext.context, callContext.name);
+						}
 					}
+					this.addEnsureSafeFunction(callee);
+					return callee + '&&ensureSafeObject(' + callee + '(' + args.join(',') + '))';
 				}
-				this.addEnsureSafeFunction(callee);
-				return callee + '&&ensureSafeObject(' + callee + '(' + args.join(',') + '))';
+				break;
 			case AST.AssignmentExpression:
 				const leftContext = {};
 				this.recurse(ast.left, leftContext, true);
@@ -204,6 +213,7 @@ export default class ASTCompiler {
 				this.if_(this.not(testId), this.assign(intoId, this.recurse(ast.alternate)));
 				return intoId;
 		}
+		let intoId;
 	}
 
 	/**

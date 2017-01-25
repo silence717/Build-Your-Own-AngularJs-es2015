@@ -4,7 +4,9 @@
  */
 import _ from 'lodash';
 
+// 存储注册的filter服务
 const filters = {};
+// 注册filter服务
 export function register(name, factory) {
 	// 判断注册函数的第一个参数是否为对象
 	if (_.isObject(name)) {
@@ -20,6 +22,7 @@ export function register(name, factory) {
 		return filter;
 	}
 }
+// 工厂函数
 export function filter(name) {
 	return filters[name];
 }

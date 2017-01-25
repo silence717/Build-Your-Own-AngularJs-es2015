@@ -3,6 +3,7 @@
  * @date on 2017/1/5
  */
 import parse from './parse';
+import {register} from '../Filter/filter';
 import _ from 'lodash';
 describe('parse', () => {
 	// 可以解析整数
@@ -544,5 +545,14 @@ describe('parse', () => {
 	});
 	it('returns the value of the last statement', () => {
 		expect(parse('a = 1; b = 2; a + b')({})).toBe(3);
+	});
+	it('can parse  lter expressions', () => {
+		register('upcase', () => {
+			return str => {
+				return str.toUpperCase();
+			};
+		});
+		const fn = parse('aString | upcase');
+		expect(fn({aString: 'Hello'})).toEqual('HELLO');
 	});
 });

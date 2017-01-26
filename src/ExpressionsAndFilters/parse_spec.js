@@ -569,4 +569,22 @@ describe('parse', () => {
 		const fn = parse('"hello" | upcase | exclamate');
 		expect(fn()).toEqual('HELLO!');
 	});
+	it('can pass an additional argument to filters', () => {
+		register('repeat', () => {
+			return (s, times) => {
+				return _.repeat(s, times);
+			};
+		});
+		const fn = parse('"hello" | repeat:3');
+		expect(fn()).toEqual('hellohellohello');
+	});
+	it('can pass several additional arguments to filters', () => {
+		register('surround', () => {
+			return (s, left, right) => {
+				return left + s + right;
+			};
+		});
+		const fn = parse('"hello" | surround:"*":"!"');
+		expect(fn()).toEqual('*hello!');
+	});
 });

@@ -355,12 +355,17 @@ export default class AST {
 		let left = this.assignment();
 		// 判断管道符
 		while (this.expect('|')) {
+			const args = [left];
 			left = {
 				type: AST.CallExpression,
 				callee: this.identifier(),
-				arguments: [left],
+				arguments: args,
 				filter: true
 			};
+			// 判断是否存在多个额外的过滤器参数，存在将其拼接到参数数组
+			while (this.expect(':')) {
+				args.push(this.assignment());
+			}
 		}
 		return left;
 	}

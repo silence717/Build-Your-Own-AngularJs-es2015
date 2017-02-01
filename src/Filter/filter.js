@@ -26,3 +26,5 @@ export function register(name, factory) {
 export function filter(name) {
 	return filters[name];
 }
+
+register('filter', require('./filter_filter'));

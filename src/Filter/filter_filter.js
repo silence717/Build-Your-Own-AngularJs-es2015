@@ -37,6 +37,10 @@ function createPredicateFn(expression) {
  * @returns {*}
  */
 function deepCompare(actual, expected, comparator) {
+	// 如果是字符串并且以!开头，再次调用自己，去除字符串的第一个!并且对结果取反
+	if (_.isString(expected) && _.startsWith(expected, '!')) {
+		return !deepCompare(actual, expected.substring(1), comparator);
+	}
 	if (_.isObject(actual)) {
 		return _.some(actual, value => {
 			return deepCompare(value, expected, comparator);

@@ -94,4 +94,8 @@ describe('filter filter', () => {
 		const fn = parse('arr | filter:"null"');
 		expect(fn({arr: [null, 'not null']})).toEqual(['not null']);
 	});
+	it('allows negating string filter', () => {
+		const fn = parse('arr | filter:"!o"');
+		expect(fn({arr: ['quick', 'brown', 'fox']})).toEqual(['quick']);
+	});
 });

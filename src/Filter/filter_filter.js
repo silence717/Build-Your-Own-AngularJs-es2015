@@ -10,6 +10,8 @@ import _ from 'lodash';
  * @returns {predicateFn}
  */
 function createPredicateFn(expression) {
+	// 判断原始表达式是否存在key值为$的属性
+	const shouldMatchPrimitives = _.isObject(expression) && ('$' in expression);
 	// 比较两个原始类型的值
 	function comparator(actual, expected) {
 		// 如果数组项的值为undefined，那么直接返回，不进入过滤器
@@ -26,17 +28,22 @@ function createPredicateFn(expression) {
 		return actual.indexOf(expected) !== -1;
 	}
 	return function predicateFn(item) {
+		if (shouldMatchPrimitives && !_.isObject(item)) {
+			return deepCompare(item, expression.$, comparator);
+		}
 		return deepCompare(item, expression, comparator, true);
 	};
 }
 /**
  * 深度比较两个值
- * @param actual
- * @param expected
- * @param comparator
+ * @param actual  数组项的值
+ * @param expected 期望值
+ * @param comparator  比较器
+ * @param matchAnyProperty 是不是匹配任意属性
+ * @param inWildcard 通配符的深度
  * @returns {*}
  */
-function deepCompare(actual, expected, comparator, matchAnyProperty) {
+function deepCompare(actual, expected, comparator, matchAnyProperty, inWildcard) {
 	// 如果是字符串并且以!开头，再次调用自己，去除字符串的第一个!并且对结果取反
 	if (_.isString(expected) && _.startsWith(expected, '!')) {
 		return !deepCompare(actual, expected.substring(1), comparator, matchAnyProperty);
@@ -48,7 +55,7 @@ function deepCompare(actual, expected, comparator, matchAnyProperty) {
 		});
 	}
 	if (_.isObject(actual)) {
-		if (_.isObject(expected)) {
+		if (_.isObject(expected) && !inWildcard) {
 			// 深度匹配每个规则对象的值和实际对象的值，只有都匹配的时候才算匹配
 			return _.every(
 				_.toPlainObject(expected),
@@ -56,7 +63,11 @@ function deepCompare(actual, expected, comparator, matchAnyProperty) {
 					if (_.isUndefined(expectedVal)) {
 						return true;
 					}
-					return deepCompare(actual[expectedKey], expectedVal, comparator);
+					// 获取expectKey是否为通配符
+					const isWildcard = (expectedKey === '$');
+					// 如果是的，将匹配整个对象
+					const actualVal = isWildcard ? actual : actual[expectedKey];
+					return deepCompare(actualVal, expectedVal, comparator, isWildcard, isWildcard);
 				}
 			);
 		} else if (matchAnyProperty) {

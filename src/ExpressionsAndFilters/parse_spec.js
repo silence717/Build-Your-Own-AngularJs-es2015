@@ -591,4 +591,32 @@ describe('parse', () => {
 		const fn = () => { };
 		expect(parse(fn)).toBe(fn);
 	});
+	it('marks integers literal', () => {
+		const fn = parse('42');
+		expect(fn.literal).toBe(true);
+	});
+	it('marks strings literal', () => {
+		const fn = parse('"abc"');
+		expect(fn.literal).toBe(true);
+	});
+	it('marks booleans literal', () => {
+		const fn = parse('true');
+		expect(fn.literal).toBe(true);
+	});
+	it('marks arrays literal', () => {
+		const fn = parse('[1, 2, aVariable]');
+		expect(fn.literal).toBe(true);
+	});
+	it('marks objects literal', () => {
+		const fn = parse('{a: 1, b: aVariable}');
+		expect(fn.literal).toBe(true);
+	});
+	it('marks unary expressions non-literal', () => {
+		const fn = parse('!false');
+		expect(fn.literal).toBe(false);
+	});
+	it('marks binary expressions non-literal', () => {
+		const fn = parse('1 + 2');
+		expect(fn.literal).toBe(false);
+	});
 });

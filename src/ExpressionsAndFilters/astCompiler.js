@@ -47,6 +47,18 @@ function ensureSafeFunction(obj) {
 	}
 	return obj;
 }
+/**
+ * 检测是一个表达式是否为literal
+ * @param ast
+ * @returns {boolean}
+ */
+function isLiteral(ast) {
+	return ast.body.length === 0 ||
+		ast.body.length === 1 && (
+		ast.body[0].type === AST.Literal ||
+		ast.body[0].type === AST.ArrayExpression ||
+		ast.body[0].type === AST.ObjectExpression);
+}
 
 export default class ASTCompiler {
 
@@ -72,7 +84,7 @@ export default class ASTCompiler {
 		const fnString = this.filterPrefix() + 'var fn=function(s,l){' +
 			(this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') +
 			this.state.body.join('') + '}; return fn;';
-		return new Function(
+		const fn = new Function(
 				'ensureSafeMemberName',
 				'ensureSafeObject',
 				'ensureSafeFunction',
@@ -85,6 +97,8 @@ export default class ASTCompiler {
 				ifDefined,
 				filter
 			);
+		fn.literal = isLiteral(ast);
+		return fn;
 	}
 
 	/**

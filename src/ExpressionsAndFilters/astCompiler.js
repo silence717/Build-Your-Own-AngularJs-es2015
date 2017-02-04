@@ -59,6 +59,94 @@ function isLiteral(ast) {
 		ast.body[0].type === AST.ArrayExpression ||
 		ast.body[0].type === AST.ObjectExpression);
 }
+/**
+ * 标记常量标识
+ * @param ast
+ */
+function markConstantExpressions(ast) {
+	let allConstants;
+	switch (ast.type) {
+		case AST.Program:
+			allConstants = true;
+			_.forEach(ast.body, expr => {
+				markConstantExpressions(expr);
+				// 当所有子节点都为constant的时候，整个Program才会为常量
+				allConstants = allConstants && expr.constant;
+			});
+			ast.constant = allConstants;
+			break;
+		case AST.Literal:
+			ast.constant = true;
+			break;
+		case AST.Identifier:
+			ast.constant = false;
+			break;
+		case AST.ArrayExpression:
+			allConstants = true;
+			_.forEach(ast.elements, element => {
+				// 递归调用每个元素，只有它们都为常量的时候，数组才会是常量
+				markConstantExpressions(element);
+				allConstants = allConstants && element.constant;
+			});
+			ast.constant = allConstants;
+			break;
+		case AST.ObjectExpression:
+			allConstants = true;
+			_.forEach(ast.properties, property => {
+				// 遍历对象的每个属性，去标记它们的值是否为常量
+				markConstantExpressions(property.value);
+				allConstants = allConstants && property.value.constant;
+			});
+			ast.constant = allConstants;
+			break;
+		case AST.ThisExpression:
+		case AST.LocalsExpression:
+			ast.constant = false;
+			break;
+		case AST.MemberExpression:
+			markConstantExpressions(ast.object);
+			// 如果是computed查找，需要额外考虑key值
+			if (ast.computed) {
+				markConstantExpressions(ast.property);
+			}
+			ast.constant = ast.object.constant &&
+				(!ast.computed || ast.property.constant);
+			break;
+		case AST.CallExpression:
+			if (ast.filter) {
+				allConstants = true;
+			} else {
+				allConstants = false;
+			}
+			_.forEach(ast.arguments, arg => {
+				markConstantExpressions(arg);
+				allConstants = allConstants && arg.constant;
+			});
+			ast.constant = allConstants;
+			break;
+		case AST.AssignmentExpression:
+			markConstantExpressions(ast.left);
+			markConstantExpressions(ast.right);
+			ast.constant = ast.left.constant && ast.right.constant;
+			break;
+		case AST.UnaryExpression:
+			markConstantExpressions(ast.argument);
+			ast.constant = ast.argument.constant;
+			break;
+		case AST.BinaryExpression:
+		case AST.LogicalExpression:
+			markConstantExpressions(ast.left);
+			markConstantExpressions(ast.right);
+			ast.constant = ast.left.constant && ast.right.constant;
+			break;
+		case AST.ConditionalExpression:
+			markConstantExpressions(ast.test);
+			markConstantExpressions(ast.consequent);
+			markConstantExpressions(ast.alternate);
+			ast.constant = ast.test.constant && ast.consequent.constant && ast.alternate.constant;
+			break;
+	}
+}
 
 export default class ASTCompiler {
 
@@ -74,6 +162,7 @@ export default class ASTCompiler {
 	 */
 	compile(text) {
 		const ast = this.astBuilder.ast(text);
+		markConstantExpressions(ast);
 		this.state = {
 			body: [],
 			nextId: 0,
@@ -98,6 +187,7 @@ export default class ASTCompiler {
 				filter
 			);
 		fn.literal = isLiteral(ast);
+		fn.constant = ast.constant;
 		return fn;
 	}
 

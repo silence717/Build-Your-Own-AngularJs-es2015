@@ -533,11 +533,11 @@ describe('Scope', function () {
 		});
 		it('accepts expressions in $evalAsync', done => {
 			let called;
-			scope.aFunction = function() {
+			scope.aFunction = () => {
 				called = true;
 			};
 			scope.$evalAsync('aFunction()');
-			scope.$$postDigest(function() {
+			scope.$$postDigest(() => {
 				expect(called).toBe(true);
 				done();
 			});

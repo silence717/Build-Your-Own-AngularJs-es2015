@@ -342,6 +342,11 @@ describe('Scope', function () {
 			scope.$digest();
 			expect(theValue).toBe(42);
 		});
+		it('removes constant watches after first invocation', () => {
+			scope.$watch('[1, 2, 3]', () => {});
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(0);
+		});
 	});
 
 	describe('$eval', () => {

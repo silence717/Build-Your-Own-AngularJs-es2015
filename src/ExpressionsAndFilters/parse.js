@@ -19,12 +19,32 @@ class Parser {
 	}
 }
 
+function constantWatchDelegate(scope, listenerFn, valueEq, watchFn) {
+	const unwatch = scope.$watch(
+		() => {
+			return watchFn(scope);
+		},
+		(newValue, oldValue, scope) => {
+			if (_.isFunction(listenerFn)) {
+				listenerFn.apply(this, arguments);
+			}
+			unwatch();
+		},
+		valueEq
+	);
+	return unwatch;
+}
+
 function parse(expr) {
 	switch (typeof expr) {
 		case 'string':
 			const lexer = new Lexer();
 			const parser = new Parser(lexer);
-			return parser.parse(expr);
+			const parseFn = parser.parse(expr);
+			if (parseFn.constant) {
+				parseFn.$$watchDelegate = constantWatchDelegate;
+			}
+			return parseFn;
 		case 'function':
 			return expr;
 		default:

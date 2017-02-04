@@ -57,8 +57,14 @@ export default class Scope {
 	 * 所以我们添加一个初始化值--空函数，数组也是对象的一直，对象和对象永远不会相等。
 	 */
 	$watch(watchFn, listenerFn, valueEq) {
+		// 将expression与$watch关联
+		watchFn = parse(watchFn);
+		// 如果有表达式代理，那么在第一次调用后移除它
+		if (watchFn.$$watchDelegate) {
+			return watchFn.$$watchDelegate(this, listenerFn, valueEq, watchFn);
+		}
 		const watcher = {
-			watchFn: parse(watchFn), // 将expression与$watch关联
+			watchFn: watchFn,
 			listenerFn: listenerFn || function () {},
 			valueEq: !!valueEq,
 			last: initWatchVal

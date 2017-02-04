@@ -9,23 +9,28 @@ import _ from 'lodash';
  * @param expression   filter表达式
  * @returns {predicateFn}
  */
-function createPredicateFn(expression) {
+function createPredicateFn(expression, comparator) {
 	// 判断原始表达式是否存在key值为$的属性
 	const shouldMatchPrimitives = _.isObject(expression) && ('$' in expression);
 	// 比较两个原始类型的值
-	function comparator(actual, expected) {
-		// 如果数组项的值为undefined，那么直接返回，不进入过滤器
-		if (_.isUndefined(actual)) {
-			return false;
-		}
-		// 如果其中一个为null，那么另一个也必须是null
-		if (_.isNull(actual) || _.isNull(expected)) {
-			return actual === expected;
-		}
-		// 在转换前将表达式和每项的值都转换为小写
-		actual = ('' + actual).toLowerCase();
-		expected = ('' + expected).toLowerCase();
-		return actual.indexOf(expected) !== -1;
+	if (comparator === true) {
+		// 如果comparator的值为真，那么采用LoDash的比较函数
+		comparator = _.isEqual;
+	} else if (!_.isFunction(comparator)) {
+		comparator = (actual, expected) => {
+			// 如果数组项的值为undefined，那么直接返回，不进入过滤器
+			if (_.isUndefined(actual)) {
+				return false;
+			}
+			// 如果其中一个为null，那么另一个也必须是null
+			if (_.isNull(actual) || _.isNull(expected)) {
+				return actual === expected;
+			}
+			// 在转换前将表达式和每项的值都转换为小写
+			actual = ('' + actual).toLowerCase();
+			expected = ('' + expected).toLowerCase();
+			return actual.indexOf(expected) !== -1;
+		};
 	}
 	return function predicateFn(item) {
 		if (shouldMatchPrimitives && !_.isObject(item)) {
@@ -83,7 +88,7 @@ function deepCompare(actual, expected, comparator, matchAnyProperty, inWildcard)
 }
 
 function filterFilter() {
-	return (array, filterExpr) => {
+	return (array, filterExpr, comparator) => {
 		let predicateFn;
 		// 如果是函数，执行断言函数
 		if (_.isFunction(filterExpr)) {
@@ -94,7 +99,7 @@ function filterFilter() {
 					_.isNull(filterExpr) ||
 					_.isObject(filterExpr)) {
 			// 如果是字符串，创建断言函数
-			predicateFn = createPredicateFn(filterExpr);
+			predicateFn = createPredicateFn(filterExpr, comparator);
 		} else {
 			// 如果不能识别，那么直接返回数组
 			return array;

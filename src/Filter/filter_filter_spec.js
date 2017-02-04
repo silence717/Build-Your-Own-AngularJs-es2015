@@ -221,4 +221,22 @@ describe('filter filter', () => {
 			{name: {first: 'Joe'}, role: 'admin'}
 		]);
 	});
+	it('allows using a custom comparator', () => {
+		const fn = parse('arr | filter:{$: "o"}:myComparator');
+		expect(fn({
+			arr: ['o', 'oo', 'ao', 'aa'],
+			myComparator: (left, right) => {
+				return left === right;
+			}
+		})).toEqual(['o']);
+	});
+	it('allows using an equality comparator', () => {
+		const fn = parse('arr | filter:{name: "Jo"}:true');
+		expect(fn({arr: [
+			{name: 'Jo'},
+			{name: 'Joe'}
+		]})).toEqual([
+			{name: 'Jo'}
+		]);
+	});
 });

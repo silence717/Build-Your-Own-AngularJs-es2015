@@ -6,7 +6,7 @@
 import Scope from './scope';
 import _ from 'lodash';
 
-xdescribe('Scope', function () {
+describe('Scope', function () {
 	// Angular的Scope对象是POJO（简单的JavaScript对象），在它们上面，可以像对其他对象一样添加属性。
 	xit('can be constructed and used as an object', () => {
 		const scope = new Scope();
@@ -332,6 +332,16 @@ xdescribe('Scope', function () {
 			scope.$digest();
 			expect(scope.counter).toBe(0);
 		});
+		// 接受监听表达式
+		it('accepts expressions for watch functions', () => {
+			let theValue;
+			scope.aValue = 42;
+			scope.$watch('aValue', (newValue, oldValue, scope) => {
+				theValue = newValue;
+			});
+			scope.$digest();
+			expect(theValue).toBe(42);
+		});
 	});
 
 	describe('$eval', () => {
@@ -354,6 +364,9 @@ xdescribe('Scope', function () {
 				return scope.aValue + arg;
 			}, 2);
 			expect(result).toBe(44);
+		});
+		it('accepts expressions in $eval', () => {
+			expect(scope.$eval('42')).toBe(42);
 		});
 	});
 
@@ -378,6 +391,10 @@ xdescribe('Scope', function () {
 				scope.aValue = 'someOtherValue';
 			});
 			expect(scope.counter).toBe(2);
+		});
+		it('accepts expressions in $apply', () => {
+			scope.aFunction = _.constant(42);
+			expect(scope.$apply('aFunction()')).toBe(42);
 		});
 	});
 
@@ -513,6 +530,17 @@ xdescribe('Scope', function () {
 				expect(scope.counter).toBe(1);
 				done();
 			}, 50);
+		});
+		it('accepts expressions in $evalAsync', done => {
+			let called;
+			scope.aFunction = function() {
+				called = true;
+			};
+			scope.$evalAsync('aFunction()');
+			scope.$$postDigest(function() {
+				expect(called).toBe(true);
+				done();
+			});
 		});
 	});
 
@@ -1524,6 +1552,15 @@ xdescribe('Scope', function () {
 
 			scope.$digest();
 			expect(oldValueGiven).toEqual({a: 1, b: 2});
+		});
+		it('accepts expressions for watch functions', () => {
+			let theValue;
+			scope.aColl = [1, 2, 3];
+			scope.$watchCollection('aColl', (newValue, oldValue, scope) => {
+				theValue = newValue;
+			});
+			scope.$digest();
+			expect(theValue).toEqual([1, 2, 3]);
 		});
 	});
 

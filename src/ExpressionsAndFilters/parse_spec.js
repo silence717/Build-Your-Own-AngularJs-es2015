@@ -587,4 +587,8 @@ describe('parse', () => {
 		const fn = parse('"hello" | surround:"*":"!"');
 		expect(fn()).toEqual('*hello!');
 	});
+	it('returns the function itself when given one', () => {
+		const fn = () => { };
+		expect(parse(fn)).toBe(fn);
+	});
 });

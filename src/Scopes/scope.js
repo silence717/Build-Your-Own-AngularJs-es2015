@@ -3,6 +3,7 @@
  * @date on 2016/12/7
  */
 import _ from 'lodash';
+import parse from '../ExpressionsAndFilters/parse';
 
 // 引入一个初始化函数
 function initWatchVal() {}
@@ -57,7 +58,7 @@ export default class Scope {
 	 */
 	$watch(watchFn, listenerFn, valueEq) {
 		const watcher = {
-			watchFn: watchFn,
+			watchFn: parse(watchFn), // 将expression与$watch关联
 			listenerFn: listenerFn || function () {},
 			valueEq: !!valueEq,
 			last: initWatchVal
@@ -205,7 +206,7 @@ export default class Scope {
 	 * @returns {*} 返回这个表达式执行的代码
 	 */
 	$eval(expr, locals) {
-		return expr(this, locals);
+		return parse(expr)(this, locals);
 	}
 	/**
 	 * 延迟执行代码
@@ -467,6 +468,9 @@ export default class Scope {
 		let changeCount = 0;
 		// 是否为第一次调用
 		let firstRun = true;
+		// 支持将表达式和watchCollection
+		watchFn = parse(watchFn);
+
 		const internalWatchFn = scope => {
 			// 存储新值长度
 			let newLength;

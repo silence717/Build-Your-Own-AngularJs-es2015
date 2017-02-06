@@ -18,6 +18,33 @@ class Parser {
 		return this.astCompile.compile(text);
 	}
 }
+function parse(expr) {
+	switch (typeof expr) {
+		case 'string':
+			const lexer = new Lexer();
+			const parser = new Parser(lexer);
+			let oneTime = false;
+			// 如果表达式的前两个字符均为冒号，我们认为它是单次绑定表达式
+			if (expr.charAt(0) === ':' && expr.charAt(1) === ':') {
+				oneTime = true;
+				expr = expr.substring(2);
+			}
+			const parseFn = parser.parse(expr);
+			if (parseFn.constant) {
+				parseFn.$$watchDelegate = constantWatchDelegate;
+			} else if (oneTime) {
+				parseFn.$$watchDelegate = parseFn.literal ? oneTimeLiteralWatchDelegate : oneTimeWatchDelegate;
+			} else if (parseFn.inputs) {
+				parseFn.$$watchDelegate = inputsWatchDelegate;
+			}
+			return parseFn;
+		case 'function':
+			return expr;
+		default:
+			return _.noop;
+	}
+}
+
 /**
  * 常量watch代理实现
  * @param scope  作用域
@@ -103,29 +130,44 @@ function oneTimeLiteralWatchDelegate(scope, listenerFn, valueEq, watchFn) {
 	);
 	return unwatch;
 }
+/**
+ * input输入表达式代理
+ * @param scope
+ * @param listenerFn
+ * @param valueEq
+ * @param watchFn
+ * @returns {*}
+ */
+function inputsWatchDelegate(scope, listenerFn, valueEq, watchFn) {
+	const inputExpressions = watchFn.inputs;
 
-function parse(expr) {
-	switch (typeof expr) {
-		case 'string':
-			const lexer = new Lexer();
-			const parser = new Parser(lexer);
-			let oneTime = false;
-			// 如果表达式的前两个字符均为冒号，我们认为它是单次绑定表达式
-			if (expr.charAt(0) === ':' && expr.charAt(1) === ':') {
-				oneTime = true;
-				expr = expr.substring(2);
+	const oldValues = _.times(inputExpressions.length, _.constant(() => { }));
+	let lastResult;
+
+	return scope.$watch(() => {
+		let changed = false;
+		_.forEach(inputExpressions, (inputExpr, i) => {
+			const newValue = inputExpr(scope);
+			if (changed || !expressionInputDirtyCheck(newValue, oldValues[i])) {
+				changed = true;
+				oldValues[i] = newValue;
 			}
-			const parseFn = parser.parse(expr);
-			if (parseFn.constant) {
-				parseFn.$$watchDelegate = constantWatchDelegate;
-			} else if (oneTime) {
-				parseFn.$$watchDelegate = parseFn.literal ? oneTimeLiteralWatchDelegate : oneTimeWatchDelegate;
-			}
-			return parseFn;
-		case 'function':
-			return expr;
-		default:
-			return _.noop;
-	}
+		});
+		if (changed) {
+			lastResult = watchFn(scope);
+		}
+		return lastResult;
+	}, listenerFn, valueEq);
+}
+/**
+ * 引用等值检测
+ * @param newValue
+ * @param oldValue
+ * @returns {boolean}
+ */
+function expressionInputDirtyCheck(newValue, oldValue) {
+	return newValue === oldValue ||
+		(typeof newValue === 'number' && typeof oldValue === 'number' &&
+		isNaN(newValue) && isNaN(oldValue));
 }
 module.exports = parse;

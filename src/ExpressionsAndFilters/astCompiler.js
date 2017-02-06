@@ -63,13 +63,14 @@ function isLiteral(ast) {
  * 标记常量标识
  * @param ast
  */
-function markConstantExpressions(ast) {
+function markConstantAndWatchExpressions(ast) {
 	let allConstants;
+	let argsToWatch;
 	switch (ast.type) {
 		case AST.Program:
 			allConstants = true;
 			_.forEach(ast.body, expr => {
-				markConstantExpressions(expr);
+				markConstantAndWatchExpressions(expr);
 				// 当所有子节点都为constant的时候，整个Program才会为常量
 				allConstants = allConstants && expr.constant;
 			});
@@ -77,40 +78,55 @@ function markConstantExpressions(ast) {
 			break;
 		case AST.Literal:
 			ast.constant = true;
+			ast.toWatch = [];
 			break;
 		case AST.Identifier:
 			ast.constant = false;
+			ast.toWatch = [ast];
 			break;
 		case AST.ArrayExpression:
 			allConstants = true;
+			argsToWatch = [];
 			_.forEach(ast.elements, element => {
 				// 递归调用每个元素，只有它们都为常量的时候，数组才会是常量
-				markConstantExpressions(element);
+				markConstantAndWatchExpressions(element);
 				allConstants = allConstants && element.constant;
+				if (!element.constant) {
+					// 将所有非常量的元素加入到监控数组
+					argsToWatch.push.apply(argsToWatch, element.toWatch);
+				}
 			});
 			ast.constant = allConstants;
+			ast.toWatch = argsToWatch;
 			break;
 		case AST.ObjectExpression:
 			allConstants = true;
+			argsToWatch = [];
 			_.forEach(ast.properties, property => {
 				// 遍历对象的每个属性，去标记它们的值是否为常量
-				markConstantExpressions(property.value);
+				markConstantAndWatchExpressions(property.value);
 				allConstants = allConstants && property.value.constant;
+				if (!property.value.constant) {
+					argsToWatch.push.apply(argsToWatch, property.value.toWatch);
+				}
 			});
 			ast.constant = allConstants;
+			ast.toWatch = argsToWatch;
 			break;
 		case AST.ThisExpression:
 		case AST.LocalsExpression:
 			ast.constant = false;
+			ast.toWatch = [];
 			break;
 		case AST.MemberExpression:
-			markConstantExpressions(ast.object);
+			markConstantAndWatchExpressions(ast.object);
 			// 如果是computed查找，需要额外考虑key值
 			if (ast.computed) {
-				markConstantExpressions(ast.property);
+				markConstantAndWatchExpressions(ast.property);
 			}
 			ast.constant = ast.object.constant &&
 				(!ast.computed || ast.property.constant);
+			ast.toWatch = [ast];
 			break;
 		case AST.CallExpression:
 			if (ast.filter) {
@@ -118,33 +134,62 @@ function markConstantExpressions(ast) {
 			} else {
 				allConstants = false;
 			}
+			argsToWatch = [];
 			_.forEach(ast.arguments, arg => {
-				markConstantExpressions(arg);
+				markConstantAndWatchExpressions(arg);
 				allConstants = allConstants && arg.constant;
+				if (!arg.constant) {
+					argsToWatch.push.apply(argsToWatch, arg.toWatch);
+				}
 			});
 			ast.constant = allConstants;
+			ast.toWatch = ast. lter ? argsToWatch : [ast];
 			break;
 		case AST.AssignmentExpression:
-			markConstantExpressions(ast.left);
-			markConstantExpressions(ast.right);
+			markConstantAndWatchExpressions(ast.left);
+			markConstantAndWatchExpressions(ast.right);
 			ast.constant = ast.left.constant && ast.right.constant;
+			ast.toWatch = [ast];
 			break;
 		case AST.UnaryExpression:
-			markConstantExpressions(ast.argument);
+			markConstantAndWatchExpressions(ast.argument);
 			ast.constant = ast.argument.constant;
+			ast.toWatch = ast.argument.toWatch;
 			break;
 		case AST.BinaryExpression:
-		case AST.LogicalExpression:
-			markConstantExpressions(ast.left);
-			markConstantExpressions(ast.right);
+			markConstantAndWatchExpressions(ast.left);
+			markConstantAndWatchExpressions(ast.right);
 			ast.constant = ast.left.constant && ast.right.constant;
+			ast.toWatch = ast.left.toWatch.concat(ast.right.toWatch);
+			break;
+		case AST.LogicalExpression:
+			markConstantAndWatchExpressions(ast.left);
+			markConstantAndWatchExpressions(ast.right);
+			ast.constant = ast.left.constant && ast.right.constant;
+			ast.toWatch = [ast];
 			break;
 		case AST.ConditionalExpression:
-			markConstantExpressions(ast.test);
-			markConstantExpressions(ast.consequent);
-			markConstantExpressions(ast.alternate);
+			markConstantAndWatchExpressions(ast.test);
+			markConstantAndWatchExpressions(ast.consequent);
+			markConstantAndWatchExpressions(ast.alternate);
 			ast.constant = ast.test.constant && ast.consequent.constant && ast.alternate.constant;
+			ast.toWatch = [ast];
 			break;
+	}
+}
+
+/**
+ * 获取表达式输入
+ * @param ast
+ * @returns {Array|[*]|*|Array.<T>}
+ */
+function getInputs(ast) {
+	if (ast.length !== 1) {
+		return;
+	}
+	const candidate = ast[0].toWatch;
+	if (candidate.length !== 1 || candidate[0] !== ast[0]) {
+		return candidate;
 	}
 }
 
@@ -162,17 +207,31 @@ export default class ASTCompiler {
 	 */
 	compile(text) {
 		const ast = this.astBuilder.ast(text);
-		markConstantExpressions(ast);
+		markConstantAndWatchExpressions(ast);
 		this.state = {
-			body: [],
+			fn: {body: [], vars: []},
 			nextId: 0,
-			vars: [],
-			filters: {}
+			filters: {},
+			inputs: []
 		};
+		// 标记是input函数还是主表达式
+		this.stage = 'inputs';
+		// 循环每个输入表达式
+		_.forEach(getInputs(ast.body), _.bind((input, idx) => {
+			let inputKey = 'fn' + idx;
+			this.state[inputKey] = {body: [], vars: []};
+			this.state.computing = inputKey;
+			this.state[inputKey].body.push('return ' + this.recurse(input) + ';');
+			this.state.inputs.push(inputKey);
+		}, this));
+		this.stage = 'main';
+		this.state.computing = 'fn';
 		this.recurse(ast);
 		const fnString = this.filterPrefix() + 'var fn=function(s,l){' +
-			(this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '') +
-			this.state.body.join('') + '}; return fn;';
+			(this.state.fn.vars.length ? 'var ' + this.state.fn.vars.join(',') + ';' : '') +
+			this.state.fn.body.join('') + '};' +
+			this.watchFns() +
+			' return fn;';
 		const fn = new Function(
 				'ensureSafeMemberName',
 				'ensureSafeObject',
@@ -200,9 +259,9 @@ export default class ASTCompiler {
 		switch (ast.type) {
 			case AST.Program:
 				_.forEach(_.initial(ast.body), _.bind(stmt => {
-					this.state.body.push(this.recurse(stmt), ';');
+					this.state[this.state.computing].body.push(this.recurse(stmt), ';');
 				}, this));
-				this.state.body.push('return ', this.recurse(_.last(ast.body)), ';');
+				this.state[this.state.computing].body.push('return ', this.recurse(_.last(ast.body)), ';');
 				break;
 			case AST.Literal:
 				return this.escape(ast.value);
@@ -221,13 +280,19 @@ export default class ASTCompiler {
 			case AST.Identifier:
 				ensureSafeMemberName(ast.name);
 				intoId = this.nextId();
-				this.if_(this.getHasOwnProperty('l', ast.name), this.assign(intoId, this.nonComputedMember('l', ast.name)));
-				if (create) {
-					this.if_(this.not(this.getHasOwnProperty('l', ast.name)) + ' && s && ' + this.not(this.getHasOwnProperty('s', ast.name)), this.assign(this.nonComputedMember('s', ast.name), '{}'));
+				let localsCheck;
+				if (this.stage === 'inputs') {
+					localsCheck = 'false';
+				} else {
+					localsCheck = this.getHasOwnProperty('l', ast.name);
 				}
-				this.if_(this.not(this.getHasOwnProperty('l', ast.name)) + ' && s', this.assign(intoId, this.nonComputedMember('s', ast.name)));
+				this.if_(localsCheck, this.assign(intoId, this.nonComputedMember('l', ast.name)));
+				if (create) {
+					this.if_(this.not(localsCheck) + ' && s && ' + this.not(this.getHasOwnProperty('s', ast.name)), this.assign(this.nonComputedMember('s', ast.name), '{}'));
+				}
+				this.if_(this.not(localsCheck) + ' && s', this.assign(intoId, this.nonComputedMember('s', ast.name)));
 				if (context) {
-					context.context = this.getHasOwnProperty('l', ast.name) + '?l:s';
+					context.context = localsCheck + '?l:s';
 					context.name = ast.name;
 					context.computed = false;
 				}
@@ -314,13 +379,13 @@ export default class ASTCompiler {
 				break;
 			case AST.LogicalExpression:
 				intoId = this.nextId();
-				this.state.body.push(this.assign(intoId, this.recurse(ast.left)));
+				this.state[this.state.computing].body.push(this.assign(intoId, this.recurse(ast.left)));
 				this.if_(ast.operator === '&&' ? intoId : this.not(intoId), this.assign(intoId, this.recurse(ast.right)));
 				return intoId;
 			case AST.ConditionalExpression:
 				intoId = this.nextId();
 				const testId = this.nextId();
-				this.state.body.push(this.assign(testId, this.recurse(ast.test)));
+				this.state[this.state.computing].body.push(this.assign(testId, this.recurse(ast.test)));
 				this.if_(testId, this.assign(intoId, this.recurse(ast.consequent)));
 				this.if_(this.not(testId), this.assign(intoId, this.recurse(ast.alternate)));
 				return intoId;
@@ -369,7 +434,7 @@ export default class ASTCompiler {
 	 * @private
 	 */
 	if_(test, consequent) {
-		this.state.body.push('if(', test, '){', consequent, '}');
+		this.state[this.state.computing].body.push('if(', test, '){', consequent, '}');
 	}
 
 	/**
@@ -389,7 +454,7 @@ export default class ASTCompiler {
 	nextId(skip) {
 		const id = 'v' + (this.state.nextId++);
 		if (!skip) {
-			this.state.vars.push(id);
+			this.state[this.state.computing].vars.push(id);
 		}
 		return id;
 	}
@@ -427,7 +492,7 @@ export default class ASTCompiler {
 	 * @param expr
 	 */
 	addEnsureSafeMemberName(expr) {
-		this.state.body.push('ensureSafeMemberName(' + expr + ');');
+		this.state[this.state.computing].body.push('ensureSafeMemberName(' + expr + ');');
 	}
 
 	/**
@@ -435,7 +500,7 @@ export default class ASTCompiler {
 	 * @param expr
 	 */
 	addEnsureSafeObject(expr) {
-		this.state.body.push('ensureSafeObject(' + expr + ');');
+		this.state[this.state.computing].body.push('ensureSafeObject(' + expr + ');');
 	}
 
 	/**
@@ -443,7 +508,7 @@ export default class ASTCompiler {
 	 * @param expr
 	 */
 	addEnsureSafeFunction(expr) {
-		this.state.body.push('ensureSafeFunction(' + expr + ');');
+		this.state[this.state.computing].body.push('ensureSafeFunction(' + expr + ');');
 	}
 
 	/**
@@ -484,4 +549,22 @@ export default class ASTCompiler {
 			return 'var ' + parts.join(',') + ';';
 		}
 	}
+
+	/**
+	 *
+	 * @returns {string}
+	 */
+	watchFns() {
+		const result = [];
+		_.forEach(this.state.inputs, _.bind(inputName => {
+			result.push('var ', inputName, '=function(s) {',
+				(this.state[inputName].vars.length ? 'var ' + this.state[inputName].vars.join(',') + ';' : ''),
+				this.state[inputName].body.join(''),
+				'};');
+		}, this));
+		if (result.length) {
+			result.push('fn.inputs = [', this.state.inputs.join(','), '];');
+		}
+		return result.join('');
+	};
 };

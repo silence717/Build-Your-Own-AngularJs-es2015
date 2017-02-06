@@ -3,7 +3,7 @@
  * @date on 2016/12/7
  */
 import _ from 'lodash';
-import parse from '../ExpressionsAndFilters/parse';
+import parse from '../Expressions/parse';
 
 // 引入一个初始化函数
 function initWatchVal() {}

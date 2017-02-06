@@ -3,7 +3,7 @@
  * @date on 2017/2/1
  */
 import {filter} from './filter';
-import parse from '../ExpressionsAndFilters/parse';
+import parse from '../Expressions/parse';
 
 describe('filter filter', () => {
 	it('is available', () => {

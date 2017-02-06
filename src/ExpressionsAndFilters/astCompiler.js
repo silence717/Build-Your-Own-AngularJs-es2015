@@ -129,11 +129,8 @@ function markConstantAndWatchExpressions(ast) {
 			ast.toWatch = [ast];
 			break;
 		case AST.CallExpression:
-			if (ast.filter) {
-				allConstants = true;
-			} else {
-				allConstants = false;
-			}
+			const stateless = ast.filter && !filter(ast.callee.name).$stateful;
+			allConstants = stateless ? true : false;
 			argsToWatch = [];
 			_.forEach(ast.arguments, arg => {
 				markConstantAndWatchExpressions(arg);

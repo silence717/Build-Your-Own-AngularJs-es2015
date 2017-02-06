@@ -190,6 +190,19 @@ function getInputs(ast) {
 	}
 }
 
+function isAssignable(ast) {
+	return ast.type === AST.Identifier || ast.type === AST.MemberExpression;
+}
+function assignableAST(ast) {
+	if (ast.body.length === 1 && isAssignable(ast.body[0])) {
+		return {
+			type: AST.AssignmentExpression,
+			left: ast.body[0],
+			right: {type: AST.NGValueParameter}
+		};
+	}
+}
+
 export default class ASTCompiler {
 
 	constructor(astBuilder) {
@@ -204,11 +217,13 @@ export default class ASTCompiler {
 	 */
 	compile(text) {
 		const ast = this.astBuilder.ast(text);
+		let extra = '';
 		markConstantAndWatchExpressions(ast);
 		this.state = {
 			fn: {body: [], vars: []},
 			nextId: 0,
 			filters: {},
+			assign: {body: [], vars: []},
 			inputs: []
 		};
 		// 标记是input函数还是主表达式
@@ -221,6 +236,16 @@ export default class ASTCompiler {
 			this.state[inputKey].body.push('return ' + this.recurse(input) + ';');
 			this.state.inputs.push(inputKey);
 		}, this));
+		this.stage = 'assign';
+
+		const assignable = assignableAST(ast);
+		if (assignable) {
+			this.state.computing = 'assign';
+			this.state.assign.body.push(this.recurse(assignable));
+			extra = 'fn.assign = function(s,v,l){' +
+				(this.state.assign.vars.length ? 'var ' + this.state.assign.vars.join(',') + ';' : '') + this.state.assign.body.join('') + '};';
+		}
+
 		this.stage = 'main';
 		this.state.computing = 'fn';
 		this.recurse(ast);
@@ -228,6 +253,7 @@ export default class ASTCompiler {
 			(this.state.fn.vars.length ? 'var ' + this.state.fn.vars.join(',') + ';' : '') +
 			this.state.fn.body.join('') + '};' +
 			this.watchFns() +
+			extra +
 			' return fn;';
 		const fn = new Function(
 				'ensureSafeMemberName',
@@ -386,6 +412,8 @@ export default class ASTCompiler {
 				this.if_(testId, this.assign(intoId, this.recurse(ast.consequent)));
 				this.if_(this.not(testId), this.assign(intoId, this.recurse(ast.alternate)));
 				return intoId;
+			case AST.NGValueParameter:
+				return 'v';
 		}
 		let intoId;
 	}

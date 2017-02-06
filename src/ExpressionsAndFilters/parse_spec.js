@@ -696,4 +696,18 @@ describe('parse', () => {
 		expect(parse('a && false').constant).toBe(false);
 		expect(parse('a && b').constant).toBe(false);
 	});
+	it('allows calling assign on identifier expressions', () => {
+		const fn = parse('anAttribute');
+		expect(fn.assign).toBeDefined();
+		const scope = {};
+		fn.assign(scope, 42);
+		expect(scope.anAttribute).toBe(42);
+	});
+	it('allows calling assign on member expressions', () => {
+		const fn = parse('anObject.anAttribute');
+		expect(fn.assign).toBeDefined();
+		const scope = {};
+		fn.assign(scope, 42);
+		expect(scope.anObject).toEqual({anAttribute: 42});
+	});
 });

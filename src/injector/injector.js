@@ -17,6 +17,20 @@ export default function createInjector(modulesToLoad) {
 			cache[key] = value;
 		}
 	};
+
+	/**
+	 * 调用函数
+	 * @param fn
+	 * @returns {*}
+	 */
+	function invoke(fn) {
+		// 对fn的$inject进行循环，从inject的数组每项去实现，拿到cache中存储这些依赖名称对应的值
+		const args = _.map(fn.$inject, token => {
+			return cache[token];
+		});
+		return fn.apply(null, args);
+	}
+
 	// 遍历需要加载的模块名称
 	_.forEach(modulesToLoad, function loadModule(moduleName) {
 		// 判断当前module是否已经被加载，为了避免各个模块互相依赖
@@ -43,6 +57,7 @@ export default function createInjector(modulesToLoad) {
 		// 获取组件本身
 		get: key => {
 			return cache[key];
-		}
+		},
+		invoke: invoke
 	};
 }

@@ -27,9 +27,16 @@ export default function setupModuleLoader(window) {
 		if (name === 'hasOwnProperty') {
 			throw 'hasOwnProperty is not a valid module name';
 		}
+		// 存储任务集合
+		const invokeQueue = [];
 		const moduleInstance = {
 			name: name,
-			requires: requires
+			requires: requires,
+			constant: (key, value) => {
+				// 注册一个constant
+				invokeQueue.push(['constant', [key, value]]);
+			},
+			_invokeQueue: invokeQueue
 		};
 		// 创建modules的时候将其存入到之前的私有modules
 		modules[name] = moduleInstance;
@@ -54,7 +61,7 @@ export default function setupModuleLoader(window) {
 		// 存储所有module
 		const modules = {};
 		return (name, requires) => {
-			// 通过requires是否存在来判断是新建module，还是获取module
+			// 通过requires是否存在，来判断是新建module，还是获取module
 			if (requires) {
 				return createModule(name, requires, modules);
 			} else {

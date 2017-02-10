@@ -88,4 +88,40 @@ describe('injector', () => {
 		fn.$inject = ['a', 'b'];
 		expect(injector.invoke(fn)).toBe(3);
 	});
+	it('does not accept non-strings as injection tokens', () => {
+		const module = window.angular.module('myModule', []);
+		module.constant('a', 1);
+		const injector = createInjector(['myModule']);
+
+		const fn = (one, two) => { return one + two; };
+		fn.$inject = ['a', 2];
+
+		expect(() => {
+			injector.invoke(fn);
+		}).toThrow();
+	});
+	it('invokes a function with the given this context', () => {
+		const module = window.angular.module('myModule', []);
+		module.constant('a', 1);
+		const injector = createInjector(['myModule']);
+
+		const obj = {
+			two: 2,
+			fn: one => { return one + this.two; }
+		};
+
+		obj.fn.$inject = ['a'];
+		expect(injector.invoke(obj.fn, obj)).toBe(3);
+	});
+	it('overrides dependencies with locals when invoking', () => {
+		const module = window.angular.module('myModule', []);
+		module.constant('a', 1);
+		module.constant('b', 2);
+		const injector = createInjector(['myModule']);
+
+		const fn = (one, two) => { return one + two; };
+		fn.$inject = ['a', 'b'];
+
+		expect(injector.invoke(fn, undefined, {b: 3})).toBe(4);
+	});
 });

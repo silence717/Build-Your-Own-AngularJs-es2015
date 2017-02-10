@@ -21,14 +21,22 @@ export default function createInjector(modulesToLoad) {
 	/**
 	 * 调用函数
 	 * @param fn
+	 * @param self 给定的上下文
+	 * @param locals 显式提供参数
 	 * @returns {*}
 	 */
-	function invoke(fn) {
+	function invoke(fn, self, locals) {
 		// 对fn的$inject进行循环，从inject的数组每项去实现，拿到cache中存储这些依赖名称对应的值
 		const args = _.map(fn.$inject, token => {
-			return cache[token];
+			if (_.isString(token)) {
+				// 查找本地依赖，如果存在再在里面查找，找不到去查找cache中的
+				return locals && locals.hasOwnProperty(token) ? locals[token] : cache[token];
+			} else {
+				throw 'Incorrect injection token! Expected a string, got ' + token;
+			}
 		});
-		return fn.apply(null, args);
+		// 使用给定的上下文执行方法
+		return fn.apply(self, args);
 	}
 
 	// 遍历需要加载的模块名称

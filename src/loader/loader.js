@@ -29,12 +29,29 @@ export default function setupModuleLoader(window) {
 		}
 		// 存储任务集合
 		const invokeQueue = [];
+		// 抽取注册constant和provider服务
+		const invokeLater = function (method) {
+			return () => {
+				invokeQueue.push([method, arguments]);
+				console.log(invokeQueue);
+				return moduleInstance;
+			};
+		};
+
+		// module实例的属性
 		const moduleInstance = {
 			name: name,
 			requires: requires,
+			// constant: invokeLater('constant'),
+			// provider: invokeLater('provider'),
+			// 提供一个constant
 			constant: (key, value) => {
-				// 注册一个constant
 				invokeQueue.push(['constant', [key, value]]);
+			},
+			// 提供一个provider
+			provider: (key, provider) => {
+				invokeQueue.push(['provider', [key, provider]]);
+				console.log(invokeQueue);
 			},
 			_invokeQueue: invokeQueue
 		};

@@ -256,4 +256,17 @@ describe('injector', () => {
 		const instance = injector.instantiate(Type, {b: 3});
 		expect(instance.result).toBe(4);
 	});
+	it('allows registering a provider and uses its $get', () => {
+		const module = window.angular.module('myModule', []);
+		module.provider('a', {
+			$get: () => {
+				return 42;
+			}
+		});
+
+		const injector = createInjector(['myModule']);
+
+		expect(injector.has('a')).toBe(true);
+		expect(injector.get('a')).toBe(42);
+	});
 });

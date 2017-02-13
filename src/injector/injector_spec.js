@@ -365,4 +365,75 @@ describe('injector', () => {
 
 		expect(injector.get('a')).toBe(3);
 	});
+	it('injects another provider to a provider constructor function', () => {
+		const module = window.angular.module('myModule', []);
+
+		module.provider('a', function AProvider() {
+			let value = 1;
+			this.setValue = v => { value = v; };
+			this.$get = () => { return value; };
+		});
+		module.provider('b', function BProvider(aProvider) {
+			aProvider.setValue(2);
+			this.$get = () => { };
+		});
+
+		const injector = createInjector(['myModule']);
+		expect(injector.get('a')).toBe(2);
+	});
+	it('does not inject an instance to a provider constructor function', () => {
+		const module = window.angular.module('myModule', []);
+
+		module.provider('a', function AProvider() {
+			this.$get = () => { return 1; };
+		});
+
+		module.provider('b', function BProvider(a) {
+			this.$get = () => { return a; };
+		});
+
+		expect(() => {
+			createInjector(['myModule']);
+		}).toThrow();
+	});
+	it('does not inject a provider to a $get function', () => {
+		const module = window.angular.module('myModule', []);
+
+		module.provider('a', function AProvider() {
+			this.$get = () => { return 1; };
+		});
+
+		module.provider('b', function BProvider() {
+			this.$get = aProvider => { return aProvider.$get(); };
+		});
+
+		const injector = createInjector(['myModule']);
+		expect(() => {
+			injector.get('b');
+		}).toThrow();
+	});
+	it('does not inject a provider to invoke', () => {
+		const module = window.angular.module('myModule', []);
+		module.provider('a', function AProvider() {
+			this.$get = () => { return 1; };
+		});
+
+		const injector = createInjector(['myModule']);
+
+		expect(() => {
+			injector.invoke(function (aProvider) { });
+		}).toThrow();
+	});
+	it('does not give access to providers through get', () => {
+		const module = window.angular.module('myModule', []);
+		module.provider('a', function AProvider() {
+			this.$get = () => { return 1; };
+		});
+
+		const injector = createInjector(['myModule']);
+
+		expect(() => {
+			injector.get('aProvider');
+		}).toThrow();
+	});
 });

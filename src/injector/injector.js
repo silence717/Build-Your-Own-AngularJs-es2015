@@ -16,8 +16,19 @@ const INSTANTIATING = { };
 export default function createInjector(modulesToLoad, strictDi) {
 	// 缓存所有的provider
 	const providerCache = {};
+	// 返回一个异常，让用户知道查找的依赖不存在
+	const providerInjector = createInternalInjector(providerCache, () => {
+		throw 'Unknown provider: ' + path.join(' <- ');
+	});
 	// 缓存所有的实例化对象
 	const instanceCache = {};
+	// 返回查找provider并实例化依赖
+	const instanceInjector = createInternalInjector(instanceCache, name => {
+		// 获取实例化依赖
+		const provider = providerInjector.get(name + 'Provider');
+		// 在Angular中，一切都是单例，任何不同地方调用相同的依赖，都会指向相同的对象
+		return instanceInjector.invoke(provider.$get, provider);
+	});
 	// 追踪module是否已经被加载
 	const loadedModules = {};
 	// 存储当前的依赖关系
@@ -31,12 +42,14 @@ export default function createInjector(modulesToLoad, strictDi) {
 			if (key === 'hasOwnProperty') {
 				throw 'hasOwnProperty is not a valid constant name!';
 			}
+			// constant是一种特殊情况，可以在任何地方被注入
+			providerCache[key] = value;
 			instanceCache[key] = value;
 		},
 		provider: (key, provider) => {
 			// 哦按段依赖是否为一二函数，如果是则需要实例化
 			if (_.isFunction(provider)) {
-				provider = instantiate(provider);
+				provider = providerInjector.instantiate(provider);
 			}
 			providerCache[key + 'Provider'] = provider;
 		}
@@ -72,78 +85,92 @@ export default function createInjector(modulesToLoad, strictDi) {
 	}
 
 	/**
-	 * 调用函数
-	 * @param fn
-	 * @param self 给定的上下文
-	 * @param locals 显式提供参数
-	 * @returns {*}
+	 * 处理内部函数的injector
+	 * @param cache 用于查找的依赖
+	 * @param factoryFn  没有依赖时候使用的构造方法
 	 */
-	function invoke(fn, self, locals) {
-		// 对fn的$inject进行循环，从inject的数组每项去实现，拿到cache中存储这些依赖名称对应的值
-		// 使用annotate函数代替直接访问fn.$inject
-		const args = _.map(annotate(fn), token => {
-			if (_.isString(token)) {
-				// 查找本地依赖，如果存在再在里面查找，找不到去查找cache中的
-				return locals && locals.hasOwnProperty(token) ? locals[token] : getService(token);
+	function createInternalInjector(cache, factoryFn) {
+		/**
+		 * 通过依赖名称获取服务
+		 * @param name 依赖名称
+		 * @returns {*}
+		 */
+		function getService(name) {
+			// 如果实例化对象中存在该服务直接返回
+			if (cache.hasOwnProperty(name)) {
+				// 判断当前的依赖是否正在构建，如果是那么存在循环依赖
+				if (cache[name] === INSTANTIATING) {
+					throw new Error('Circular dependency found: ' + name + ' <- ' + path.join(' <- '));
+				}
+				return cache[name];
 			} else {
-				throw 'Incorrect injection token! Expected a string, got ' + token;
-			}
-		});
-		// 如果fn是一个数组，使用lodash的last方法取出数组的最后一个值，也就是这个函数
-		if (_.isArray(fn)) {
-			fn = _.last(fn);
-		}
-		// 使用给定的上下文执行方法
-		return fn.apply(self, args);
-	}
-
-	/**
-	 * 实例化
-	 * @param Type
-	 * @returns {{}}
-	 */
-	function instantiate(Type, locals) {
-		// 判断是否为数组，如果是取最后一个
-		const UnwrappedType = _.isArray(Type) ? _.last(Type) : Type;
-		// 使用Object.create创建对象，基于构造函数的原型链设置对象的原型链
-		const instance = Object.create(UnwrappedType.prototype);
-		invoke(Type, instance, locals);
-		return instance;
-	}
-
-	/**
-	 * 通过依赖名称获取服务
-	 * @param name 依赖名称
-	 * @returns {*}
-	 */
-	function getService(name) {
-		// 如果实例化对象中存在该服务直接返回
-		if (instanceCache.hasOwnProperty(name)) {
-			// 判断当前的依赖是否正在构建，如果是那么存在循环依赖
-			if (instanceCache[name] === INSTANTIATING) {
-				throw new Error('Circular dependency found: ' + name + ' <- ' + path.join(' <- '));
-			}
-			return instanceCache[name];
-		} else if (providerCache.hasOwnProperty(name + 'Provider')) {
-			// 将当前依赖名称存入数组
-			path.unshift(name);
-			// 标记正在这个依赖正在构建
-			instanceCache[name] = INSTANTIATING;
-			try {
-				// 如果不存在，先去实例化再返回
-				const provider = providerCache[name + 'Provider'];
-				// 在Angular中，一切都是单例，任何不同地方调用相同的依赖，都会指向相同的对象
-				const instance = instanceCache[name] = invoke(provider.$get);
-				return instance;
-			} finally {
-				// 实例化结束后从path中删除
-				path.shift();
-				// 实例化结束以后，把它删除掉
-				if (instanceCache[name] === INSTANTIATING) {
-					delete instanceCache[name];
+				// 将当前依赖名称存入数组
+				path.unshift(name);
+				// 标记正在这个依赖正在构建
+				cache[name] = INSTANTIATING;
+				try {
+					// 如果不存在，使用factoryFn去创建
+					return (cache[name] = factoryFn(name));
+				} finally {
+					// 实例化结束后从path中删除
+					path.shift();
+					// 实例化结束以后，把它删除掉
+					if (cache[name] === INSTANTIATING) {
+						delete cache[name];
+					}
 				}
 			}
 		}
+		/**
+		 * 调用函数
+		 * @param fn
+		 * @param self 给定的上下文
+		 * @param locals 显式提供参数
+		 * @returns {*}
+		 */
+		function invoke(fn, self, locals) {
+			// 对fn的$inject进行循环，从inject的数组每项去实现，拿到cache中存储这些依赖名称对应的值
+			// 使用annotate函数代替直接访问fn.$inject
+			const args = _.map(annotate(fn), token => {
+				if (_.isString(token)) {
+					// 查找本地依赖，如果存在再在里面查找，找不到去查找cache中的
+					return locals && locals.hasOwnProperty(token) ? locals[token] : getService(token);
+				} else {
+					throw 'Incorrect injection token! Expected a string, got ' + token;
+				}
+			});
+			// 如果fn是一个数组，使用lodash的last方法取出数组的最后一个值，也就是这个函数
+			if (_.isArray(fn)) {
+				fn = _.last(fn);
+			}
+			// 使用给定的上下文执行方法
+			return fn.apply(self, args);
+		}
+
+		/**
+		 * 实例化
+		 * @param Type
+		 * @returns {{}}
+		 */
+		function instantiate(Type, locals) {
+			// 判断是否为数组，如果是取最后一个
+			const UnwrappedType = _.isArray(Type) ? _.last(Type) : Type;
+			// 使用Object.create创建对象，基于构造函数的原型链设置对象的原型链
+			const instance = Object.create(UnwrappedType.prototype);
+			invoke(Type, instance, locals);
+			return instance;
+		}
+		return {
+			// 判断是否已经注册了某个名称的服务
+			has: name => {
+				// 先去实例化对象中查找，再去provider缓存中查找
+				return cache.hasOwnProperty(name) || providerCache.hasOwnProperty(name + 'Provider');
+			},
+			get: getService,
+			annotate: annotate,
+			invoke: invoke,
+			instantiate: instantiate
+		};
 	}
 	// 遍历需要加载的模块名称
 	_.forEach(modulesToLoad, function loadModule(moduleName) {
@@ -163,16 +190,5 @@ export default function createInjector(modulesToLoad, strictDi) {
 			});
 		}
 	});
-	return {
-		// 判断是否已经注册了constant
-		has: key => {
-			// 先去实例化对象中查找，再去provider缓存中查找
-			return instanceCache.hasOwnProperty(key) || providerCache.hasOwnProperty(key + 'Provider');
-		},
-		// 获取组件本身
-		get: getService,
-		annotate: annotate,
-		invoke: invoke,
-		instantiate: instantiate
-	};
+	return instanceInjector;
 }

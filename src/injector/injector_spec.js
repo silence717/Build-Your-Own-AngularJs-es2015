@@ -163,5 +163,12 @@ describe('injector', () => {
 			const fn = (a, _b_, c_, _d, an_argument) => { };
 			expect(injector.annotate(fn)).toEqual(['a', 'b', 'c_', '_d', 'an_argument']);
 		});
+		it('throws when using a non-annotated fn in strict mode', () => {
+			const injector = createInjector([], true);
+			const fn = (a, b, c) => { };
+			expect(() => {
+				injector.annotate(fn);
+			}).toThrow();
+		});
 	});
 });

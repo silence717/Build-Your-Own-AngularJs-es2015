@@ -11,11 +11,14 @@ const FN_ARG = /^\s*(_?)(\S+?)\1\s*$/;
 // 匹配单行和多行注释
 const STRIP_COMMENTS = /(\/\/.*$)|(\/\*.*?\*\/)/mg;
 
-export default function createInjector(modulesToLoad) {
+export default function createInjector(modulesToLoad, strictDi) {
 	// 缓存组件
 	const cache = {};
 	// 追踪module是否已经被加载
 	const loadedModules = {};
+	// 在注入是函数的时候，使用严格模式检测
+	strictDi = (strictDi === true);
+
 	// 所有注册的组件服务都存放在此
 	const $provide = {
 		constant: (key, value) => {
@@ -40,6 +43,10 @@ export default function createInjector(modulesToLoad) {
 		} else if (!fn.length) {
 			return [];
 		} else {
+			// 如果是严格模式，抛出异常，不允许用户函数中使用这个
+			if (strictDi) {
+				throw 'fn is not using explicit annotation and cannot be invoked in strict mode';
+			}
 			// 使用正则替换函数中的注释部分为空
 			const source = fn.toString().replace(STRIP_COMMENTS, '');
 			// 通过正则表达式获取函数的参数

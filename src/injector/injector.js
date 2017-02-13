@@ -10,16 +10,18 @@ const FN_ARGS = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
 const FN_ARG = /^\s*(_?)(\S+?)\1\s*$/;
 // 匹配单行和多行注释
 const STRIP_COMMENTS = /(\/\/.*$)|(\/\*.*?\*\/)/mg;
+// 添加循环依赖标记
+const INSTANTIATING = { };
 
 export default function createInjector(modulesToLoad, strictDi) {
-	// 缓存组件
-	const cache = {};
 	// 缓存所有的provider
 	const providerCache = {};
 	// 缓存所有的实例化对象
 	const instanceCache = {};
 	// 追踪module是否已经被加载
 	const loadedModules = {};
+	// 存储当前的依赖关系
+	const path = [];
 	// 在注入是函数的时候，使用严格模式检测
 	strictDi = (strictDi === true);
 
@@ -113,13 +115,30 @@ export default function createInjector(modulesToLoad, strictDi) {
 	function getService(name) {
 		// 如果实例化对象中存在该服务直接返回
 		if (instanceCache.hasOwnProperty(name)) {
+			// 判断当前的依赖是否正在构建，如果是那么存在循环依赖
+			if (instanceCache[name] === INSTANTIATING) {
+				throw new Error('Circular dependency found: ' + name + ' <- ' + path.join(' <- '));
+			}
 			return instanceCache[name];
 		} else if (providerCache.hasOwnProperty(name + 'Provider')) {
-			// 如果不存在，先去实例化再返回
-			const provider = providerCache[name + 'Provider'];
-			// 在Angular中，一切都是单例，任何不同地方调用相同的依赖，都会指向相同的对象
-			const instance = instanceCache[name] = invoke(provider.$get);
-			return instance;
+			// 将当前依赖名称存入数组
+			path.unshift(name);
+			// 标记正在这个依赖正在构建
+			instanceCache[name] = INSTANTIATING;
+			try {
+				// 如果不存在，先去实例化再返回
+				const provider = providerCache[name + 'Provider'];
+				// 在Angular中，一切都是单例，任何不同地方调用相同的依赖，都会指向相同的对象
+				const instance = instanceCache[name] = invoke(provider.$get);
+				return instance;
+			} finally {
+				// 实例化结束后从path中删除
+				path.shift();
+				// 实例化结束以后，把它删除掉
+				if (instanceCache[name] === INSTANTIATING) {
+					delete instanceCache[name];
+				}
+			}
 		}
 	}
 	// 遍历需要加载的模块名称

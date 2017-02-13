@@ -436,4 +436,15 @@ describe('injector', () => {
 			injector.get('aProvider');
 		}).toThrow();
 	});
+	it('registers constants  rst to make them available to providers', () => {
+		const module = window.angular.module('myModule', []);
+
+		module.provider('a', function AProvider(b) {
+			this.$get = () => { return b; };
+		});
+		module.constant('b', 42);
+
+		const injector = createInjector(['myModule']);
+		expect(injector.get('a')).toBe(42);
+	});
 });

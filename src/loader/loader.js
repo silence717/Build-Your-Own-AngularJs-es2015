@@ -29,11 +29,17 @@ export default function setupModuleLoader(window) {
 		}
 		// 存储任务集合
 		const invokeQueue = [];
-		// 抽取注册constant和provider服务
-		const invokeLater = function (method) {
-			return () => {
-				invokeQueue.push([method, arguments]);
-				console.log(invokeQueue);
+		/**
+		 * 抽取注册constant和provider服务
+		 * @param method
+		 * @param arrayMethod
+		 * @returns {Function}
+		 */
+		const invokeLater = function (method, arrayMethod) {
+			return function () {
+				// 由于 constant 不会依赖任何其它东西，所以当 constant 被注册在一个模块上时,
+				// 模块加载器总是将它们添加 invokeQueue 的前面。
+				invokeQueue[arrayMethod || 'push']([method, arguments]);
 				return moduleInstance;
 			};
 		};
@@ -42,16 +48,8 @@ export default function setupModuleLoader(window) {
 		const moduleInstance = {
 			name: name,
 			requires: requires,
-			// constant: invokeLater('constant'),
-			// provider: invokeLater('provider'),
-			// 提供一个constant
-			constant: (key, value) => {
-				invokeQueue.push(['constant', [key, value]]);
-			},
-			// 提供一个provider
-			provider: (key, provider) => {
-				invokeQueue.push(['provider', [key, provider]]);
-			},
+			constant: invokeLater('constant', 'unshift'),
+			provider: invokeLater('provider'),
 			_invokeQueue: invokeQueue
 		};
 		// 创建modules的时候将其存入到之前的私有modules

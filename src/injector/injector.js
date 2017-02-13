@@ -34,6 +34,10 @@ export default function createInjector(modulesToLoad, strictDi) {
 			instanceCache[key] = value;
 		},
 		provider: (key, provider) => {
+			// 哦按段依赖是否为一二函数，如果是则需要实例化
+			if (_.isFunction(provider)) {
+				provider = instantiate(provider);
+			}
 			providerCache[key + 'Provider'] = provider;
 		}
 	};
@@ -94,7 +98,7 @@ export default function createInjector(modulesToLoad, strictDi) {
 	}
 
 	/**
-	 * 初始化
+	 * 实例化
 	 * @param Type
 	 * @returns {{}}
 	 */

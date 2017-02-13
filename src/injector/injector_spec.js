@@ -344,4 +344,25 @@ describe('injector', () => {
 			injector.get('a');
 		}).toThrowError('Circular dependency found: a <- c <- b <- a');
 	});
+	it('instantiates a provider if given as a constructor function', () => {
+		const module = window.angular.module('myModule', []);
+		module.provider('a', function AProvider() {
+			this.$get = () => { return 42; };
+		});
+
+		const injector = createInjector(['myModule']);
+
+		expect(injector.get('a')).toBe(42);
+	});
+	it('injects the given provider constructor function', () => {
+		const module = window.angular.module('myModule', []);
+		module.constant('b', 2);
+		module.provider('a', function AProvider(b) {
+			this.$get = () => { return 1 + b; };
+		});
+
+		const injector = createInjector(['myModule']);
+
+		expect(injector.get('a')).toBe(3);
+	});
 });

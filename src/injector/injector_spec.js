@@ -137,5 +137,31 @@ describe('injector', () => {
 			const fn = ['a', 'b', () => { }];
 			expect(injector.annotate(fn)).toEqual(['a', 'b']);
 		});
+		it('returns an empty array for a non-annotated 0-arg function', () => {
+			const injector = createInjector([]);
+			const fn = () => { };
+			expect(injector.annotate(fn)).toEqual([]);
+		});
+		it('returns annotations parsed from function args when not annotated', () => {
+			const injector = createInjector([]);
+			const fn = (a, b) => { };
+			expect(injector.annotate(fn)).toEqual(['a', 'b']);
+		});
+		it('strips comments from argument lists when parsing', () => {
+			const injector = createInjector([]);
+			const fn = (a, /*b,*/ c) => { };
+			expect(injector.annotate(fn)).toEqual(['a', 'c']);
+		});
+		it('strips // comments from argument lists when parsing', () => {
+			const injector = createInjector([]);
+			const fn = function(a, //b,
+							  c) { };
+			expect(injector.annotate(fn)).toEqual(['a', 'c']);
+		});
+		it('strips surrounding underscores from argument names when parsing', () => {
+			const injector = createInjector([]);
+			const fn = (a, _b_, c_, _d, an_argument) => { };
+			expect(injector.annotate(fn)).toEqual(['a', 'b', 'c_', '_d', 'an_argument']);
+		});
 	});
 });

@@ -3,6 +3,14 @@
  * @date on 2017/2/8
  */
 import _ from 'lodash';
+// 获取函数的参数
+const FN_ARGS = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
+// 删除字符串前后空白，以及两边下划线正则
+// const FN_ARG = /^\s*(\S+)\s*$/;
+const FN_ARG = /^\s*(_?)(\S+?)\1\s*$/;
+// 匹配单行和多行注释
+const STRIP_COMMENTS = /(\/\/.*$)|(\/\*.*?\*\/)/mg;
+
 export default function createInjector(modulesToLoad) {
 	// 缓存组件
 	const cache = {};
@@ -27,8 +35,19 @@ export default function createInjector(modulesToLoad) {
 		// 如果是数组，那么返回除数组最后一项的数据
 		if (_.isArray(fn)) {
 			return fn.slice(0, fn.length - 1);
-		} else {
+		} else if (fn.$inject) {
 			return fn.$inject;
+		} else if (!fn.length) {
+			return [];
+		} else {
+			// 使用正则替换函数中的注释部分为空
+			const source = fn.toString().replace(STRIP_COMMENTS, '');
+			// 通过正则表达式获取函数的参数
+			const argDeclaration = source.match(FN_ARGS);
+			// 返回之前循环遍历每个参数，去除字符串前后空格
+			return _.map(argDeclaration[1].split(','), argName => {
+				return argName.match(FN_ARG)[2];
+			});
 		}
 	}
 

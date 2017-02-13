@@ -51,7 +51,6 @@ export default function setupModuleLoader(window) {
 			// 提供一个provider
 			provider: (key, provider) => {
 				invokeQueue.push(['provider', [key, provider]]);
-				console.log(invokeQueue);
 			},
 			_invokeQueue: invokeQueue
 		};

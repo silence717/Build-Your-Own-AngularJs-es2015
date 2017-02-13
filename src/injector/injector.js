@@ -84,6 +84,20 @@ export default function createInjector(modulesToLoad, strictDi) {
 		return fn.apply(self, args);
 	}
 
+	/**
+	 * 初始化
+	 * @param Type
+	 * @returns {{}}
+	 */
+	function instantiate(Type, locals) {
+		// 判断是否为数组，如果是取最后一个
+		const UnwrappedType = _.isArray(Type) ? _.last(Type) : Type;
+		// 使用Object.create创建对象，基于构造函数的原型链设置对象的原型链
+		const instance = Object.create(UnwrappedType.prototype);
+		invoke(Type, instance, locals);
+		return instance;
+	}
+
 	// 遍历需要加载的模块名称
 	_.forEach(modulesToLoad, function loadModule(moduleName) {
 		// 判断当前module是否已经被加载，为了避免各个模块互相依赖
@@ -112,6 +126,7 @@ export default function createInjector(modulesToLoad, strictDi) {
 			return cache[key];
 		},
 		annotate: annotate,
-		invoke: invoke
+		invoke: invoke,
+		instantiate: instantiate
 	};
 }

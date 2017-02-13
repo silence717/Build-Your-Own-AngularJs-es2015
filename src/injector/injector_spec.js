@@ -5,6 +5,7 @@
 'use strict';
 import setupModuleLoader from '../loader/loader';
 import createInjector from './injector';
+import _ from 'lodash';
 describe('injector', () => {
 	beforeEach(() => {
 		delete window.angular;
@@ -186,5 +187,73 @@ describe('injector', () => {
 		const injector = createInjector(['myModule']);
 		const fn = (a, b) => { return a + b; };
 		expect(injector.invoke(fn)).toBe(3);
+	});
+	it('instantiates an annotated constructor function', () => {
+		const module = window.angular.module('myModule', []);
+		module.constant('a', 1);
+		module.constant('b', 2);
+		const injector = createInjector(['myModule']);
+
+		function Type(one, two) {
+			this.result = one + two;
+		}
+
+		Type.$inject = ['a', 'b'];
+		const instance = injector.instantiate(Type);
+		expect(instance.result).toBe(3);
+	});
+	it('instantiates an array-annotated constructor function', () => {
+		const module = window.angular.module('myModule', []);
+		module.constant('a', 1);
+		module.constant('b', 2);
+		const injector = createInjector(['myModule']);
+
+		function Type(one, two) {
+			this.result = one + two;
+		}
+
+		const instance = injector.instantiate(['a', 'b', Type]);
+		expect(instance.result).toBe(3);
+	});
+	it('instantiates a non-annotated constructor function', () => {
+		const module = window.angular.module('myModule', []);
+		module.constant('a', 1);
+		module.constant('b', 2);
+		const injector = createInjector(['myModule']);
+
+		function Type(a, b) {
+			this.result = a + b;
+		}
+
+		const instance = injector.instantiate(Type);
+		expect(instance.result).toBe(3);
+	});
+	it('uses the prototype of the constructor when instantiating', () => {
+		function BaseType() { }
+		BaseType.prototype.getValue = _.constant(42);
+
+		function Type() {
+			this.v = this.getValue();
+		}
+		Type.prototype = BaseType.prototype;
+
+		window.angular.module('myModule', []);
+		const injector = createInjector(['myModule']);
+
+		const instance = injector.instantiate(Type);
+		expect(instance.v).toBe(42);
+	});
+	it('supports locals when instantiating', () => {
+		const module = window.angular.module('myModule', []);
+		module.constant('a', 1);
+		module.constant('b', 2);
+		const injector = createInjector(['myModule']);
+
+		function Type(a, b) {
+			this.result = a + b;
+		}
+
+		const instance = injector.instantiate(Type, {b: 3});
+		expect(instance.result).toBe(4);
 	});
 });

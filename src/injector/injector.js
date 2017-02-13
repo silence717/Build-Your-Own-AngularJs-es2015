@@ -14,6 +14,10 @@ const STRIP_COMMENTS = /(\/\/.*$)|(\/\*.*?\*\/)/mg;
 export default function createInjector(modulesToLoad, strictDi) {
 	// 缓存组件
 	const cache = {};
+	// 缓存所有的provider
+	const providerCache = {};
+	// 缓存所有的实例化对象
+	const instanceCache = {};
 	// 追踪module是否已经被加载
 	const loadedModules = {};
 	// 在注入是函数的时候，使用严格模式检测
@@ -25,10 +29,10 @@ export default function createInjector(modulesToLoad, strictDi) {
 			if (key === 'hasOwnProperty') {
 				throw 'hasOwnProperty is not a valid constant name!';
 			}
-			cache[key] = value;
+			instanceCache[key] = value;
 		},
 		provider: (key, provider) => {
-			cache[key] = invoke(provider.$get, provider);
+			providerCache[key + 'Provider'] = provider;
 		}
 	};
 
@@ -74,7 +78,7 @@ export default function createInjector(modulesToLoad, strictDi) {
 		const args = _.map(annotate(fn), token => {
 			if (_.isString(token)) {
 				// 查找本地依赖，如果存在再在里面查找，找不到去查找cache中的
-				return locals && locals.hasOwnProperty(token) ? locals[token] : cache[token];
+				return locals && locals.hasOwnProperty(token) ? locals[token] : getService(token);
 			} else {
 				throw 'Incorrect injection token! Expected a string, got ' + token;
 			}
@@ -101,6 +105,21 @@ export default function createInjector(modulesToLoad, strictDi) {
 		return instance;
 	}
 
+	/**
+	 * 通过依赖名称获取服务
+	 * @param name 依赖名称
+	 * @returns {*}
+	 */
+	function getService(name) {
+		// 如果实例化对象中存在该服务直接返回
+		if (instanceCache.hasOwnProperty(name)) {
+			return instanceCache[name];
+		} else if (providerCache.hasOwnProperty(name + 'Provider')) {
+			// 如果不存在，直接返回
+			const provider = providerCache[name + 'Provider'];
+			return invoke(provider.$get, provider);
+		}
+	}
 	// 遍历需要加载的模块名称
 	_.forEach(modulesToLoad, function loadModule(moduleName) {
 		// 判断当前module是否已经被加载，为了避免各个模块互相依赖
@@ -122,12 +141,11 @@ export default function createInjector(modulesToLoad, strictDi) {
 	return {
 		// 判断是否已经注册了constant
 		has: key => {
-			return cache.hasOwnProperty(key);
+			// 先去实例化对象中查找，再去provider缓存中查找
+			return instanceCache.hasOwnProperty(key) || providerCache.hasOwnProperty(key + 'Provider');
 		},
 		// 获取组件本身
-		get: key => {
-			return cache[key];
-		},
+		get: getService,
 		annotate: annotate,
 		invoke: invoke,
 		instantiate: instantiate

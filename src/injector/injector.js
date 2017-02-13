@@ -19,6 +19,20 @@ export default function createInjector(modulesToLoad) {
 	};
 
 	/**
+	 * 标识函数依赖
+	 * @param fn
+	 * @returns {Array}
+	 */
+	function annotate(fn) {
+		// 如果是数组，那么返回除数组最后一项的数据
+		if (_.isArray(fn)) {
+			return fn.slice(0, fn.length - 1);
+		} else {
+			return fn.$inject;
+		}
+	}
+
+	/**
 	 * 调用函数
 	 * @param fn
 	 * @param self 给定的上下文
@@ -66,6 +80,7 @@ export default function createInjector(modulesToLoad) {
 		get: key => {
 			return cache[key];
 		},
+		annotate: annotate,
 		invoke: invoke
 	};
 }

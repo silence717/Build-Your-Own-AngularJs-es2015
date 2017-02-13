@@ -115,9 +115,11 @@ export default function createInjector(modulesToLoad, strictDi) {
 		if (instanceCache.hasOwnProperty(name)) {
 			return instanceCache[name];
 		} else if (providerCache.hasOwnProperty(name + 'Provider')) {
-			// 如果不存在，直接返回
+			// 如果不存在，先去实例化再返回
 			const provider = providerCache[name + 'Provider'];
-			return invoke(provider.$get, provider);
+			// 在Angular中，一切都是单例，任何不同地方调用相同的依赖，都会指向相同的对象
+			const instance = instanceCache[name] = invoke(provider.$get);
+			return instance;
 		}
 	}
 	// 遍历需要加载的模块名称

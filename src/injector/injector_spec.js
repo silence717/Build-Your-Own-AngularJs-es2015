@@ -294,4 +294,12 @@ describe('injector', () => {
 
 		expect(injector.get('b')).toBe(3);
 	});
+	it('instantiates a dependency only once', () => {
+		const module = window.angular.module('myModule', []);
+		module.provider('a', {$get: () => { return {}; }});
+
+		const injector = createInjector(['myModule']);
+
+		expect(injector.get('a')).toBe(injector.get('a'));
+	});
 });

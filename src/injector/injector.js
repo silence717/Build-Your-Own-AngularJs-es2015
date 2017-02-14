@@ -17,13 +17,13 @@ export default function createInjector(modulesToLoad, strictDi) {
 	// 缓存所有的provider
 	const providerCache = {};
 	// 返回一个异常，让用户知道查找的依赖不存在
-	const providerInjector = createInternalInjector(providerCache, () => {
+	const providerInjector = providerCache.$injector = createInternalInjector(providerCache, () => {
 		throw 'Unknown provider: ' + path.join(' <- ');
 	});
 	// 缓存所有的实例化对象
 	const instanceCache = {};
-	// 返回查找provider并实例化依赖
-	const instanceInjector = createInternalInjector(instanceCache, name => {
+	// 返回查找provider并实例化依赖，将其存储到instanceCache的$injector
+	const instanceInjector = instanceCache.$injector = createInternalInjector(instanceCache, name => {
 		// 获取实例化依赖
 		const provider = providerInjector.get(name + 'Provider');
 		// 在Angular中，一切都是单例，任何不同地方调用相同的依赖，都会指向相同的对象

@@ -155,7 +155,7 @@ describe('injector', () => {
 		});
 		it('strips // comments from argument lists when parsing', () => {
 			const injector = createInjector([]);
-			const fn = function(a, //b,
+			const fn = function (a, //b,
 							  c) { };
 			expect(injector.annotate(fn)).toEqual(['a', 'c']);
 		});
@@ -496,5 +496,47 @@ describe('injector', () => {
 		expect(() => {
 			injector.get('a');
 		}).toThrow();
+	});
+	it('runs config blocks when the injector is created', () => {
+		const module = window.angular.module('myModule', []);
+		let hasRun = false;
+		module.config(() => {
+			hasRun = true;
+		});
+		createInjector(['myModule']);
+		expect(hasRun).toBe(true);
+	});
+	it('injects config blocks with provider injector', () => {
+		const module = window.angular.module('myModule', []);
+		module.config($provide => {
+			$provide.constant('a', 42);
+		});
+		const injector = createInjector(['myModule']);
+		expect(injector.get('a')).toBe(42);
+	});
+	it('allows registering config blocks before providers', () => {
+		const module = window.angular.module('myModule', []);
+
+		module.config(function (aProvider) { });
+
+		module.provider('a', function () {
+			// 此处使用的_.constant在lodash中已经不存在
+			// this.$get = _.constant(42);
+			this.$get = function () {
+				return 42;
+			};
+		});
+
+		const injector = createInjector(['myModule']);
+
+		expect(injector.get('a')).toBe(42);
+	});
+	it('runs a config block added during module registration', () => {
+		window.angular.module('myModule', [], $provide => {
+			$provide.constant('a', 42);
+		});
+
+		const injector = createInjector(['myModule']);
+		expect(injector.get('a')).toBe(42);
 	});
 });

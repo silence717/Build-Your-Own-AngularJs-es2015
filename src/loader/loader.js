@@ -20,26 +20,28 @@ export default function setupModuleLoader(window) {
 	 * @param name  module名称
 	 * @param requires  依赖的其他模块
 	 * @param modules
+	 * @param configFn 配置函数
 	 * @returns {{name: *}}
 	 */
-	const createModule = (name, requires, modules) => {
+	const createModule = (name, requires, modules, configFn) => {
 		// module名称不能使用hasOwnProperty，因为获取module使用它去做检测
 		if (name === 'hasOwnProperty') {
 			throw 'hasOwnProperty is not a valid module name';
 		}
 		// 存储任务集合
 		const invokeQueue = [];
+		// 配置项集合
+		const configBlocks = [];
 		/**
 		 * 抽取注册constant和provider服务
 		 * @param method
 		 * @param arrayMethod
 		 * @returns {Function}
 		 */
-		const invokeLater = function (method, arrayMethod) {
+		const invokeLater = function (service, method, arrayMethod, queue) {
 			return function () {
-				// 由于 constant 不会依赖任何其它东西，所以当 constant 被注册在一个模块上时,
-				// 模块加载器总是将它们添加 invokeQueue 的前面。
-				invokeQueue[arrayMethod || 'push']([method, arguments]);
+				queue = queue || invokeQueue;
+				queue[arrayMethod || 'push']([service, method, arguments]);
 				return moduleInstance;
 			};
 		};
@@ -48,10 +50,20 @@ export default function setupModuleLoader(window) {
 		const moduleInstance = {
 			name: name,
 			requires: requires,
-			constant: invokeLater('constant', 'unshift'),
-			provider: invokeLater('provider'),
-			_invokeQueue: invokeQueue
+			// 由于 constant 不会依赖任何其它东西，所以当 constant 被注册在一个模块上时,
+			// 模块加载器总是将它们添加 invokeQueue 的前面。
+			constant: invokeLater('$provide', 'constant', 'unshift'),
+			provider: invokeLater('$provide', 'provider'),
+			// 配置模块有一个默认的配置块集合
+			config: invokeLater('$injector', 'invoke', 'push', configBlocks),
+			_invokeQueue: invokeQueue,
+			_configBlocks: configBlocks
 		};
+		// 判断如果创建模块存在第三个参数，那么就配置
+		if (configFn) {
+			moduleInstance.config(configFn);
+		}
+
 		// 创建modules的时候将其存入到之前的私有modules
 		modules[name] = moduleInstance;
 		return moduleInstance;
@@ -74,10 +86,10 @@ export default function setupModuleLoader(window) {
 	ensure(angular, 'module', () => {
 		// 存储所有module
 		const modules = {};
-		return (name, requires) => {
+		return (name, requires, configFn) => {
 			// 通过requires是否存在，来判断是新建module，还是获取module
 			if (requires) {
-				return createModule(name, requires, modules);
+				return createModule(name, requires, modules, configFn);
 			} else {
 				return getModule(name, modules);
 			}

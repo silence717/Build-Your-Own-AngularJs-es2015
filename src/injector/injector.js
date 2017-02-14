@@ -172,6 +172,20 @@ export default function createInjector(modulesToLoad, strictDi) {
 			instantiate: instantiate
 		};
 	}
+
+	/**
+	 * 遍历集合
+	 * @param queue
+	 */
+	function runInvokeQueue(queue) {
+		_.forEach(queue, invokeArgs => {
+			const service = providerInjector.get(invokeArgs[0]);
+			const method = invokeArgs[1];
+			const args = invokeArgs[2];
+			service[method].apply(service, args);
+		});
+	}
+
 	// 遍历需要加载的模块名称
 	_.forEach(modulesToLoad, function loadModule(moduleName) {
 		// 判断当前module是否已经被加载，为了避免各个模块互相依赖
@@ -183,11 +197,9 @@ export default function createInjector(modulesToLoad, strictDi) {
 			// 递归遍历所有依赖的模块
 			_.forEach(module.requires, loadModule);
 			// 遍历当前module的任务集合
-			_.forEach(module._invokeQueue, invokeArgs => {
-				const method = invokeArgs[0];
-				const args = invokeArgs[1];
-				providerCache.$provide[method].apply(providerCache.$provide, args);
-			});
+			runInvokeQueue(module._invokeQueue);
+			// 遍历配置块集合
+			runInvokeQueue(module._configBlocks);
 		}
 	});
 	return instanceInjector;

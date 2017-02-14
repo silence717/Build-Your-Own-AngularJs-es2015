@@ -37,7 +37,7 @@ export default function createInjector(modulesToLoad, strictDi) {
 	strictDi = (strictDi === true);
 
 	// 所有注册的组件服务都存放在此
-	const $provide = {
+	providerCache.$provide = {
 		constant: (key, value) => {
 			if (key === 'hasOwnProperty') {
 				throw 'hasOwnProperty is not a valid constant name!';
@@ -186,7 +186,7 @@ export default function createInjector(modulesToLoad, strictDi) {
 			_.forEach(module._invokeQueue, invokeArgs => {
 				const method = invokeArgs[0];
 				const args = invokeArgs[1];
-				$provide[method].apply($provide, args);
+				providerCache.$provide[method].apply(providerCache.$provide, args);
 			});
 		}
 	});

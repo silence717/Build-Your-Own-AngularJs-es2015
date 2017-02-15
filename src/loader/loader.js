@@ -56,8 +56,13 @@ export default function setupModuleLoader(window) {
 			provider: invokeLater('$provide', 'provider'),
 			// 配置模块有一个默认的配置块集合
 			config: invokeLater('$injector', 'invoke', 'push', configBlocks),
+			run: fn => {
+				moduleInstance._runBlocks.push(fn);
+				return moduleInstance;
+			},
 			_invokeQueue: invokeQueue,
-			_configBlocks: configBlocks
+			_configBlocks: configBlocks,
+			_runBlocks: []
 		};
 		// 判断如果创建模块存在第三个参数，那么就配置
 		if (configFn) {

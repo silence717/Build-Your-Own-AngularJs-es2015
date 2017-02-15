@@ -185,7 +185,8 @@ export default function createInjector(modulesToLoad, strictDi) {
 			service[method].apply(service, args);
 		});
 	}
-
+	// 运行块集合
+	let runBlocks = [];
 	// 遍历需要加载的模块名称
 	_.forEach(modulesToLoad, function loadModule(moduleName) {
 		// 判断当前module是否已经被加载，为了避免各个模块互相依赖
@@ -200,7 +201,13 @@ export default function createInjector(modulesToLoad, strictDi) {
 			runInvokeQueue(module._invokeQueue);
 			// 遍历配置块集合
 			runInvokeQueue(module._configBlocks);
+			// 将所有模块的运行块收集到一个数组中
+			runBlocks = runBlocks.concat(module._runBlocks);
 		}
+	});
+	// 遍历运行块
+	_.forEach(runBlocks, runBlock => {
+		instanceInjector.invoke(runBlock);
 	});
 	return instanceInjector;
 }

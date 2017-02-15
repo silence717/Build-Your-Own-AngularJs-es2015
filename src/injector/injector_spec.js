@@ -575,4 +575,42 @@ describe('injector', () => {
 
 		expect(result).toBe(3);
 	});
+	it('runs a function module dependency as a config block', () => {
+		const functionModule = $provide => {
+			$provide.constant('a', 42);
+		};
+		window.angular.module('myModule', [functionModule]);
+		const injector = createInjector(['myModule']);
+		expect(injector.get('a')).toBe(42);
+	});
+	it('runs a function module with array injection as a config block', () => {
+		const functionModule = ['$provide', $provide => {
+			$provide.constant('a', 42);
+		}];
+		window.angular.module('myModule', [functionModule]);
+		const injector = createInjector(['myModule']);
+		expect(injector.get('a')).toBe(42);
+	});
+	it('supports returning a run block from a function module', () => {
+		let result;
+		const functionModule = $provide => {
+			$provide.constant('a', 42);
+			return function (a) {
+				result = a;
+			};
+		};
+		window.angular.module('myModule', [functionModule]);
+		createInjector(['myModule']);
+		expect(result).toBe(42);
+	});
+	it('only loads function modules once', () => {
+		let loadedTimes = 0;
+		const functionModule = function () {
+			loadedTimes++;
+		};
+		window.angular.module('myModule', [functionModule, functionModule]);
+		createInjector(['myModule']);
+		expect(loadedTimes).toBe(2);
+		// expect(loadedTimes).toBe(1);
+	});
 });

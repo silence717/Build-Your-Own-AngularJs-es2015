@@ -47,7 +47,7 @@ export default function createInjector(modulesToLoad, strictDi) {
 			instanceCache[key] = value;
 		},
 		provider: (key, provider) => {
-			// 哦按段依赖是否为一二函数，如果是则需要实例化
+			// 按段依赖是否为provider函数，如果是则需要实例化
 			if (_.isFunction(provider)) {
 				provider = providerInjector.instantiate(provider);
 			}
@@ -188,25 +188,29 @@ export default function createInjector(modulesToLoad, strictDi) {
 	// 运行块集合
 	let runBlocks = [];
 	// 遍历需要加载的模块名称
-	_.forEach(modulesToLoad, function loadModule(moduleName) {
-		// 判断当前module是否已经被加载，为了避免各个模块互相依赖
-		if (!loadedModules.hasOwnProperty(moduleName)) {
-			// 标记当前模块已加载
-			loadedModules[moduleName] = true;
-			// 从已注册的module中获取当前module
-			const module = window.angular.module(moduleName);
-			// 递归遍历所有依赖的模块
-			_.forEach(module.requires, loadModule);
-			// 遍历当前module的任务集合
-			runInvokeQueue(module._invokeQueue);
-			// 遍历配置块集合
-			runInvokeQueue(module._configBlocks);
-			// 将所有模块的运行块收集到一个数组中
-			runBlocks = runBlocks.concat(module._runBlocks);
+	_.forEach(modulesToLoad, function loadModule(module) {
+		if (_.isString(module)) {
+			// 判断当前module是否已经被加载，为了避免各个模块互相依赖
+			if (!loadedModules.hasOwnProperty(module)) {
+				// 标记当前模块已加载
+				loadedModules[module] = true;
+				// 从已注册的module中获取当前module
+				module = window.angular.module(module);
+				// 递归遍历所有依赖的模块
+				_.forEach(module.requires, loadModule);
+				// 遍历当前module的任务集合
+				runInvokeQueue(module._invokeQueue);
+				// 遍历配置块集合
+				runInvokeQueue(module._configBlocks);
+				// 将所有模块的运行块收集到一个数组中
+				runBlocks = runBlocks.concat(module._runBlocks);
+			}
+		} else if (_.isFunction(module) || _.isArray(module)) {
+			runBlocks.push(providerInjector.invoke(module));
 		}
 	});
 	// 遍历运行块
-	_.forEach(runBlocks, runBlock => {
+	_.forEach(_.compact(runBlocks), runBlock => {
 		instanceInjector.invoke(runBlock);
 	});
 	return instanceInjector;

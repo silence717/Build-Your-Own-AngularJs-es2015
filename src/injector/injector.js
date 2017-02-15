@@ -3,6 +3,7 @@
  * @date on 2017/2/8
  */
 import _ from 'lodash';
+import {HashMap} from '../hashMap/hash_map';
 // 获取函数的参数
 const FN_ARGS = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
 // 删除字符串前后空白，以及两边下划线正则
@@ -30,7 +31,7 @@ export default function createInjector(modulesToLoad, strictDi) {
 		return instanceInjector.invoke(provider.$get, provider);
 	});
 	// 追踪module是否已经被加载
-	const loadedModules = {};
+	const loadedModules = new HashMap();
 	// 存储当前的依赖关系
 	const path = [];
 	// 在注入是函数的时候，使用严格模式检测
@@ -189,11 +190,11 @@ export default function createInjector(modulesToLoad, strictDi) {
 	let runBlocks = [];
 	// 遍历需要加载的模块名称
 	_.forEach(modulesToLoad, function loadModule(module) {
-		if (_.isString(module)) {
-			// 判断当前module是否已经被加载，为了避免各个模块互相依赖
-			if (!loadedModules.hasOwnProperty(module)) {
-				// 标记当前模块已加载
-				loadedModules[module] = true;
+		// 判断当前module是否已经被加载，为了避免各个模块互相依赖
+		if (!loadedModules.get(module)) {
+			// 如果没有，存储在loadedModules，并且标记为true
+			loadedModules.put(module, true);
+			if (_.isString(module)) {
 				// 从已注册的module中获取当前module
 				module = window.angular.module(module);
 				// 递归遍历所有依赖的模块
@@ -204,9 +205,10 @@ export default function createInjector(modulesToLoad, strictDi) {
 				runInvokeQueue(module._configBlocks);
 				// 将所有模块的运行块收集到一个数组中
 				runBlocks = runBlocks.concat(module._runBlocks);
+				// }
+			} else if (_.isFunction(module) || _.isArray(module)) {
+				runBlocks.push(providerInjector.invoke(module));
 			}
-		} else if (_.isFunction(module) || _.isArray(module)) {
-			runBlocks.push(providerInjector.invoke(module));
 		}
 	});
 	// 遍历运行块

@@ -610,7 +610,6 @@ describe('injector', () => {
 		};
 		window.angular.module('myModule', [functionModule, functionModule]);
 		createInjector(['myModule']);
-		expect(loadedTimes).toBe(2);
-		// expect(loadedTimes).toBe(1);
+		expect(loadedTimes).toBe(1);
 	});
 });

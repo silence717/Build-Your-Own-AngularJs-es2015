@@ -1,7 +1,7 @@
 ## 准备
 Angular 表达式解析的代码将放在`src/parse.js`的新文件中，该文件根据`$parse`提供的服务命名。  
 
-在该文件中，将对外提供一个叫做`parse`的方法。它接收一个Angular表达式字符串，并且返回一个在函数在确定的上下问中执行：
+在该文件中，将对外提供一个叫做`parse`的方法。它接收一个Angular表达式字符串，并且返回一个在函数在确定的上下文中执行：
 ```js
 'use strict';
 function parse(expr) {
@@ -13,9 +13,9 @@ module.exports = parse;
 
 这个文件将包含四个对象，它将字符串表达式转为方法：Lexer, AST Builder, AST Compiler, Parser。他们在不同的阶段有不同的职责：  
 
-Lexer 获取最原始的字符串表达式，并返回该字符串解析的token数组。例如，字符串"`a+b`"将会返回标记`a`,`+`，和 `b`。
+Lexer 获取最原始的字符串表达式，并返回该字符串解析的词法单元（token）流。例如，字符串"`a+b`"将会返回标记`a`,`+`，和 `b`。
 
-AST Builder 接收此法分析器生成的标记数组，并从中构建`bstract Syntax Tree (AST)`(抽象语法树)。这个树表示表达式作为嵌套JavaScript
+AST Builder 接收词法分析器生成的词法单元流，并从中构建`Abstract Syntax Tree (AST)`(抽象语法树)。这个树表示表达式作为嵌套JavaScript
 对象的句法结构。例如，标记`a`,`+`，和 `b`会生成下面的结构：
 ```js
 {
@@ -95,3 +95,12 @@ function parse(expr) {
 }
 ```
 这是`parse.js`的高级结构。在剩下来的章节里面，我们将填充这些可以发生奇妙作用的方法。
+
+
+#### 名词解释
+token - 词法单元
+tokenizing - 分词
+Abstract Syntax Tree - 抽象语法法树，简称为AST
+Lexing - 词法分析
+
+后面对这些不做翻译，为了更加准确。

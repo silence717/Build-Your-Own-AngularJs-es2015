@@ -620,7 +620,7 @@ describe('injector', () => {
 	});
 	it('injects a factory function with instances', () => {
 		const module = window.angular.module('myModule', []);
-		module.factory('a',  () => { return 1; });
+		module.factory('a', () => { return 1; });
 		module.factory('b', a => { return a + 2; });
 		const injector = createInjector(['myModule']);
 		expect(injector.get('b')).toBe(3);
@@ -640,5 +640,26 @@ describe('injector', () => {
 			injector.get('a');
 		}).toThrow();
 		expect(injector.get('b')).toBeNull();
+	});
+	it('allows registering a value', () => {
+		const module = window.angular.module('myModule', []);
+		module.value('a', 42);
+		const injector = createInjector(['myModule']);
+		expect(injector.get('a')).toBe(42);
+	});
+	it('does not make values available to config blocks', () => {
+		const module = window.angular.module('myModule', []);
+		module.value('a', 42);
+		module.config(a => {
+		});
+		expect(() => {
+			createInjector(['myModule']);
+		}).toThrow();
+	});
+	it('allows an unde ned value', () => {
+		const module = window.angular.module('myModule', []);
+		module.value('a', undefined);
+		const injector = createInjector(['myModule']);
+		expect(injector.get('a')).toBeUndefined();
 	});
 });

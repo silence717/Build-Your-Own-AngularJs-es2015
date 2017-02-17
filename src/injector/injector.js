@@ -52,7 +52,7 @@ export default function createInjector(modulesToLoad, strictDi) {
 	}
 	// 所有注册的组件服务都存放在此
 	providerCache.$provide = {
-		constant: (key, value) => {
+		constant: function (key, value) {
 			if (key === 'hasOwnProperty') {
 				throw 'hasOwnProperty is not a valid constant name!';
 			}
@@ -60,17 +60,20 @@ export default function createInjector(modulesToLoad, strictDi) {
 			providerCache[key] = value;
 			instanceCache[key] = value;
 		},
-		provider: (key, provider) => {
+		provider: function (key, provider) {
 			// 按段依赖是否为provider函数，如果是则需要实例化
 			if (_.isFunction(provider)) {
 				provider = providerInjector.instantiate(provider);
 			}
 			providerCache[key + 'Provider'] = provider;
 		},
-		factory: function (key, factoryFn) {
+		factory: function (key, factoryFn, enforce) {
 			this.provider(key, {
-				$get: enforceReturnValue(factoryFn)
+				$get: enforce === false ? factoryFn : enforceReturnValue(factoryFn)
 			});
+		},
+		value: function (key, value) {
+			this.factory(key, _.constant(value), false);
 		}
 	};
 

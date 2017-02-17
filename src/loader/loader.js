@@ -54,6 +54,7 @@ export default function setupModuleLoader(window) {
 			// 模块加载器总是将它们添加 invokeQueue 的前面。
 			constant: invokeLater('$provide', 'constant', 'unshift'),
 			provider: invokeLater('$provide', 'provider'),
+			factory: invokeLater('$provide', 'factory'),
 			// 配置模块有一个默认的配置块集合
 			config: invokeLater('$injector', 'invoke', 'push', configBlocks),
 			run: fn => {

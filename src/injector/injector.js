@@ -36,7 +36,20 @@ export default function createInjector(modulesToLoad, strictDi) {
 	const path = [];
 	// 在注入是函数的时候，使用严格模式检测
 	strictDi = (strictDi === true);
-
+	/**
+	 * 强制返回值
+	 * @param factoryFn
+	 * @returns {Function}
+	 */
+	function enforceReturnValue(factoryFn) {
+		return function () {
+			const value = instanceInjector.invoke(factoryFn);
+			if (_.isUndefined(value)) {
+				throw 'factory must return a value';
+			}
+			return value;
+		};
+	}
 	// 所有注册的组件服务都存放在此
 	providerCache.$provide = {
 		constant: (key, value) => {
@@ -53,6 +66,11 @@ export default function createInjector(modulesToLoad, strictDi) {
 				provider = providerInjector.instantiate(provider);
 			}
 			providerCache[key + 'Provider'] = provider;
+		},
+		factory: function (key, factoryFn) {
+			this.provider(key, {
+				$get: enforceReturnValue(factoryFn)
+			});
 		}
 	};
 

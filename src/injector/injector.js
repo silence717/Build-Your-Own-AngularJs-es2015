@@ -79,6 +79,16 @@ export default function createInjector(modulesToLoad, strictDi) {
 			this.factory(key, function () {
 				return instanceInjector.instantiate(Constructor);
 			});
+		},
+		// 装饰器主要是通过重写provider的$get方法实现
+		decorator: function (serviceName, decoratorFn) {
+			const provider = providerInjector.get(serviceName + 'Provider');
+			const original$get = provider.$get;
+			provider.$get = () => {
+				const instance = instanceInjector.invoke(original$get, provider);
+				instanceInjector.invoke(decoratorFn, null, {$delegate: instance});
+				return instance;
+			};
 		}
 	};
 

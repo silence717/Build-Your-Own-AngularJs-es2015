@@ -718,11 +718,11 @@ describe('injector', () => {
 	});
 	it('uses dependency injection with decorators', () => {
 		const module = window.angular.module('myModule', []);
-		module.factory('aValue', function() {
+		module.factory('aValue', function () {
 			return {};
 		});
 		module.constant('a', 42);
-		module.decorator('aValue', function(a, $delegate) {
+		module.decorator('aValue', function (a, $delegate) {
 			$delegate.decoratedKey = a;
 		});
 		const injector = createInjector(['myModule']);

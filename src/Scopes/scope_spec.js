@@ -2,24 +2,24 @@
  * @author  https://github.com/silence717
  * @date on 2016/12/7
  */
-'use strict';
-import Scope from './scope';
-import {register} from '../Filter/filter';
 import _ from 'lodash';
+import publishExternalAPI from '../public/angular_public';
+import createInjector from '../injector/injector';
 
 describe('Scope', function () {
 	// Angular的Scope对象是POJO（简单的JavaScript对象），在它们上面，可以像对其他对象一样添加属性。
-	xit('can be constructed and used as an object', () => {
-		const scope = new Scope();
-		scope.aProperty = 1;
-		expect(scope.aProperty).toBe(1);
-	});
+	// xit('can be constructed and used as an object', () => {
+	// 	const scope = new Scope();
+	// 	scope.aProperty = 1;
+	// 	expect(scope.aProperty).toBe(1);
+	// });
 
 	describe('digest', () => {
 		let scope;
 
 		beforeEach(() => {
-			scope = new Scope();
+			publishExternalAPI();
+			scope = createInjector(['ng']).get('$rootScope');
 		});
 		// 测试$digest调用后，监听器函数被调用
 		it('calls the listener function of a watch on first $digest', () => {
@@ -428,13 +428,16 @@ describe('Scope', function () {
 			expect(values[1]).toEqual([1, 2, 4]);
 		});
 		it('allows $stateful filter value to change over time', done => {
-			register('withTime', () => {
-				return _.extend(v => {
-					return new Date().toISOString() + ': ' + v;
-				}, {
-					$stateful: true
+			const injector = createInjector(['ng', $filterProvider => {
+				$filterProvider.register('withTime', () => {
+					return _.extend(v => {
+						return new Date().toISOString() + ': ' + v;
+					}, {
+						$stateful: true
+					});
 				});
-			});
+			}]);
+			scope = injector.get('$rootScope');
 			const listenerSpy = jasmine.createSpy();
 			scope.$watch('42 | withTime', listenerSpy);
 			scope.$digest();
@@ -451,7 +454,8 @@ describe('Scope', function () {
 	describe('$eval', () => {
 		let scope;
 		beforeEach(() => {
-			scope = new Scope();
+			publishExternalAPI();
+			scope = createInjector(['ng']).get('$rootScope');
 		});
 		// 仅有一个参数，执行该表达式并返回结果
 		it('executes $evaled function and returns result', () => {
@@ -477,7 +481,8 @@ describe('Scope', function () {
 	describe('$apply', () => {
 		let scope;
 		beforeEach(() => {
-			scope = new Scope();
+			publishExternalAPI();
+			scope = createInjector(['ng']).get('$rootScope');
 		});
 		it('executes the given function and starts the digest', () => {
 			scope.aValue = 'someValue';
@@ -505,7 +510,8 @@ describe('Scope', function () {
 	describe('$evalAsync', () => {
 		let scope;
 		beforeEach(() => {
-			scope = new Scope();
+			publishExternalAPI();
+			scope = createInjector(['ng']).get('$rootScope');
 		});
 		// 在digest的ListenerFn中延迟执行
 		it('executes given function later in the same cycle', () => {
@@ -651,7 +657,8 @@ describe('Scope', function () {
 	describe('$applyAsync', () => {
 		let scope;
 		beforeEach(() => {
-			scope = new Scope();
+			publishExternalAPI();
+			scope = createInjector(['ng']).get('$rootScope');
 		});
 		// 使用 $applyAsync 允许异步执行 $apply
 		it('allows async $apply with $applyAsync', done => {
@@ -762,7 +769,8 @@ describe('Scope', function () {
 	describe('$postDigest', () => {
 		let scope;
 		beforeEach(() => {
-			scope = new Scope();
+			publishExternalAPI();
+			scope = createInjector(['ng']).get('$rootScope');
 		});
 		// 在 $digest 后执行
 		it('runs after each digest', () => {
@@ -814,7 +822,8 @@ describe('Scope', function () {
 	describe('$watchGroup', () => {
 		let scope;
 		beforeEach(() => {
-			scope = new Scope();
+			publishExternalAPI();
+			scope = createInjector(['ng']).get('$rootScope');
 		});
 		// watches是一个数组，期望listenerFn返回的也是一个数组
 		it('takes watches as an array and calls listener with arrays', () => {
@@ -920,30 +929,31 @@ describe('Scope', function () {
 	});
 
 	describe('inheritance', () => {
+		let parent;
+		beforeEach(function () {
+			publishExternalAPI();
+			parent = createInjector(['ng']).get('$rootScope');
+		});
 		// 子scope继承父亲的所有属性
 		it('inherits the parent properties', () => {
-			const parent = new Scope();
 			parent.aValue = [1, 2, 3];
 			const child = parent.$new();
 			expect(child.aValue).toEqual([1, 2, 3]);
 		});
 		// 子scope上的属性不会影响父scope
 		it('does not cause a parent to inherit its properties', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 			child.aValue = [1, 2, 3];
 			expect(parent.aValue).toBeUndefined();
 		});
 		// 不管在什么时间创建子 scope, 当一个属性定义在父 ，所有子scope都可访问该属性
 		it('inherits the parents properties whenever they are defined', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 			parent.aValue = [1, 2, 3];
 			expect(child.aValue).toEqual([1, 2, 3]);
 		});
 		// 你可以在子 scope 上操作父scope的属性，因为 scopes 指向同样的值
 		it('can manipulate a parent scopes property', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 			parent.aValue = [1, 2, 3];
 			child.aValue.push(4);
@@ -952,7 +962,6 @@ describe('Scope', function () {
 		});
 		// 在子 scope 上 watch 父 scope 的属性值
 		it('can watch a property in the parent', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 			parent.aValue = [1, 2, 3];
 			child.counter = 0;
@@ -973,7 +982,7 @@ describe('Scope', function () {
 		});
 		// scope 层级可以是任意深度
 		it('can be nested at any depth', () => {
-			const a = new Scope();
+			const a = parent;
 			const aa = a.$new();
 			const aaa = aa.$new();
 			const aab = aa.$new();
@@ -995,7 +1004,6 @@ describe('Scope', function () {
 		// 实际在作用域链上我们存在两个不想听的属性，都叫做name。
 		// 这种通常被称为覆盖：从子 scope 的角度来看，父scope的name属性被覆盖了。
 		it('shadows a parents property with the same name', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 
 			parent.name = 'Joe';
@@ -1008,7 +1016,6 @@ describe('Scope', function () {
 		// 这种方式，我们并没有对子 scope 赋值，我们仅仅是从父scope上读取user对象和在对象内赋值，
 		// 两个scope只是使用了同一个user对象的引用。user对象只是一个纯js对象，与scope继承无关。
 		it('does not shadow members of parent scopes attributes', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 			parent.user = {name: 'Joe'};
 			child.user.name = 'Jill';
@@ -1017,7 +1024,6 @@ describe('Scope', function () {
 		});
 		// 子scope执行$digest循环的时候，不要触发它的父scope
 		it('does not digest its parent(s)', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 			parent.aValue = 'abc';
 			parent.$watch(
@@ -1033,7 +1039,6 @@ describe('Scope', function () {
 		// 实际上angular内部并没有一个$$children的数组，而是采用$$nextSibling、$$prevSibling、$$childHead 、$$childTail给出一个可操作的范围
 		// 使其添加和删除的成本更小，不必操纵数组。功能与$$children类似。
 		it('keeps a record of its children', () => {
-			const parent = new Scope();
 			const child1 = parent.$new();
 			const child2 = parent.$new();
 			const child2_1 = child2.$new();
@@ -1046,7 +1051,6 @@ describe('Scope', function () {
 		});
 		// 父 scope 调用 $digest 循环的时候其子 scope 的watchers也被执行
 		it('digests its children', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 			parent.aValue = 'abc';
 			child.$watch(
@@ -1060,7 +1064,6 @@ describe('Scope', function () {
 		});
 		// 调用$apply的时候从rootScope开始执行digest循环
 		it('digests from root on $apply', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 			const child2 = child.$new();
 			parent.aValue = 'abc';
@@ -1076,7 +1079,6 @@ describe('Scope', function () {
 		});
 		// 子 scope 调用 $evalAsync ，digest 也必须从 rootScope 开始
 		it('schedules a digest from root on $evalAsync', done => {
-			const parent = new Scope();
 			const child = parent.$new();
 			const child2 = child.$new();
 			parent.aValue = 'abc';
@@ -1099,14 +1101,12 @@ describe('Scope', function () {
 		// Isolate Scope
 		// 隔离作用域的时候，访问不到父 scope 属性的值
 		it('does not have access to parent attributes when isolated', () => {
-			const parent = new Scope();
 			const child = parent.$new(true);
 			parent.aValue = 'abc';
 			expect(child.aValue).toBeUndefined();
 		});
 		// 隔离作用域的时候，访问不到父 scope 的属性值，那么也无法 watch 这些属性的变化
 		it('cannot watch parent attributes when isolated', () => {
-			const parent = new Scope();
 			const child = parent.$new(true);
 
 			parent.aValue = 'abc';
@@ -1123,7 +1123,6 @@ describe('Scope', function () {
 		// 虽然我们改变了隔离作用域，但是我们希望$digest还能运行当前scope以及子scope的监听器
 		// todo 该测试没有通过
 		xit('digests its isolated children', () => {
-			const parent = new Scope();
 			const child = parent.$new(true);
 
 			child.aValue = 'abc';
@@ -1139,7 +1138,6 @@ describe('Scope', function () {
 		});
 		// 隔离作用域的时候调用$apply的时候需要从rootScope开始执行 digest
 		it('digests from root on $apply when isolated', () => {
-			const parent = new Scope();
 			const child = parent.$new(true);
 			const child2 = child.$new();
 			parent.aValue = 'abc';
@@ -1155,7 +1153,6 @@ describe('Scope', function () {
 		});
 		// 隔离作用域的时候调用 $evalAsync 的时候需要从rootScope开始执行 digest
 		it('schedules a digest from root on $evalAsync when isolated', done => {
-			const parent = new Scope();
 			const child = parent.$new(true);
 			const child2 = child.$new();
 			parent.aValue = 'abc';
@@ -1174,7 +1171,6 @@ describe('Scope', function () {
 		});
 		// 在隔离作用域执行 $evalAsync 方法
 		it('executes $evalAsync functions on isolated scopes', done => {
-			const parent = new Scope();
 			const child = parent.$new(true);
 			child.$evalAsync(scope => {
 				scope.didEvalAsync = true;
@@ -1186,7 +1182,6 @@ describe('Scope', function () {
 		});
 		// 在隔离作用域执行 $$postDigest 方法
 		it('executes $$postDigest functions on isolated scopes', () => {
-			const parent = new Scope();
 			const child = parent.$new(true);
 			child.$$postDigest(() => {
 				child.didPostDigest = true;
@@ -1199,7 +1194,6 @@ describe('Scope', function () {
 		// 并且现在整个scope层级的每个 scope 可能都有这个属性的实例，整个 $applyAsync 目的是合并 $apply 调用
 		// 做法：1、现在创建隔离scope的时候为它创建一个引用。2、我们需要共享 $$applyAsyncId 属性
 		it('executes $applyAsync functions on isolated scopes', () => {
-			const parent = new Scope();
 			const child = parent.$new(true);
 			let applied = false;
 			parent.$applyAsync(() => {
@@ -1211,8 +1205,8 @@ describe('Scope', function () {
 		// Substituting The Parent Scope
 		// 新创建的scope指定它的parent scope
 		it('can take some other scope as the parent', () => {
-			const prototypeParent = new Scope();
-			const hierarchyParent = new Scope();
+			const prototypeParent = parent.$new();
+			const hierarchyParent = parent.$new();
 			// 这样就拥有两个parent scope，一个是原型链继承而来，另一个是我们传给它附有层级的scope
 			const child = prototypeParent.$new(false, hierarchyParent);
 
@@ -1234,7 +1228,6 @@ describe('Scope', function () {
 		});
 		// 当scope上面的$destroy方法被调用的时候，$digest将不会再执行
 		it('is no longer digested when $destroy has been called', () => {
-			const parent = new Scope();
 			const child = parent.$new();
 
 			child.aValue = [1, 2, 3];
@@ -1265,7 +1258,8 @@ describe('Scope', function () {
 	describe('$watchCollection', () => {
 		let scope;
 		beforeEach(() => {
-			scope = new Scope();
+			publishExternalAPI();
+			scope = createInjector(['ng']).get('$rootScope');
 		});
 		// $watchCollection可以正常监测非集合数据
 		it('works like a normal watch for non-collections', () => {
@@ -1675,7 +1669,8 @@ describe('Scope', function () {
 		let isolatedChild;
 
 		beforeEach(() => {
-			parent = new Scope();
+			publishExternalAPI();
+			parent = createInjector(['ng']).get('$rootScope');
 			scope = parent.$new();
 			child = scope.$new();
 			isolatedChild = scope.$new(true);

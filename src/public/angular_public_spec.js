@@ -15,4 +15,19 @@ describe('angularPublic', () => {
 		publishExternalAPI();
 		expect(createInjector(['ng'])).toBeDefined();
 	});
+	it('sets up the $filter service', () => {
+		publishExternalAPI();
+		const injector = createInjector(['ng']);
+		expect(injector.has('$filter')).toBe(true);
+	});
+	it('sets up the $parse service', () => {
+		publishExternalAPI();
+		const injector = createInjector(['ng']);
+		expect(injector.has('$parse')).toBe(true);
+	});
+	it('sets up the $rootScope', () => {
+		publishExternalAPI();
+		const injector = createInjector(['ng']);
+		expect(injector.has('$rootScope')).toBe(true);
+	});
 });

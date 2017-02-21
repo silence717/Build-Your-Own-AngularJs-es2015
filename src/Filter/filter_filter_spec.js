@@ -2,12 +2,18 @@
  * @author  https://github.com/silence717
  * @date on 2017/2/1
  */
-import {filter} from './filter';
-import parse from '../Expressions/parse';
+import publishExternalAPI from '../public/angular_public';
+import createInjector from '../injector/injector';
 
 describe('filter filter', () => {
+	let parse;
+	beforeEach(function () {
+		publishExternalAPI();
+		parse = createInjector(['ng']).get('$parse');
+	});
 	it('is available', () => {
-		expect(filter('filter')).toBeDefined();
+		const injector = createInjector(['ng']);
+		expect(injector.has('filterFilter')).toBe(true);
 	});
 	it('can filter an array with a predicate function', () => {
 		const fn = parse('[1, 2, 3, 4] | filter:isOdd');

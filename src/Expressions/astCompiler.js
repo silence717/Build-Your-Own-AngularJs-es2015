@@ -5,7 +5,6 @@
  */
 import _ from 'lodash';
 import AST from './ast';
-import {filter} from '../Filter/filter';
 // 确保是安全的成员属性访问
 function ensureSafeMemberName(name) {
 	if (name === 'constructor' || name === '__proto__' ||
@@ -63,14 +62,14 @@ function isLiteral(ast) {
  * 标记常量标识
  * @param ast
  */
-function markConstantAndWatchExpressions(ast) {
+function markConstantAndWatchExpressions(ast, $filter) {
 	let allConstants;
 	let argsToWatch;
 	switch (ast.type) {
 		case AST.Program:
 			allConstants = true;
 			_.forEach(ast.body, expr => {
-				markConstantAndWatchExpressions(expr);
+				markConstantAndWatchExpressions(expr, $filter);
 				// 当所有子节点都为constant的时候，整个Program才会为常量
 				allConstants = allConstants && expr.constant;
 			});
@@ -89,7 +88,7 @@ function markConstantAndWatchExpressions(ast) {
 			argsToWatch = [];
 			_.forEach(ast.elements, element => {
 				// 递归调用每个元素，只有它们都为常量的时候，数组才会是常量
-				markConstantAndWatchExpressions(element);
+				markConstantAndWatchExpressions(element, $filter);
 				allConstants = allConstants && element.constant;
 				if (!element.constant) {
 					// 将所有非常量的元素加入到监控数组
@@ -104,7 +103,7 @@ function markConstantAndWatchExpressions(ast) {
 			argsToWatch = [];
 			_.forEach(ast.properties, property => {
 				// 遍历对象的每个属性，去标记它们的值是否为常量
-				markConstantAndWatchExpressions(property.value);
+				markConstantAndWatchExpressions(property.value, $filter);
 				allConstants = allConstants && property.value.constant;
 				if (!property.value.constant) {
 					argsToWatch.push.apply(argsToWatch, property.value.toWatch);
@@ -119,21 +118,26 @@ function markConstantAndWatchExpressions(ast) {
 			ast.toWatch = [];
 			break;
 		case AST.MemberExpression:
-			markConstantAndWatchExpressions(ast.object);
+			markConstantAndWatchExpressions(ast.object, $filter);
 			// 如果是computed查找，需要额外考虑key值
 			if (ast.computed) {
-				markConstantAndWatchExpressions(ast.property);
+				markConstantAndWatchExpressions(ast.property, $filter);
 			}
 			ast.constant = ast.object.constant &&
 				(!ast.computed || ast.property.constant);
 			ast.toWatch = [ast];
 			break;
 		case AST.CallExpression:
-			const stateless = ast.filter && !filter(ast.callee.name).$stateful;
-			allConstants = stateless ? true : false;
+			const stateless = ast.filter && !$filter(ast.callee.name).$stateful;
+			// allConstants = stateless ? true : false;
+			if (stateless) {
+				allConstants = true;
+			} else {
+				allConstants = false;
+			}
 			argsToWatch = [];
 			_.forEach(ast.arguments, arg => {
-				markConstantAndWatchExpressions(arg);
+				markConstantAndWatchExpressions(arg, $filter);
 				allConstants = allConstants && arg.constant;
 				if (!arg.constant) {
 					argsToWatch.push.apply(argsToWatch, arg.toWatch);
@@ -143,32 +147,32 @@ function markConstantAndWatchExpressions(ast) {
 			ast.toWatch = ast. lter ? argsToWatch : [ast];
 			break;
 		case AST.AssignmentExpression:
-			markConstantAndWatchExpressions(ast.left);
-			markConstantAndWatchExpressions(ast.right);
+			markConstantAndWatchExpressions(ast.left, $filter);
+			markConstantAndWatchExpressions(ast.right, $filter);
 			ast.constant = ast.left.constant && ast.right.constant;
 			ast.toWatch = [ast];
 			break;
 		case AST.UnaryExpression:
-			markConstantAndWatchExpressions(ast.argument);
+			markConstantAndWatchExpressions(ast.argument, $filter);
 			ast.constant = ast.argument.constant;
 			ast.toWatch = ast.argument.toWatch;
 			break;
 		case AST.BinaryExpression:
-			markConstantAndWatchExpressions(ast.left);
-			markConstantAndWatchExpressions(ast.right);
+			markConstantAndWatchExpressions(ast.left, $filter);
+			markConstantAndWatchExpressions(ast.right, $filter);
 			ast.constant = ast.left.constant && ast.right.constant;
 			ast.toWatch = ast.left.toWatch.concat(ast.right.toWatch);
 			break;
 		case AST.LogicalExpression:
-			markConstantAndWatchExpressions(ast.left);
-			markConstantAndWatchExpressions(ast.right);
+			markConstantAndWatchExpressions(ast.left, $filter);
+			markConstantAndWatchExpressions(ast.right, $filter);
 			ast.constant = ast.left.constant && ast.right.constant;
 			ast.toWatch = [ast];
 			break;
 		case AST.ConditionalExpression:
-			markConstantAndWatchExpressions(ast.test);
-			markConstantAndWatchExpressions(ast.consequent);
-			markConstantAndWatchExpressions(ast.alternate);
+			markConstantAndWatchExpressions(ast.test, $filter);
+			markConstantAndWatchExpressions(ast.consequent, $filter);
+			markConstantAndWatchExpressions(ast.alternate, $filter);
 			ast.constant = ast.test.constant && ast.consequent.constant && ast.alternate.constant;
 			ast.toWatch = [ast];
 			break;
@@ -205,8 +209,9 @@ function assignableAST(ast) {
 
 export default class ASTCompiler {
 
-	constructor(astBuilder) {
+	constructor(astBuilder, $filter) {
 		this.astBuilder = astBuilder;
+		this.$filter = $filter;
 		this.stringEscapeRegex = /[^ a-zA-Z0-9]/g;
 	}
 
@@ -218,7 +223,7 @@ export default class ASTCompiler {
 	compile(text) {
 		const ast = this.astBuilder.ast(text);
 		let extra = '';
-		markConstantAndWatchExpressions(ast);
+		markConstantAndWatchExpressions(ast, this.$filter);
 		this.state = {
 			fn: {body: [], vars: []},
 			nextId: 0,
@@ -266,7 +271,7 @@ export default class ASTCompiler {
 				ensureSafeObject,
 				ensureSafeFunction,
 				ifDefined,
-				filter
+				this.$filter
 			);
 		fn.literal = isLiteral(ast);
 		fn.constant = ast.constant;

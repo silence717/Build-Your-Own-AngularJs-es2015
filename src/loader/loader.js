@@ -58,6 +58,7 @@ export default function setupModuleLoader(window) {
 			value: invokeLater('$provide', 'value'),
 			service: invokeLater('$provide', 'service'),
 			decorator: invokeLater('$provide', 'decorator'),
+			filter: invokeLater('$filterProvider', 'register'),
 			// 配置模块有一个默认的配置块集合
 			config: invokeLater('$injector', 'invoke', 'push', configBlocks),
 			run: fn => {

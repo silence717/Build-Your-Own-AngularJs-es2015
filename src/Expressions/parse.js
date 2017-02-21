@@ -9,40 +9,44 @@ import Lexer from './lexer';
 
 class Parser {
 
-	constructor(lexer) {
+	constructor(lexer, $filter) {
 		this.lexer = lexer;
 		this.ast = new AST(this.lexer);
-		this.astCompile = new ASTCompiler(this.ast);
+		this.astCompile = new ASTCompiler(this.ast, $filter);
 	}
 	parse(text) {
 		return this.astCompile.compile(text);
 	}
 }
-function parse(expr) {
-	switch (typeof expr) {
-		case 'string':
-			const lexer = new Lexer();
-			const parser = new Parser(lexer);
-			let oneTime = false;
-			// 如果表达式的前两个字符均为冒号，我们认为它是单次绑定表达式
-			if (expr.charAt(0) === ':' && expr.charAt(1) === ':') {
-				oneTime = true;
-				expr = expr.substring(2);
+function $ParseProvider() {
+	this.$get = ['$filter', function ($filter) {
+		return function (expr) {
+			switch (typeof expr) {
+				case 'string':
+					const lexer = new Lexer();
+					const parser = new Parser(lexer, $filter);
+					let oneTime = false;
+					// 如果表达式的前两个字符均为冒号，我们认为它是单次绑定表达式
+					if (expr.charAt(0) === ':' && expr.charAt(1) === ':') {
+						oneTime = true;
+						expr = expr.substring(2);
+					}
+					const parseFn = parser.parse(expr);
+					if (parseFn.constant) {
+						parseFn.$$watchDelegate = constantWatchDelegate;
+					} else if (oneTime) {
+						parseFn.$$watchDelegate = parseFn.literal ? oneTimeLiteralWatchDelegate : oneTimeWatchDelegate;
+					} else if (parseFn.inputs) {
+						parseFn.$$watchDelegate = inputsWatchDelegate;
+					}
+					return parseFn;
+				case 'function':
+					return expr;
+				default:
+					return _.noop;
 			}
-			const parseFn = parser.parse(expr);
-			if (parseFn.constant) {
-				parseFn.$$watchDelegate = constantWatchDelegate;
-			} else if (oneTime) {
-				parseFn.$$watchDelegate = parseFn.literal ? oneTimeLiteralWatchDelegate : oneTimeWatchDelegate;
-			} else if (parseFn.inputs) {
-				parseFn.$$watchDelegate = inputsWatchDelegate;
-			}
-			return parseFn;
-		case 'function':
-			return expr;
-		default:
-			return _.noop;
-	}
+		};
+	}];
 }
 
 /**
@@ -170,4 +174,4 @@ function expressionInputDirtyCheck(newValue, oldValue) {
 		(typeof newValue === 'number' && typeof oldValue === 'number' &&
 		isNaN(newValue) && isNaN(oldValue));
 }
-module.exports = parse;
+module.exports = $ParseProvider;

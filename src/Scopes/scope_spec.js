@@ -2007,4 +2007,32 @@ describe('Scope', function () {
 			expect(listener).not.toHaveBeenCalled();
 		});
 	});
+
+	describe('TTL con gurability', () => {
+		beforeEach(() => {
+			publishExternalAPI();
+		});
+		it('allows con guring a shorter TTL', () => {
+			const injector = createInjector(['ng', $rootScopeProvider => {
+				$rootScopeProvider.digestTtl(5);
+			}]);
+			const scope = injector.get('$rootScope');
+			scope.counterA = 0;
+			scope.counterB = 0;
+			scope.$watch(
+				scope => { return scope.counterA; },
+				(newValue, oldValue, scope) => {
+					if (scope.counterB < 5) {
+						scope.counterB++;
+					}
+				});
+			scope.$watch(
+				scope => { return scope.counterB; },
+				(newValue, oldValue, scope) => {
+					scope.counterA++;
+				}
+			);
+			expect(() => { scope.$digest(); }).toThrow();
+		});
+	});
 });

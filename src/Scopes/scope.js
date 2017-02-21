@@ -5,6 +5,15 @@
 import _ from 'lodash';
 
 function $RootScopeProvider() {
+	let TTL = 10;
+
+	this.digestTtl = value => {
+		if (_.isNumber(value)) {
+			TTL = value;
+		}
+		return TTL;
+	};
+
 	this.$get = ['$parse', $parse => {
 		// 引入一个初始化函数
 		function initWatchVal() {}
@@ -144,7 +153,7 @@ function $RootScopeProvider() {
 			 */
 			$digest() {
 				let dirty;
-				let ttl = 10;
+				let ttl = TTL;
 				// 循环开始时候将 rootScope 上的$$lastDirtyWatch设置为null
 				this.$root.$$lastDirtyWatch = null;
 				// 从外层循环设置阶段属性为 $digest
@@ -171,7 +180,7 @@ function $RootScopeProvider() {
 					// 由于watcherFn中的 $evalAsync 没有条件限制，会一直执行，这样不断触发while条件执行digest
 					// 所以我们需要添加条件判断，是下面测试条件为真，前面的条件为真，且ttl达到上限，则触发抛出异常
 					if ((dirty || this.$$asyncQueue.length) && !(ttl--)) {
-						throw '10 digest iterations reached';
+						throw TTL + ' digest iterations reached';
 					}
 				} while (dirty || this.$$asyncQueue.length); // 结束脏检查的时候，需要判断时候还有需要延迟执行的代码
 				// 循环结束后清空

@@ -4,6 +4,15 @@
  */
 function $QProvider() {
 	this.$get = function () {
+		function Deffered() {
+
+		}
+		function defer() {
+			return new Deffered();
+		}
+		return {
+			defer: defer
+		};
 	};
 }
 module.exports = $QProvider;

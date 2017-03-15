@@ -14,4 +14,6 @@ export default function publishExternalAPI() {
 	ngModule.provider('$parse', require('../Expressions/parse'));
 	// 使用provider服务注册$rootScope
 	ngModule.provider('$rootScope', require('../Scopes/scope'));
+	// 使用provider服务注册$q
+	ngModule.provider('$q', require('../q/q'));
 }

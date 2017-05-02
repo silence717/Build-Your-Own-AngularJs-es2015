@@ -64,4 +64,31 @@ describe('$q', () => {
 		$rootScope.$apply();
 		expect(promiseSpy).toHaveBeenCalledWith(42);
 	});
+	it('may only be resolved once', () => {
+		const d = $q.defer();
+		
+		const promiseSpy = jasmine.createSpy();
+		d.promise.then(promiseSpy);
+		
+		d.resolve(42);
+		d.resolve(43);
+		$rootScope.$apply();
+		
+		expect(promiseSpy.calls.count()).toEqual(1);
+		expect(promiseSpy).toHaveBeenCalledWith(42);
+	});
+	it('may only ever be resolved once', () => {
+		const d = $q.defer();
+		
+		const promiseSpy = jasmine.createSpy();
+		d.promise.then(promiseSpy);
+		
+		d.resolve(42);
+		$rootScope.$apply();
+		expect(promiseSpy).toHaveBeenCalledWith(42);
+		
+		d.resolve(43);
+		$rootScope.$apply();
+		expect(promiseSpy.calls.count()).toEqual(1);
+	});
 });

@@ -13,17 +13,17 @@ function $QProvider() {
 			this.$$state.pending = onFulfilled;
 		};
 		
-		// Deffered构造函数
-		function Deffered() {
+		// Deferred构造函数
+		function Deferred() {
 			this.promise = new Promise();
 		}
-		Deffered.prototype.resolve = function (value) {
+		Deferred.prototype.resolve = function (value) {
 			this.promise.$$state.value = value;
 			scheduleProcessQueue(this.promise.$$state);
 		};
 		
 		function defer() {
-			return new Deffered();
+			return new Deferred();
 		}
 		
 		/**

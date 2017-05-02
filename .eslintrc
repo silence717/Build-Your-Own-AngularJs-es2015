@@ -95,7 +95,7 @@
     //禁止对catch语句中的参数进行赋值
     "no-ex-assign": 2,
     //禁止扩展原生对象
-    "no-extend-native": 2,
+    // "no-extend-native": 2,
     //禁止在不必要的时候使用bind函数
     "no-extra-bind": 2,
     //在一个本来就会自动转化为布尔值的上下文中就没必要再使用!! 进行强制转化了。
@@ -177,7 +177,7 @@
     //抛出Error错误。详细见官网
 //    "no-throw-literal": 2,
     //行末禁止加空格
-    "no-trailing-spaces": 2,
+   // "no-trailing-spaces": 2,
     //禁止使用没有定义的变量，除非在／＊global＊／已经申明
     "no-undef": 2,
     //禁止把undefined赋值给一个变量

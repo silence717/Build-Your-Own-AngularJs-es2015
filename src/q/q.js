@@ -2,6 +2,7 @@
  * @author  https://github.com/silence717
  * @date on 2017-03-15
  */
+import _ from 'lodash';
 
 function $QProvider() {
 	this.$get = ['$rootScope', function ($rootScope) {
@@ -10,7 +11,9 @@ function $QProvider() {
 			this.$$state = {};
 		}
 		Promise.prototype.then = function (onFulfilled) {
-			this.$$state.pending = onFulfilled;
+			// 支持多个挂起回调
+			this.$$state.pending = this.$$state.pending || [];
+			this.$$state.pending.push(onFulfilled);
 			if (this.$$state.status > 0) {
 				scheduleProcessQueue(this.$$state);
 			}
@@ -48,7 +51,11 @@ function $QProvider() {
 		 * @param state
 		 */
 		function processQueue(state) {
-			state.pending(state.value);
+			const pending = state.pending;
+			state.pending = undefined;
+			_.forEach(pending, function (onFulfilled) {
+				onFulfilled(state.value);
+			});
 		}
 		
 		return {

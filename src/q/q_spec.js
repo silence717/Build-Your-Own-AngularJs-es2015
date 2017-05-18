@@ -137,4 +137,85 @@ describe('$q', () => {
 		expect(secondSpy.calls.count()).toBe(1);
 	});
 	
+	it('can reject a deferred', () => {
+		const d = $q.defer();
+		
+		const fulfillSpy = jasmine.createSpy();
+		const rejectSpy = jasmine.createSpy();
+		d.promise.then(fulfillSpy, rejectSpy);
+		
+		d.reject('fail');
+		$rootScope.$apply();
+		
+		expect(fulfillSpy).not.toHaveBeenCalled();
+		expect(rejectSpy).toHaveBeenCalledWith('fail');
+	});
+	
+	it('can reject just once', () => {
+		const d = $q.defer();
+		
+		const rejectSpy = jasmine.createSpy();
+		d.promise.then(null, rejectSpy);
+		
+		d.reject('fail');
+		$rootScope.$apply();
+		expect(rejectSpy.calls.count()).toBe(1);
+		
+		d.reject('fail again');
+		$rootScope.$apply();
+		expect(rejectSpy.calls.count()).toBe(1);
+	});
+	it('cannot fulfill a promise once rejected', () => {
+		const d = $q.defer();
+		
+		const fulfillSpy = jasmine.createSpy();
+		const rejectSpy = jasmine.createSpy();
+		d.promise.then(fulfillSpy, rejectSpy);
+		
+		d.reject('fail');
+		$rootScope.$apply();
+		
+		d.resolve('success');
+		$rootScope.$apply();
+		
+		expect(fulfillSpy).not.toHaveBeenCalled();
+	});
+	
+	it('does not require a failure handler each time', () => {
+		const d = $q.defer();
+		
+		const fulfillSpy = jasmine.createSpy();
+		const rejectSpy = jasmine.createSpy();
+		d.promise.then(fulfillSpy);
+		d.promise.then(null, rejectSpy);
+		
+		d.reject('fail');
+		$rootScope.$apply();
+		
+		expect(rejectSpy).toHaveBeenCalledWith('fail');
+	});
+	it('does not require a success handler each time', () => {
+		const d = $q.defer();
+		
+		const fulfillSpy = jasmine.createSpy();
+		const rejectSpy = jasmine.createSpy();
+		d.promise.then(fulfillSpy);
+		d.promise.then(null, rejectSpy);
+		
+		d.resolve('ok');
+		$rootScope.$apply();
+		
+		expect(fulfillSpy).toHaveBeenCalledWith('ok');
+	});
+	it('can register rejection handler with catch', () => {
+		const d = $q.defer();
+		
+		const rejectSpy = jasmine.createSpy();
+		d.promise.catch(rejectSpy);
+		d.reject('fail');
+		$rootScope.$apply();
+		
+		expect(rejectSpy).toHaveBeenCalled();
+	});
+	
 });

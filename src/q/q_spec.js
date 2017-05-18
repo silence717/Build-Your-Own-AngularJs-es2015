@@ -310,4 +310,32 @@ describe('$q', () => {
 		
 		expect(fulfilledSpy).toHaveBeenCalledWith(42);
 	});
+	it('rejects chained promise when handler throws', () => {
+		const d = $q.defer();
+		
+		const rejectedSpy = jasmine.createSpy();
+		d.promise.then(function () {
+			throw 'fail';
+		}).catch(rejectedSpy);
+		d.resolve(42);
+		
+		$rootScope.$apply();
+		
+		expect(rejectedSpy).toHaveBeenCalledWith('fail');
+	});
+	it('does not reject current promise when handler throws', () => {
+		const d = $q.defer();
+		
+		const rejectedSpy = jasmine.createSpy();
+		d.promise.then(function () {
+			throw 'fail';
+		});
+		
+		d.promise.catch(rejectedSpy);
+		d.resolve(42);
+		
+		$rootScope.$apply();
+		
+		expect(rejectedSpy).not.toHaveBeenCalled();
+	});
 });

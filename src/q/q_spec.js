@@ -218,4 +218,26 @@ describe('$q', () => {
 		expect(rejectSpy).toHaveBeenCalled();
 	});
 	
+	it('invokes a finally handler when fulfilled', () => {
+		const d = $q.defer();
+		
+		const finallySpy = jasmine.createSpy();
+		d.promise.finally(finallySpy);
+		d.resolve(42);
+		$rootScope.$apply();
+		
+		expect(finallySpy).toHaveBeenCalledWith();
+	});
+	
+	it('invokes a finally handler when rejected', () => {
+		const d = $q.defer();
+		
+		const finallySpy = jasmine.createSpy();
+		d.promise.finally(finallySpy);
+		d.reject('fail');
+		
+		$rootScope.$apply();
+		expect(finallySpy).toHaveBeenCalledWith();
+	});
+	
 });

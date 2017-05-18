@@ -24,6 +24,14 @@ function $QProvider() {
 		Promise.prototype.catch = function (onRejected) {
 			return this.then(null, onRejected);
 		};
+		// finally callback
+		Promise.prototype.finally = function (callback) {
+			return this.then(function () {
+				callback();
+			}, function () {
+				callback();
+			});
+		};
 		
 		// Deferred构造函数
 		function Deferred() {

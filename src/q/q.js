@@ -12,13 +12,15 @@ function $QProvider() {
 		}
 		// promise resolved 之后
 		Promise.prototype.then = function (onFulfilled, onRejected) {
+			const result = new Deferred();
 			// 支持多个挂起回调，所以pending为一个数组
 			this.$$state.pending = this.$$state.pending || [];
-			this.$$state.pending.push([null, onFulfilled, onRejected]);
+			this.$$state.pending.push([result, onFulfilled, onRejected]);
 			// 如果 Deferred 已经被resolve，那么直接安排回调
 			if (this.$$state.status > 0) {
 				scheduleProcessQueue(this.$$state);
 			}
+			return result.promise;
 		};
 		// 捕获错误
 		Promise.prototype.catch = function (onRejected) {
@@ -83,9 +85,14 @@ function $QProvider() {
 			state.pending = undefined;
 			// 可能有多个回调函数，所以在执行的时候需要循环
 			_.forEach(pending, function (handlers) {
+				const deferred = handlers[0];
 				const fn = handlers[state.status];
 				if (_.isFunction(fn)) {
-					fn(state.value);
+					deferred.resolve(fn(state.value));
+				} else if (state.status === 1) {
+					deferred.resolve(state.value);
+				} else {
+					deferred.reject(state.value);
 				}
 			});
 		}

@@ -28,12 +28,45 @@ function $QProvider() {
 		};
 		// finally callback
 		Promise.prototype.finally = function (callback) {
-			return this.then(function () {
-				callback();
-			}, function () {
-				callback();
+			return this.then(function (value) {
+				return handleFinallyCallback(callback, value, true);
+			}, function (rejection) {
+				return handleFinallyCallback(callback, rejection, false);
 			});
 		};
+		/**
+		 * create a promise
+		 * @param value
+		 * @param resolved
+		 * @returns {Promise}
+		 */
+		function makePromise(value, resolved) {
+			const d = new Deferred();
+			if (resolved) {
+				d.resolve(value);
+			} else {
+				d.reject(value);
+			}
+			return d.promise;
+		}
+		
+		/**
+		 * 处理
+		 * @param callback
+		 * @param value
+		 * @param resolved
+		 * @returns {*}
+		 */
+		function handleFinallyCallback(callback, value, resolved) {
+			const callbackValue = callback();
+			if (callbackValue && callbackValue.then) {
+				return callbackValue.then(function() {
+					return makePromise(value, resolved);
+				});
+			} else {
+				return makePromise(value, resolved);
+			}
+		}
 		
 		// Deferred构造函数
 		function Deferred() {

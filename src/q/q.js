@@ -45,10 +45,18 @@ function $QProvider() {
 			if (this.promise.$$state.status) {
 				return;
 			}
-			this.promise.$$state.value = value;
-			// 将 Deferred 状态值设置为1
-			this.promise.$$state.status = 1;
-			scheduleProcessQueue(this.promise.$$state);
+			// 判断resolve的值是否为一个promise
+			if (value && _.isFunction(value.then)) {
+				value.then(
+					_.bind(this.resolve, this),
+					_.bind(this.reject, this)
+				);
+			} else {
+				this.promise.$$state.value = value;
+				// 将 Deferred 状态值设置为1
+				this.promise.$$state.status = 1;
+				scheduleProcessQueue(this.promise.$$state);
+			}
 		};
 		// Deferred 被 rejected
 		Deferred.prototype.reject = function (reason) {

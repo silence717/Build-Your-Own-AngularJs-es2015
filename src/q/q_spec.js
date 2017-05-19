@@ -338,4 +338,49 @@ describe('$q', () => {
 		
 		expect(rejectedSpy).not.toHaveBeenCalled();
 	});
+	it('waits on promise returned from handler', () => {
+		const d = $q.defer();
+		const fulfilledSpy = jasmine.createSpy();
+		
+		d.promise.then(function(v) {
+			const d2 = $q.defer();
+			d2.resolve(v + 1);
+			return d2.promise;
+		}).then(function(v) {
+			return v * 2;
+		}).then(fulfilledSpy);
+		d.resolve(20);
+		
+		$rootScope.$apply();
+		
+		expect(fulfilledSpy).toHaveBeenCalledWith(42);
+	});
+	it('waits on promise given to resolve', () => {
+		const d = $q.defer();
+		const d2 = $q.defer();
+		const fulfilledSpy = jasmine.createSpy();
+		
+		d.promise.then(fulfilledSpy);
+		d2.resolve(42);
+		d.resolve(d2.promise);
+		
+		$rootScope.$apply();
+		
+		expect(fulfilledSpy).toHaveBeenCalledWith(42);
+	});
+	it('rejects when promise returned from handler rejects', () => {
+		const d = $q.defer();
+		
+		const rejectedSpy = jasmine.createSpy();
+		d.promise.then(function () {
+			const d2 = $q.defer();
+			d2.reject('fail');
+			return d2.promise;
+		}).catch(rejectedSpy);
+		d.resolve('ok');
+		
+		$rootScope.$apply();
+		
+		expect(rejectedSpy).toHaveBeenCalledWith('fail');
+	});
 });

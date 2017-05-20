@@ -11,11 +11,11 @@ function $QProvider() {
 			this.$$state = {};
 		}
 		// promise resolved 之后
-		Promise.prototype.then = function (onFulfilled, onRejected) {
+		Promise.prototype.then = function (onFulfilled, onRejected, onProgress) {
 			const result = new Deferred();
 			// 支持多个挂起回调，所以pending为一个数组
 			this.$$state.pending = this.$$state.pending || [];
-			this.$$state.pending.push([result, onFulfilled, onRejected]);
+			this.$$state.pending.push([result, onFulfilled, onRejected, onProgress]);
 			// 如果 Deferred 已经被resolve，那么直接安排回调
 			if (this.$$state.status > 0) {
 				scheduleProcessQueue(this.$$state);
@@ -27,12 +27,12 @@ function $QProvider() {
 			return this.then(null, onRejected);
 		};
 		// finally callback
-		Promise.prototype.finally = function (callback) {
+		Promise.prototype.finally = function (callback, progressBack) {
 			return this.then(function (value) {
 				return handleFinallyCallback(callback, value, true);
 			}, function (rejection) {
 				return handleFinallyCallback(callback, rejection, false);
-			});
+			}, progressBack);
 		};
 		/**
 		 * create a promise
@@ -82,7 +82,8 @@ function $QProvider() {
 			if (value && _.isFunction(value.then)) {
 				value.then(
 					_.bind(this.resolve, this),
-					_.bind(this.reject, this)
+					_.bind(this.reject, this),
+					_.bind(this.notify, this)
 				);
 			} else {
 				this.promise.$$state.value = value;
@@ -99,6 +100,26 @@ function $QProvider() {
 			this.promise.$$state.value = reason;
 			this.promise.$$state.status = 2;
 			scheduleProcessQueue(this.promise.$$state);
+		};
+		/**
+		 * 通知
+		 * @param progress
+		 */
+		Deferred.prototype.notify = function (progress) {
+			const pending = this.promise.$$state.pending;
+			if (pending && pending.length && !this.promise.$$state.status) {
+				$rootScope.$evalAsync(function () {
+					_.forEach(pending, function (handlers) {
+						const deferred = handlers[0];
+						const progressBack = handlers[3];
+						try {
+							deferred.notify(_.isFunction(progressBack) ? progressBack(progress) : progress);
+						} catch (e) {
+							console.log(e);
+						}
+					});
+				});
+			}
 		};
 		
 		function defer() {

@@ -487,4 +487,124 @@ describe('$q', () => {
 		expect(fulfilledSpy).not.toHaveBeenCalled();
 		expect(rejectedSpy).toHaveBeenCalledWith('fail');
 	});
+	it('can report progress', () => {
+		const d = $q.defer();
+		const progressSpy = jasmine.createSpy();
+		d.promise.then(null, null, progressSpy);
+		
+		d.notify('working...');
+		$rootScope.$apply();
+		
+		expect(progressSpy).toHaveBeenCalledWith('working...');
+	});
+	it('can report progress many times', () => {
+		const d = $q.defer();
+		const progressSpy = jasmine.createSpy();
+		d.promise.then(null, null, progressSpy);
+		
+		d.notify('40%');
+		$rootScope.$apply();
+		
+		d.notify('80%');
+		d.notify('100%');
+		$rootScope.$apply();
+		
+		expect(progressSpy.calls.count()).toBe(3);
+	});
+	it('does not notify progress after being resolved', () => {
+		const d = $q.defer();
+		const progressSpy = jasmine.createSpy();
+		d.promise.then(null, null, progressSpy);
+		
+		d.resolve('ok');
+		d.notify('working...');
+		$rootScope.$apply();
+		
+		expect(progressSpy).not.toHaveBeenCalled();
+	});
+	it('does not notify progress after being rejected', () => {
+		const d = $q.defer();
+		const progressSpy = jasmine.createSpy();
+		d.promise.then(null, null, progressSpy);
+		
+		d.reject('fail');
+		d.notify('working...');
+		$rootScope.$apply();
+		
+		expect(progressSpy).not.toHaveBeenCalled();
+	});
+	it('can notify progress through chain', () => {
+		const d = $q.defer();
+		const progressSpy = jasmine.createSpy();
+		
+		d.promise
+			.then(_.noop)
+			.catch(_.noop)
+			.then(null, null, progressSpy);
+		
+		d.notify('working...');
+		$rootScope.$apply();
+		
+		expect(progressSpy).toHaveBeenCalledWith('working...');
+	});
+	it('transforms progress through handlers', () => {
+		const d = $q.defer();
+		const progressSpy = jasmine.createSpy();
+		
+		d.promise
+			.then(_.noop)
+			.then(null, null, function(progress) {
+				return '***' + progress + '***';
+			})
+			.catch(_.noop)
+			.then(null, null, progressSpy);
+		
+		d.notify('working...');
+		$rootScope.$apply();
+		
+		expect(progressSpy).toHaveBeenCalledWith('***working...***');
+	});
+	it('recovers from progressback exceptions', () => {
+		const d = $q.defer();
+		const progressSpy = jasmine.createSpy();
+		const fulfilledSpy = jasmine.createSpy();
+		
+		d.promise.then(null, null, function (progress) {
+			throw 'fail';
+		});
+		d.promise.then(fulfilledSpy, null, progressSpy);
+		
+		d.notify('working...');
+		d.resolve('ok');
+		$rootScope.$apply();
+		
+		expect(progressSpy).toHaveBeenCalledWith('working...');
+		expect(fulfilledSpy).toHaveBeenCalledWith('ok');
+	});
+	it('can notify progress through promise returned from handler', () => {
+		const d = $q.defer();
+		
+		const progressSpy = jasmine.createSpy();
+		d.promise.then(null, null, progressSpy);
+		
+		const d2 = $q.defer();
+		// Resolve original with nested promise
+		d.resolve(d2.promise);
+		// Notify on the nested promise
+		d2.notify('working...');
+		
+		$rootScope.$apply();
+		
+		expect(progressSpy).toHaveBeenCalledWith('working...');
+	});
+	it('allows attaching progressback in finally', () => {
+		const d = $q.defer();
+		const progressSpy = jasmine.createSpy();
+		d.promise.finally(null, progressSpy);
+		
+		d.notify('working...');
+		$rootScope.$apply();
+		
+		expect(progressSpy).toHaveBeenCalledWith('working...');
+	});
 });

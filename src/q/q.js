@@ -127,6 +127,17 @@ function $QProvider() {
 		}
 		
 		/**
+		 * 直接reject
+		 * @param rejection
+		 * @returns {IPromise<T>|Promise}
+		 */
+		function reject(rejection) {
+			var d = defer();
+			d.reject(rejection);
+			return d.promise;
+		}
+		
+		/**
 		 *
 		 * @param state
 		 */
@@ -164,7 +175,8 @@ function $QProvider() {
 		}
 		
 		return {
-			defer: defer
+			defer: defer,
+			reject: reject
 		};
 	}];
 }

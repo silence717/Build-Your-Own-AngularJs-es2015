@@ -607,4 +607,16 @@ describe('$q', () => {
 		
 		expect(progressSpy).toHaveBeenCalledWith('working...');
 	});
+	it('can make an immediately rejected promise', () => {
+		const fulfilledSpy = jasmine.createSpy();
+		const rejectedSpy  = jasmine.createSpy();
+		
+		const promise = $q.reject('fail');
+		promise.then(fulfilledSpy, rejectedSpy);
+		
+		$rootScope.$apply();
+		
+		expect(fulfilledSpy).not.toHaveBeenCalled();
+		expect(rejectedSpy).toHaveBeenCalledWith('fail');
+	});
 });

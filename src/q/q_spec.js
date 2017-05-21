@@ -619,4 +619,68 @@ describe('$q', () => {
 		expect(fulfilledSpy).not.toHaveBeenCalled();
 		expect(rejectedSpy).toHaveBeenCalledWith('fail');
 	});
+	it('can make an immediately resolved promise', () => {
+		const fulfilledSpy = jasmine.createSpy();
+		const rejectedSpy = jasmine.createSpy();
+		
+		const promise = $q.when('ok');
+		promise.then(fulfilledSpy, rejectedSpy);
+		
+		$rootScope.$apply();
+		
+		expect(fulfilledSpy).toHaveBeenCalledWith('ok');
+		expect(rejectedSpy).not.toHaveBeenCalled();
+	});
+	it('can wrap a foreign promise', () => {
+		const fulfilledSpy = jasmine.createSpy();
+		const rejectedSpy  = jasmine.createSpy();
+		
+		const promise = $q.when({
+			then: function (handler) {
+				$rootScope.$evalAsync(function () {
+					handler('ok');
+				});
+			}
+		});
+		promise.then(fulfilledSpy, rejectedSpy);
+		
+		$rootScope.$apply();
+		
+		expect(fulfilledSpy).toHaveBeenCalledWith('ok');
+		expect(rejectedSpy).not.toHaveBeenCalled();
+	});
+	it('takes callbacks directly when wrapping', () => {
+		const fulfilledSpy = jasmine.createSpy();
+		const rejectedSpy  = jasmine.createSpy();
+		const progressSpy  = jasmine.createSpy();
+		
+		const wrapped = $q.defer();
+		$q.when(
+			wrapped.promise,
+			fulfilledSpy,
+			rejectedSpy,
+			progressSpy
+		);
+		
+		wrapped.notify('working...');
+		wrapped.resolve('ok');
+		$rootScope.$apply();
+		
+		expect(fulfilledSpy).toHaveBeenCalledWith('ok');
+		expect(rejectedSpy).not.toHaveBeenCalled();
+		expect(progressSpy).toHaveBeenCalledWith('working...');
+	});
+	
+	it('makes an immediately resolved promise with resolve', () => {
+		const fulfilledSpy = jasmine.createSpy();
+		const rejectedSpy  = jasmine.createSpy();
+		
+		const promise = $q.resolve('ok');
+		promise.then(fulfilledSpy, rejectedSpy);
+		
+		$rootScope.$apply();
+		
+		expect(fulfilledSpy).toHaveBeenCalledWith('ok');
+		expect(rejectedSpy).not.toHaveBeenCalled();
+	});
 });

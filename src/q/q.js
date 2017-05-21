@@ -139,6 +139,17 @@ function $QProvider() {
 		
 		/**
 		 *
+		 * @param value
+		 * @returns {IPromise<T>|Promise}
+		 */
+		function when(value, callback, errback, progressback) {
+			var d = defer();
+			d.resolve(value);
+			return d.promise.then(callback, errback, progressback);
+		}
+		
+		/**
+		 *
 		 * @param state
 		 */
 		function scheduleProcessQueue(state) {
@@ -176,7 +187,9 @@ function $QProvider() {
 		
 		return {
 			defer: defer,
-			reject: reject
+			reject: reject,
+			when: when,
+			resolve: when
 		};
 	}];
 }

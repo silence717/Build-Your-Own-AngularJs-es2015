@@ -185,11 +185,38 @@ function $QProvider() {
 			});
 		}
 		
+		/**
+		 * $q.all method
+		 * @param promises  array or object
+		 */
+		function all(promises) {
+			const results = _.isArray(promises) ? [] : {};
+			let counter = 0;
+			const d = defer();
+			_.forEach(promises, function (promise, index) {
+				counter++;
+				when(promise).then(function (value) {
+					results[index] = value;
+					counter--;
+					if (!counter) {
+						d.resolve(results);
+					}
+				}, function (rejection) {
+					d.reject(rejection);
+				});
+			});
+			if (!counter) {
+				d.resolve(results);
+			}
+			return d.promise;
+		}
+		
 		return {
 			defer: defer,
 			reject: reject,
 			when: when,
-			resolve: when
+			resolve: when,
+			all: all
 		};
 	}];
 }

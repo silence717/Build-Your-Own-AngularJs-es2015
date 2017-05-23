@@ -683,4 +683,71 @@ describe('$q', () => {
 		expect(fulfilledSpy).toHaveBeenCalledWith('ok');
 		expect(rejectedSpy).not.toHaveBeenCalled();
 	});
+	
+	describe('all', () => {
+		
+		it('can resolve an array of promises to array of results', () => {
+			const promise = $q.all([$q.when(1), $q.when(2), $q.when(3)]);
+			const fulfilledSpy = jasmine.createSpy();
+			promise.then(fulfilledSpy);
+			
+			$rootScope.$apply();
+			
+			expect(fulfilledSpy).toHaveBeenCalledWith([1, 2, 3]);
+		});
+		
+		it('can resolve an object of promises to an object of results', () => {
+			const promise = $q.all({a: $q.when(1), b: $q.when(2)});
+			const fulfilledSpy = jasmine.createSpy();
+			promise.then(fulfilledSpy);
+			
+			$rootScope.$apply();
+			
+			expect(fulfilledSpy).toHaveBeenCalledWith({a: 1, b: 2});
+		});
+		
+		
+		it('resolves an empty array of promises immediately', () => {
+			const promise = $q.all([]);
+			const fulfilledSpy = jasmine.createSpy();
+			promise.then(fulfilledSpy);
+			
+			$rootScope.$apply();
+			
+			expect(fulfilledSpy).toHaveBeenCalledWith([]);
+		});
+		
+		it('resolves an empty object of promises immediately', () => {
+			const promise = $q.all({});
+			const fulfilledSpy = jasmine.createSpy();
+			promise.then(fulfilledSpy);
+			
+			$rootScope.$apply();
+			
+			expect(fulfilledSpy).toHaveBeenCalledWith({});
+		});
+		
+		it('rejects when any of the promises rejects', () => {
+			const promise = $q.all([$q.when(1), $q.when(2), $q.reject('fail')]);
+			const fulfilledSpy = jasmine.createSpy();
+			const rejectedSpy  = jasmine.createSpy();
+			promise.then(fulfilledSpy, rejectedSpy);
+			
+			$rootScope.$apply();
+			
+			expect(fulfilledSpy).not.toHaveBeenCalled();
+			expect(rejectedSpy).toHaveBeenCalledWith('fail');
+		});
+		
+		it('wraps non-promises in the input collection', () => {
+			const promise = $q.all([$q.when(1), 2, 3]);
+			const fulfilledSpy = jasmine.createSpy();
+			promise.then(fulfilledSpy);
+			
+			$rootScope.$apply();
+			
+			expect(fulfilledSpy).toHaveBeenCalledWith([1, 2, 3]);
+		});
+		
+	});
 });

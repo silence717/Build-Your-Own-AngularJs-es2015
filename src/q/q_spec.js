@@ -750,4 +750,42 @@ describe('$q', () => {
 		});
 		
 	});
+	
+	describe('ES2015 style', () => {
+		
+		it('is a function', () => {
+			expect($q instanceof Function).toBe(true);
+		});
+		
+		it('expects a function as an argument', () => {
+			expect($q).toThrow();
+			$q(_.noop); // Just checking that this doesn't throw
+		});
+		
+		it('returns a promise', () => {
+			expect($q(_.noop)).toBeDefined();
+			expect($q(_.noop).then).toBeDefined();
+		});
+		
+		it('calls function with a resolve function', () => {
+			const fulfilledSpy = jasmine.createSpy();
+			$q(function (resolve) {
+				resolve('ok');
+			}).then(fulfilledSpy);
+			$rootScope.$apply();
+			expect(fulfilledSpy).toHaveBeenCalledWith('ok');
+		});
+		
+		it('calls function with a reject function', () => {
+			const fulfilledSpy = jasmine.createSpy();
+			const rejectedSpy = jasmine.createSpy();
+			$q(function (resolve, reject) {
+				reject('fail');
+			}).then(fulfilledSpy, rejectedSpy);
+			$rootScope.$apply();
+			expect(fulfilledSpy).not.toHaveBeenCalled();
+			expect(rejectedSpy).toHaveBeenCalledWith('fail');
+		});
+		
+	});
 });

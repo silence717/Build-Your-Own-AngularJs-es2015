@@ -17,4 +17,7 @@ export default function publishExternalAPI() {
 	// 使用provider服务注册$q
 	ngModule.provider('$q', require('../q/q').$QProvider);
 	ngModule.provider('$$q', require('../q/q').$$QProvider);
+	// 使用provider服务注册$http
+	ngModule.provider('$httpBackend', require('../http/http_backend'));
+	ngModule.provider('$http', require('../http/http'));
 }

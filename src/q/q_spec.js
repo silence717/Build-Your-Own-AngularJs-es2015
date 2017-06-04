@@ -8,11 +8,13 @@ import _ from 'lodash';
 
 describe('$q', () => {
 	let $q;
+	let $$q;
 	let $rootScope;
 	beforeEach(() => {
 		publishExternalAPI();
 		const injector = createInjector(['ng']);
 		$q = injector.get('$q');
+		$$q = injector.get('$$q');
 		$rootScope = injector.get('$rootScope');
 	});
 	it('can create a deferred', () => {
@@ -785,6 +787,53 @@ describe('$q', () => {
 			$rootScope.$apply();
 			expect(fulfilledSpy).not.toHaveBeenCalled();
 			expect(rejectedSpy).toHaveBeenCalledWith('fail');
+		});
+		
+	});
+	
+	describe('$$q', () => {
+		
+		beforeEach(() => {
+			jasmine.clock().install();
+		});
+		afterEach(() => {
+			jasmine.clock().uninstall();
+		});
+		
+		it('uses deferreds that do not resolve at digest', () => {
+			const d = $$q.defer();
+			const fulfilledSpy = jasmine.createSpy();
+			
+			d.promise.then(fulfilledSpy);
+			d.resolve('ok');
+			$rootScope.$apply();
+			
+			expect(fulfilledSpy).not.toHaveBeenCalled();
+		});
+		
+		it('uses deferreds that resolve later', () => {
+			const d = $$q.defer();
+			const fulfilledSpy = jasmine.createSpy();
+			
+			d.promise.then(fulfilledSpy);
+			d.resolve('ok');
+			
+			jasmine.clock().tick(1);
+			
+			expect(fulfilledSpy).toHaveBeenCalledWith('ok');
+		});
+		
+		it('does not invoke digest', () => {
+			const d = $$q.defer();
+			d.promise.then(_.noop);
+			d.resolve('ok');
+			
+			const watchSpy = jasmine.createSpy();
+			$rootScope.$watch(watchSpy);
+			
+			jasmine.clock().tick(1);
+			
+			expect(watchSpy).not.toHaveBeenCalled();
 		});
 		
 	});

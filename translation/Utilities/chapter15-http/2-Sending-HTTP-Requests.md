@@ -86,7 +86,7 @@ describe('$http', function() {
     // ...
 });
 ```
-现在我们准备好了发送请求的第一个测试。如果我们使用一个对象调用`$http`说"发送一个POST请求，data是`hello`到http://teropa.info",我们可以检查与这些参数与异步XMLHttpRequest是一样的：
+现在我们准备好了发送请求的第一个测试。如果我们使用一个对象调用`$http`说"发送一个POST请求，data是`hello`到"http://teropa.info", 我们可以检查与这些参数与异步XMLHttpRequest是一样的：
 ```js
 it('makes an XMLHttpRequest to given URL', function() {
   $http({

@@ -344,11 +344,11 @@ describe('$q', () => {
 		const d = $q.defer();
 		const fulfilledSpy = jasmine.createSpy();
 		
-		d.promise.then(function(v) {
+		d.promise.then(v => {
 			const d2 = $q.defer();
 			d2.resolve(v + 1);
 			return d2.promise;
-		}).then(function(v) {
+		}).then(v => {
 			return v * 2;
 		}).then(fulfilledSpy);
 		d.resolve(20);
@@ -555,7 +555,7 @@ describe('$q', () => {
 		
 		d.promise
 			.then(_.noop)
-			.then(null, null, function(progress) {
+			.then(null, null, function (progress) {
 				return '***' + progress + '***';
 			})
 			.catch(_.noop)
@@ -611,7 +611,7 @@ describe('$q', () => {
 	});
 	it('can make an immediately rejected promise', () => {
 		const fulfilledSpy = jasmine.createSpy();
-		const rejectedSpy  = jasmine.createSpy();
+		const rejectedSpy = jasmine.createSpy();
 		
 		const promise = $q.reject('fail');
 		promise.then(fulfilledSpy, rejectedSpy);
@@ -635,7 +635,7 @@ describe('$q', () => {
 	});
 	it('can wrap a foreign promise', () => {
 		const fulfilledSpy = jasmine.createSpy();
-		const rejectedSpy  = jasmine.createSpy();
+		const rejectedSpy = jasmine.createSpy();
 		
 		const promise = $q.when({
 			then: function (handler) {
@@ -653,8 +653,8 @@ describe('$q', () => {
 	});
 	it('takes callbacks directly when wrapping', () => {
 		const fulfilledSpy = jasmine.createSpy();
-		const rejectedSpy  = jasmine.createSpy();
-		const progressSpy  = jasmine.createSpy();
+		const rejectedSpy = jasmine.createSpy();
+		const progressSpy = jasmine.createSpy();
 		
 		const wrapped = $q.defer();
 		$q.when(
@@ -675,7 +675,7 @@ describe('$q', () => {
 	
 	it('makes an immediately resolved promise with resolve', () => {
 		const fulfilledSpy = jasmine.createSpy();
-		const rejectedSpy  = jasmine.createSpy();
+		const rejectedSpy = jasmine.createSpy();
 		
 		const promise = $q.resolve('ok');
 		promise.then(fulfilledSpy, rejectedSpy);
@@ -732,7 +732,7 @@ describe('$q', () => {
 		it('rejects when any of the promises rejects', () => {
 			const promise = $q.all([$q.when(1), $q.when(2), $q.reject('fail')]);
 			const fulfilledSpy = jasmine.createSpy();
-			const rejectedSpy  = jasmine.createSpy();
+			const rejectedSpy = jasmine.createSpy();
 			promise.then(fulfilledSpy, rejectedSpy);
 			
 			$rootScope.$apply();

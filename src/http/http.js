@@ -43,12 +43,13 @@ function $HttpProvider() {
 			}
 			
 			// 构造回调
-			function done(status, response, statusText) {
+			function done(status, response, headersString, statusText) {
 				status = Math.max(status, 0);
 				deferred[isSuccess(status) ? 'resolve' : 'reject']({
 					status: status,
 					data: response,
 					statusText: statusText,
+					headers: headersGetter(headersString),
 					config: config
 				});
 				// 如果当前没有digest，手动触发
@@ -92,7 +93,8 @@ function $HttpProvider() {
 			defaults.headers.common,
 			defaults.headers[(config.method || 'get').toLowerCase()]
 		);
-		_.forEach(defHeaders, (value, key) =>{
+		
+		_.forEach(defHeaders, (value, key) => {
 			const headerExists = _.some(reqHeaders, (v, k) => {
 				return k.toLowerCase() === key.toLowerCase();
 			});
@@ -120,6 +122,40 @@ function $HttpProvider() {
 				}
 			}
 		}, headers);
+	}
+	
+	/**
+	 * get header value
+	 * @param headers
+	 * @returns {Function}
+	 */
+	function headersGetter(headers) {
+		var headersObj;
+		return function (name) {
+			headersObj = headersObj || parseHeaders(headers);
+			if (name) {
+				return headersObj[name.toLowerCase()];
+			} else {
+				return headersObj;
+			}
+		};
+	}
+	
+	/**
+	 * 解析头
+	 * @param headers
+	 * @returns {any|*}
+	 */
+	function parseHeaders(headers) {
+		const lines = headers.split('\n');
+		return _.transform(lines, (result, line) => {
+			const separatorAt = line.indexOf(':');
+			const name = _.trim(line.substr(0, separatorAt)).toLowerCase();
+			const value = _.trim(line.substr(separatorAt + 1));
+			if (name) {
+				result[name] = value;
+			}
+		}, {});
 	}
 }
 

@@ -25,7 +25,7 @@ function $HttpBackendProvider() {
 				const response = ('response' in xhr) ? xhr.response : xhr.responseText;
 				
 				const statusText = xhr.statusText || '';
-				callback(xhr.status, response, statusText);
+				callback(xhr.status, response, xhr.getAllResponseHeaders(), statusText);
 			};
 			// 监听请求失败事件
 			xhr.onerror = function () {

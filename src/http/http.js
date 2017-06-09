@@ -24,13 +24,16 @@ function $HttpProvider() {
 	};
 	
 	this.$get = ['$httpBackend', '$q', '$rootScope', function ($httpBackend, $q, $rootScope) {
+		
 		function $http(requestConfig) {
 			// create a Deferred
 			const deferred = $q.defer();
 			// 配置默认值
 			const config = _.extend({
-				method: 'GET'
+				method: 'GET',
+				transformRequest: defaults.transformRequest
 			}, requestConfig);
+			
 			// 将请求配置参数与headers合并
 			config.headers = mergeHeaders(requestConfig);
 			
@@ -39,8 +42,14 @@ function $HttpProvider() {
 				config.withCredentials = defaults.withCredentials;
 			}
 			
+			const reqData = transformData(
+				config.data,
+				headersGetter(config.headers),
+				config.transformRequest
+			);
+			
 			// 如果data数据为空，为了不造成误导，那么删除content-type
-			if (_.isUndefined(config.data)) {
+			if (_.isUndefined(reqData)) {
 				_.forEach(config.headers, (v, k) => {
 					if (k.toLowerCase() === 'content-type') {
 						delete config.headers[k];
@@ -67,7 +76,7 @@ function $HttpProvider() {
 			$httpBackend(
 				config.method,
 				config.url,
-				config.data,
+				reqData,
 				done,
 				config.headers,
 				config.withCredentials
@@ -155,15 +164,37 @@ function $HttpProvider() {
 	 * @returns {any|*}
 	 */
 	function parseHeaders(headers) {
-		const lines = headers.split('\n');
-		return _.transform(lines, (result, line) => {
-			const separatorAt = line.indexOf(':');
-			const name = _.trim(line.substr(0, separatorAt)).toLowerCase();
-			const value = _.trim(line.substr(separatorAt + 1));
-			if (name) {
-				result[name] = value;
-			}
-		}, {});
+		if (_.isObject(headers)) {
+			return _.transform(headers, function (result, v, k) {
+				result[_.trim(k.toLowerCase())] = _.trim(v);
+			}, {});
+		} else {
+			const lines = headers.split('\n');
+			return _.transform(lines, (result, line) => {
+				const separatorAt = line.indexOf(':');
+				const name = _.trim(line.substr(0, separatorAt)).toLowerCase();
+				const value = _.trim(line.substr(separatorAt + 1));
+				if (name) {
+					result[name] = value;
+				}
+			}, {});
+		}
+	}
+	
+	/**
+	 * 转换数据
+	 * @param data
+	 * @param transform
+	 * @returns {*}
+	 */
+	function transformData(data, headers, transform) {
+		if (_.isFunction(transform)) {
+			return transform(data, headers);
+		} else {
+			return _.reduce(transform, function (data, fn) {
+				return fn(data, headers);
+			}, data);
+		}
 	}
 }
 

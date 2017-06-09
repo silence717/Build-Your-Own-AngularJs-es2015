@@ -223,7 +223,7 @@ describe('$http', () => {
 			'text/plain;charset=utf-8');
 	});
 	
-	it('ignores header function value when null/unde ned', () => {
+	it('ignores header function value when null/undefined', () => {
 		const cacheControlSpy = jasmine.createSpy().and.returnValue(null);
 		$http.defaults.headers.post['Cache-Control'] = cacheControlSpy;
 		
@@ -244,7 +244,7 @@ describe('$http', () => {
 			method: 'POST',
 			url: 'http://teropa.info',
 			data: 42
-		}).then(function(r) {
+		}).then(function (r) {
 			response = r;
 		});
 		requests[0].respond(200, {'Content-Type': 'text/plain'}, 'Hello');
@@ -287,6 +287,66 @@ describe('$http', () => {
 		});
 		
 		expect(requests[0].withCredentials).toBe(true);
+	});
+	
+	it('allows transforming requests with functions', () => {
+		$http({
+			method: 'POST',
+			url: 'http://teropa.info',
+			data: 42,
+			transformRequest: function (data) {
+				return '*' + data + '*';
+			}
+		});
+		expect(requests[0].requestBody).toBe('*42*');
+	});
+	
+	it('allows multiple request transform functions', () => {
+		$http({
+			method: 'POST',
+			url: 'http://teropa.info',
+			data: 42,
+			transformRequest: [function (data) {
+				return '*' + data + '*';
+			}, function (data) {
+				return '-' + data + '-';
+			}]
+		});
+		
+		expect(requests[0].requestBody).toBe('-*42*-');
+	});
+	
+	it('allows settings transforms in defaults', () => {
+		$http.defaults.transformRequest = [function (data) {
+			return '*' + data + '*';
+		}];
+		$http({
+			method: 'POST',
+			url: 'http://teropa.info',
+			data: 42
+		});
+		
+		expect(requests[0].requestBody).toBe('*42*');
+	});
+	
+	it('passes request headers getter to transforms', () => {
+		$http.defaults.transformRequest = [function (data, headers) {
+			if (headers('Content-Type') === 'text/emphasized') {
+				return '*' + data + '*';
+			} else {
+				return data;
+			}
+		}];
+		$http({
+			method: 'POST',
+			url: 'http://teropa.info',
+			data: 42,
+			headers: {
+				'content-type': 'text/emphasized'
+			}
+		});
+		
+		expect(requests[0].requestBody).toBe('*42*');
 	});
 
 });

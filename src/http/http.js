@@ -33,6 +33,12 @@ function $HttpProvider() {
 			}, requestConfig);
 			// 将请求配置参数与headers合并
 			config.headers = mergeHeaders(requestConfig);
+			
+			if (_.isUndefined(config.withCredentials) &&
+				!_.isUndefined(defaults.withCredentials)) {
+				config.withCredentials = defaults.withCredentials;
+			}
+			
 			// 如果data数据为空，为了不造成误导，那么删除content-type
 			if (_.isUndefined(config.data)) {
 				_.forEach(config.headers, (v, k) => {
@@ -63,7 +69,9 @@ function $HttpProvider() {
 				config.url,
 				config.data,
 				done,
-				config.headers);
+				config.headers,
+				config.withCredentials
+			);
 			// 返回 Deferred 结果
 			return deferred.promise;
 		}

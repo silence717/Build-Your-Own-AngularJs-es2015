@@ -8,7 +8,7 @@ import _ from 'lodash';
 function $HttpBackendProvider() {
 	
 	this.$get = function () {
-		return function (method, url, post, callback, headers) {
+		return function (method, url, post, callback, headers, withCredentials) {
 			// 利用原生的 XMLHttpRequest
 			const xhr = new window.XMLHttpRequest();
 			// 打开一个请求
@@ -18,6 +18,10 @@ function $HttpBackendProvider() {
 				// 给指定的HTTP请求头赋值
 				xhr.setRequestHeader(key, value);
 			});
+			// 如果标识为真，则可以跨域
+			if (withCredentials) {
+				xhr.withCredentials = true;
+			}
 			// 发送请求
 			xhr.send(post || null);
 			// 监听请求成功事件，触发后执行事件函数

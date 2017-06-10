@@ -348,5 +348,93 @@ describe('$http', () => {
 		
 		expect(requests[0].requestBody).toBe('*42*');
 	});
-
+	
+	it('allows transforming responses with functions', () => {
+		let response;
+		$http({
+			url: 'http://teropa.info',
+			transformResponse: function (data) {
+				return '*' + data + '*';
+			}
+		}).then(function (r) {
+			response = r;
+		});
+		
+		requests[0].respond(200, {'Content-Type': 'text/plain'}, 'Hello');
+		
+		expect(response.data).toEqual('*Hello*');
+	});
+	
+	it('passes response headers to transform functions', () => {
+		let response;
+		$http({
+			url: 'http://teropa.info',
+			transformResponse: function (data, headers) {
+				if (headers('content-type') === 'text/decorated') {
+					return '*' + data + '*';
+				} else {
+					return data;
+				}
+			}
+		}).then(function (r) {
+			response = r;
+		});
+		
+		requests[0].respond(200, {'Content-Type': 'text/decorated'}, 'Hello');
+		
+		expect(response.data).toEqual('*Hello*');
+	});
+	
+	it('allows setting default response transforms', () => {
+		$http.defaults.transformResponse = [function (data) {
+			return '*' + data + '*';
+		}];
+		let response;
+		$http({
+			url: 'http://teropa.info'
+		}).then(function (r) {
+			response = r;
+		});
+		
+		requests[0].respond(200, {'Content-Type': 'text/plain'}, 'Hello');
+		
+		expect(response.data).toEqual('*Hello*');
+	});
+	
+	it('transforms error responses also', () => {
+		let response;
+		$http({
+			url: 'http://teropa.info',
+			transformResponse: function(data) {
+				return '*' + data + '*';
+			}
+		}).catch(function (r) {
+			response = r;
+		});
+		
+		requests[0].respond(401, {'Content-Type': 'text/plain'}, 'Fail');
+		
+		expect(response.data).toEqual('*Fail*');
+	});
+	
+	it('passes HTTP status to response transformers', () => {
+		let response;
+		$http({
+			url: 'http://teropa.info',
+			transformResponse: function (data, headers, status) {
+				if (status === 401) {
+					return 'unauthorized';
+				} else {
+					return data;
+				}
+			}
+		}).catch(function (r) {
+			response = r;
+		});
+		
+		requests[0].respond(401, {'Content-Type': 'text/plain'}, 'Fail');
+		
+		expect(response.data).toEqual('unauthorized');
+	});
+	
 });

@@ -25,38 +25,9 @@ function $HttpProvider() {
 	
 	this.$get = ['$httpBackend', '$q', '$rootScope', function ($httpBackend, $q, $rootScope) {
 		
-		function $http(requestConfig) {
+		function sendReq(config, reqData) {
 			// create a Deferred
 			const deferred = $q.defer();
-			// 配置默认值
-			const config = _.extend({
-				method: 'GET',
-				transformRequest: defaults.transformRequest
-			}, requestConfig);
-			
-			// 将请求配置参数与headers合并
-			config.headers = mergeHeaders(requestConfig);
-			
-			if (_.isUndefined(config.withCredentials) &&
-				!_.isUndefined(defaults.withCredentials)) {
-				config.withCredentials = defaults.withCredentials;
-			}
-			
-			const reqData = transformData(
-				config.data,
-				headersGetter(config.headers),
-				config.transformRequest
-			);
-			
-			// 如果data数据为空，为了不造成误导，那么删除content-type
-			if (_.isUndefined(reqData)) {
-				_.forEach(config.headers, (v, k) => {
-					if (k.toLowerCase() === 'content-type') {
-						delete config.headers[k];
-					}
-				});
-			}
-			
 			// 构造回调
 			function done(status, response, headersString, statusText) {
 				status = Math.max(status, 0);
@@ -83,6 +54,59 @@ function $HttpProvider() {
 			);
 			// 返回 Deferred 结果
 			return deferred.promise;
+		}
+		
+		function $http(requestConfig) {
+			
+			// 配置默认值
+			const config = _.extend({
+				method: 'GET',
+				transformRequest: defaults.transformRequest,
+				transformResponse: defaults.transformResponse
+			}, requestConfig);
+			
+			// 将请求配置参数与headers合并
+			config.headers = mergeHeaders(requestConfig);
+			
+			if (_.isUndefined(config.withCredentials) &&
+				!_.isUndefined(defaults.withCredentials)) {
+				config.withCredentials = defaults.withCredentials;
+			}
+			
+			const reqData = transformData(
+				config.data,
+				headersGetter(config.headers),
+				undefined,
+				config.transformRequest
+			);
+			
+			// 如果data数据为空，为了不造成误导，那么删除content-type
+			if (_.isUndefined(reqData)) {
+				_.forEach(config.headers, (v, k) => {
+					if (k.toLowerCase() === 'content-type') {
+						delete config.headers[k];
+					}
+				});
+			}
+			// 转换响应数据
+			function transformResponse(response) {
+				// 如果data存在处理数据
+				if (response.data) {
+					response.data = transformData(
+						response.data,
+						response.headers,
+						response.status,
+						config.transformResponse);
+				}
+				// 如果请求成功返回response，失败再次reject
+				if (isSuccess(response.status)) {
+					return response;
+				} else {
+					return $q.reject(response);
+				}
+			}
+			return sendReq(config, reqData)
+				.then(transformResponse, transformResponse);
 		}
 		$http.defaults = defaults;
 		return $http;
@@ -187,12 +211,12 @@ function $HttpProvider() {
 	 * @param transform
 	 * @returns {*}
 	 */
-	function transformData(data, headers, transform) {
+	function transformData(data, headers, status, transform) {
 		if (_.isFunction(transform)) {
-			return transform(data, headers);
+			return transform(data, headers, status);
 		} else {
 			return _.reduce(transform, function (data, fn) {
-				return fn(data, headers);
+				return fn(data, headers, status);
 			}, data);
 		}
 	}

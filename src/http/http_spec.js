@@ -13,11 +13,13 @@ describe('$http', () => {
 	let $http;
 	let xhr;
 	let requests;
+	let $rootScope;
 	
 	beforeEach(() => {
 		publishExternalAPI();
 		const injector = createInjector(['ng']);
 		$http = injector.get('$http');
+		$rootScope = injector.get('$rootScope');
 	});
 	
 	beforeEach(() => {
@@ -492,7 +494,7 @@ describe('$http', () => {
 		$http({
 			method: 'GET',
 			url: 'http://teropa.info'
-		}).then(function(r) {
+		}).then(function (r) {
 			response = r;
 		});
 		requests[0].respond(200, {}, '{"message":"hello"}');
@@ -520,7 +522,7 @@ describe('$http', () => {
 		$http({
 			method: 'GET',
 			url: 'http://teropa.info'
-		}).then(function(r) {
+		}).then(function (r) {
 			response = r;
 		});
 		requests[0].respond(200, {}, '{1, 2, 3]');
@@ -539,6 +541,182 @@ describe('$http', () => {
 		requests[0].respond(200, {}, '{{expr}}');
 		
 		expect(response.data).toEqual('{{expr}}');
+	});
+	
+	it('adds params to URL', () => {
+		$http({
+			url: 'http://teropa.info',
+			params: {
+				a: 42
+			}
+		});
+		
+		expect(requests[0].url).toBe('http://teropa.info?a=42');
+	});
+	
+	it('adds additional params to URL', () => {
+		$http({
+			url: 'http://teropa.info?a=42',
+			params: {
+				b: 42
+			}
+		});
+		
+		expect(requests[0].url).toBe('http://teropa.info?a=42&b=42');
+	});
+	
+	it('escapes url characters in params', () => {
+		$http({
+			url: 'http://teropa.info',
+			params: {
+				'==': '&&'
+			}
+		});
+		
+		expect(requests[0].url).toBe('http://teropa.info?%3D%3D=%26%26');
+	});
+	
+	it('does not attach null or undefined params', () => {
+		$http({
+			url: 'http://teropa.info',
+			params: {
+				a: null,
+				b: undefined
+			}
+		});
+		
+		expect(requests[0].url).toBe('http://teropa.info');
+	});
+	
+	it('attaches multiple params from arrays', () => {
+		$http({
+			url: 'http://teropa.info',
+			params: {
+				a: [42, 43]
+			}
+		});
+		
+		expect(requests[0].url).toBe('http://teropa.info?a=42&a=43');
+	});
+	
+	it('serializes objects to json', () => {
+		$http({
+			url: 'http://teropa.info',
+			params: {
+				a: {b: 42}
+			}
+		});
+		
+		expect(requests[0].url).toBe('http://teropa.info?a=%7B%22b%22%3A42%7D');
+	});
+	
+	it('serializes dates to ISO strings', () => {
+		$http({
+			url: 'http://teropa.info',
+			params: {
+				a: new Date(2015, 0, 1, 12, 0, 0)
+			}
+		});
+		$rootScope.$apply();
+		expect(/\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}/
+			.test(requests[0].url)).toBeTruthy();
+	});
+	
+	it('allows substituting param serializer through DI', () => {
+		const injector = createInjector(['ng', $provide => {
+			$provide.factory('mySpecialSerializer', () => {
+				return function (params) {
+					return _.map(params, function(v, k) {
+						return k + '=' + v + 'lol';
+					}).join('&');
+				};
+			});
+		}]);
+		injector.invoke(function ($http) {
+			$http({
+				url: 'http://teropa.info',
+				params: {
+					a: 42,
+					b: 43
+				},
+				paramSerializer: 'mySpecialSerializer'
+			});
+			
+			expect(requests[0].url).toEqual('http://teropa.info?a=42lol&b=43lol');
+		});
+	});
+	
+	it('makes default param serializer available through DI', () => {
+		const injector = createInjector(['ng']);
+		injector.invoke($httpParamSerializer => {
+			const result = $httpParamSerializer({a: 42, b: 43});
+			expect(result).toEqual('a=42&b=43');
+		});
+	});
+	
+	describe('JQ-like param serialization', () => {
+		
+		it('is possible', () => {
+			$http({
+				url: 'http://teropa.info',
+				params: {
+					a: 42,
+					b: 43
+				},
+				paramSerializer: '$httpParamSerializerJQLike'
+			});
+			
+			expect(requests[0].url).toEqual('http://teropa.info?a=42&b=43');
+		});
+		
+		it('uses square brackets in arrays', () => {
+			$http({
+				url: 'http://teropa.info',
+				params: {
+					a: [42, 43]
+				},
+				paramSerializer: '$httpParamSerializerJQLike'
+			});
+			
+			expect(requests[0].url).toEqual('http://teropa.info?a%5B%5D=42&a%5B%5D=43');
+		});
+		
+	});
+	
+	it('uses square brackets in objects', () => {
+		$http({
+			url: 'http://teropa.info',
+			params: {
+				a: {b: 42, c: 43}
+			},
+			paramSerializer: '$httpParamSerializerJQLike'
+		});
+		
+		expect(requests[0].url).toEqual('http://teropa.info?a%5Bb%5D=42&a%5Bc%5D=43');
+	});
+	
+	it('supports nesting in objects', () => {
+		$http({
+			url: 'http://teropa.info',
+			params: {
+				a: {b: {c: 42}}
+			},
+			paramSerializer: '$httpParamSerializerJQLike'
+		});
+		
+		expect(requests[0].url).toEqual('http://teropa.info?a%5Bb%5D%5Bc%5D=42');
+	});
+	
+	it('appends array indexes when items are objects', () => {
+		$http({
+			url: 'http://teropa.info',
+			params: {
+				a: [{b: 42}]
+			},
+			paramSerializer: '$httpParamSerializerJQLike'
+		});
+		
+		expect(requests[0].url).toEqual('http://teropa.info?a%5B0%5D%5Bb%5D=42');
 	});
 	
 });

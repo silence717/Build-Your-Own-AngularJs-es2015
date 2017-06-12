@@ -32,13 +32,70 @@ function isJsonLike(data) {
  */
 function defaultHttpResponseTransform(data, headers) {
 	if (_.isString(data)) {
-		var contentType = headers('Content-Type');
+		const contentType = headers('Content-Type');
 		if (contentType && contentType.indexOf('application/json') === 0 || isJsonLike(data)) {
 			return JSON.parse(data);
 		}
 	}
 	return data;
 }
+/**
+ *参数序列化
+ */
+function $HttpParamSerializerProvider() {
+	this.$get = function () {
+		return function serializeParams(params) {
+			const parts = [];
+			_.forEach(params, (value, key) => {
+				// 如果值是null、undefined将跳过不做拼接
+				if (_.isNull(value) || _.isUndefined(value)) {
+					return;
+				}
+				// 如果不是数组做正常处理
+				if (!_.isArray(value)) {
+					value = [value];
+				}
+				// 循环每个value
+				_.forEach(value, v => {
+					if (_.isObject(v)) {
+						v = JSON.stringify(v);
+					}
+					parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(v));
+				});
+			});
+			return parts.join('&');
+		};
+	};
+}
+/**
+ * 实现类似jQuery的参数序列化
+ */
+function $HttpParamSerializerJQLikeProvider() {
+	this.$get = function () {
+		return function (params) {
+			const parts = [];
+			function serialize(value, prefix, topLevel) {
+				if (_.isNull(value) || _.isUndefined(value)) {
+					return;
+				}
+				if (_.isArray(value)) {
+					_.forEach(value, function (v, i) {
+						serialize(v, prefix + '[' + (_.isObject(v) ? i : '') + ']');
+					});
+				} else if (_.isObject(value)) {
+					_.forEach(value, function (v, k) {
+						serialize(v, prefix + (topLevel ? '' : '[') + k + (topLevel ? '' : ']'));
+					});
+				} else {
+					parts.push(encodeURIComponent(prefix) + '=' + encodeURIComponent(value));
+				}
+			}
+			serialize(params, '', true);
+			return parts.join('&');
+		};
+	};
+}
+
 function $HttpProvider() {
 	// 默认值
 	const defaults = this.defaults = {
@@ -64,10 +121,11 @@ function $HttpProvider() {
 				return data;
 			}
 		}],
-		transformResponse: [defaultHttpResponseTransform]
+		transformResponse: [defaultHttpResponseTransform],
+		paramSerializer: '$httpParamSerializer'
 	};
 	
-	this.$get = ['$httpBackend', '$q', '$rootScope', function ($httpBackend, $q, $rootScope) {
+	this.$get = ['$httpBackend', '$q', '$rootScope', '$injector', function ($httpBackend, $q, $rootScope, $injector) {
 		
 		function sendReq(config, reqData) {
 			// create a Deferred
@@ -87,10 +145,13 @@ function $HttpProvider() {
 					$rootScope.$apply();
 				}
 			}
+			// 构建传递给backend的url
+			const url = buildUrl(config.url, config.paramSerializer(config.params));
+			
 			// 调用 $httpBackend
 			$httpBackend(
 				config.method,
-				config.url,
+				url,
 				reqData,
 				done,
 				config.headers,
@@ -106,11 +167,16 @@ function $HttpProvider() {
 			const config = _.extend({
 				method: 'GET',
 				transformRequest: defaults.transformRequest,
-				transformResponse: defaults.transformResponse
+				transformResponse: defaults.transformResponse,
+				paramSerializer: defaults.paramSerializer
 			}, requestConfig);
 			
 			// 将请求配置参数与headers合并
 			config.headers = mergeHeaders(requestConfig);
+			
+			if (_.isString(config.paramSerializer)) {
+				config.paramSerializer = $injector.get(config.paramSerializer);
+			}
 			
 			if (_.isUndefined(config.withCredentials) &&
 				!_.isUndefined(defaults.withCredentials)) {
@@ -264,6 +330,25 @@ function $HttpProvider() {
 			}, data);
 		}
 	}
+	
+	/**
+	 * 构建url
+	 * @param url
+	 * @param serializedParams
+	 * @returns {*}
+	 */
+	function buildUrl(url, serializedParams) {
+		if (serializedParams.length) {
+			url += (url.indexOf('?') === -1) ? '?' : '&';
+			url += serializedParams;
+		}
+		return url;
+	}
 }
 
-module.exports = $HttpProvider;
+module.exports = {
+	$HttpProvider: $HttpProvider,
+	$HttpParamSerializerProvider: $HttpParamSerializerProvider,
+	$HttpParamSerializerJQLikeProvider: $HttpParamSerializerJQLikeProvider
+};
+

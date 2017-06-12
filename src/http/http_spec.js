@@ -7,7 +7,7 @@
 import sinon from 'sinon';
 import publishExternalAPI from '../public/angular_public';
 import createInjector from '../injector/injector';
-
+import _ from 'lodash';
 
 describe('$http', () => {
 	let $http;
@@ -435,6 +435,110 @@ describe('$http', () => {
 		requests[0].respond(401, {'Content-Type': 'text/plain'}, 'Fail');
 		
 		expect(response.data).toEqual('unauthorized');
+	});
+	
+	it('serializes object data to JSON for requests', () => {
+		$http({
+			method: 'POST',
+			url: 'http://teropa.info',
+			data: {aKey: 42}
+		});
+		
+		expect(requests[0].requestBody).toBe('{"aKey":42}');
+	});
+	
+	it('serializes array data to JSON for requests', () => {
+		$http({
+			method: 'POST',
+			url: 'http://teropa.info',
+			data: [1, 'two', 3]
+		});
+		
+		expect(requests[0].requestBody).toBe('[1,"two",3]');
+	});
+	
+	it('does not serialize form data for requests', () => {
+		let formData = new FormData();
+		formData.append('aField', 'aValue');
+		$http({
+			method: 'POST',
+			url: 'http://teropa.info',
+			data: formData
+		});
+		
+		expect(requests[0].requestBody).toBe(formData);
+	});
+	
+	it('parses JSON data for JSON responses', () => {
+		let response;
+		$http({
+			method: 'GET',
+			url: 'http://teropa.info'
+		}).then(function (r) {
+			response = r;
+		});
+		requests[0].respond(
+			200,
+			{'Content-Type': 'application/json'},
+			'{"message":"hello"}'
+		);
+		
+		expect(_.isObject(response.data)).toBe(true);
+		expect(response.data.message).toBe('hello');
+	});
+	
+	it('parses a JSON object response without content type', () => {
+		let response;
+		$http({
+			method: 'GET',
+			url: 'http://teropa.info'
+		}).then(function(r) {
+			response = r;
+		});
+		requests[0].respond(200, {}, '{"message":"hello"}');
+		
+		expect(_.isObject(response.data)).toBe(true);
+		expect(response.data.message).toBe('hello');
+	});
+	
+	it('parses a JSON array response without content type', () => {
+		let response;
+		$http({
+			method: 'GET',
+			url: 'http://teropa.info'
+		}).then(function(r) {
+			response = r;
+		});
+		requests[0].respond(200, {}, '[1, 2, 3]');
+		
+		expect(_.isArray(response.data)).toBe(true);
+		expect(response.data).toEqual([1, 2, 3]);
+	});
+	
+	it('does not choke on response resembling JSON but not valid', () => {
+		let response;
+		$http({
+			method: 'GET',
+			url: 'http://teropa.info'
+		}).then(function(r) {
+			response = r;
+		});
+		requests[0].respond(200, {}, '{1, 2, 3]');
+		
+		expect(response.data).toEqual('{1, 2, 3]');
+	});
+	
+	it('does not try to parse interpolation expr as JSON', () => {
+		let response;
+		$http({
+			method: 'GET',
+			url: 'http://teropa.info'
+		}).then(function (r) {
+			response = r;
+		});
+		requests[0].respond(200, {}, '{{expr}}');
+		
+		expect(response.data).toEqual('{{expr}}');
 	});
 	
 });

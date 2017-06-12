@@ -4,7 +4,41 @@
  * @date 2017-06-04
  */
 import _ from 'lodash';
-
+/**
+ * 判断对象类型
+ * @param object
+ * @returns {boolean}
+ */
+function isBlob(object) {
+	return object.toString() === '[object Blob]';
+}
+function isFile(object) {
+	return object.toString() === '[object File]';
+}
+function isFormData(object) {
+	return object.toString() === '[object FormData]';
+}
+function isJsonLike(data) {
+	if (data.match(/^\{(?!\{)/)) {
+		return data.match(/\}$/);
+	} else if (data.match(/^\[/)) {
+		return data.match(/\]$/);
+	}
+}
+/**
+ * 默认response数据转换
+ * @param data
+ * @param headers
+ */
+function defaultHttpResponseTransform(data, headers) {
+	if (_.isString(data)) {
+		var contentType = headers('Content-Type');
+		if (contentType && contentType.indexOf('application/json') === 0 || isJsonLike(data)) {
+			return JSON.parse(data);
+		}
+	}
+	return data;
+}
 function $HttpProvider() {
 	// 默认值
 	const defaults = this.defaults = {
@@ -20,7 +54,17 @@ function $HttpProvider() {
 			patch: {
 				'Content-Type': 'application/json;charset=utf-8'
 			}
-		}
+		},
+		// 转换请求
+		transformRequest: [function (data) {
+			// 对于 Blob,file,FormData 不做JSON序列化
+			if (_.isObject(data) && !isBlob(data) && !isFile(data) && !isFormData(data)) {
+				return JSON.stringify(data);
+			} else {
+				return data;
+			}
+		}],
+		transformResponse: [defaultHttpResponseTransform]
 	};
 	
 	this.$get = ['$httpBackend', '$q', '$rootScope', function ($httpBackend, $q, $rootScope) {

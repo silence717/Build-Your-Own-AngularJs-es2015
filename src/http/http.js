@@ -219,6 +219,27 @@ function $HttpProvider() {
 				.then(transformResponse, transformResponse);
 		}
 		$http.defaults = defaults;
+		
+		// 处理get、head、delete
+		_.forEach(['get', 'head', 'delete'], method => {
+			$http[method] = function (url, config) {
+				return $http(_.extend(config || {}, {
+					method: method.toUpperCase(),
+					url: url
+				}));
+			};
+		});
+		// 处理post、put、patch
+		_.forEach(['post', 'put', 'patch'], method => {
+			$http[method] = function (url, data, config) {
+				return $http(_.extend(config || {}, {
+					method: method.toUpperCase(),
+					url: url,
+					data: data
+				}));
+			};
+		});
+		
 		return $http;
 	}];
 	/**

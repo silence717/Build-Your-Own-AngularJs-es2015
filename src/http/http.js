@@ -149,6 +149,14 @@ function $HttpProvider() {
 		function sendReq(config, reqData) {
 			// create a Deferred
 			const deferred = $q.defer();
+			// 当请求被发送的时候push到这个数组，当Promise被resolve或者reject的时候从数组移除
+			$http.pendingRequests.push(config);
+			deferred.promise.then(function() {
+				_.remove($http.pendingRequests, config);
+			}, function() {
+				_.remove($http.pendingRequests, config);
+			});
+			
 			// 构造回调
 			function done(status, response, headersString, statusText) {
 				status = Math.max(status, 0);
@@ -276,6 +284,8 @@ function $HttpProvider() {
 		}
 		
 		$http.defaults = defaults;
+		// 所有被发送的请求都添加到这个数组中作为追踪
+		$http.pendingRequests = [];
 		
 		// 处理get、head、delete快捷方法
 		_.forEach(['get', 'head', 'delete'], method => {

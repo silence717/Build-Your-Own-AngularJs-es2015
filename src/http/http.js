@@ -104,8 +104,18 @@ function $HttpParamSerializerJQLikeProvider() {
 
 function $HttpProvider() {
 	
+	// 拦截器数组
 	let interceptorFactories = this.interceptors = [];
-	
+	// 设置是否使用applyAsync
+	let useApplyAsync = false;
+	this.useApplyAsync = function (value) {
+		if (_.isUndefined(value)) {
+			return useApplyAsync;
+		} else {
+			useApplyAsync = !!value;
+			return this;
+		}
+	};
 	// 默认值
 	const defaults = this.defaults = {
 		headers: {
@@ -151,22 +161,35 @@ function $HttpProvider() {
 			const deferred = $q.defer();
 			// 当请求被发送的时候push到这个数组，当Promise被resolve或者reject的时候从数组移除
 			$http.pendingRequests.push(config);
-			deferred.promise.then(function() {
+			deferred.promise.then(function () {
 				_.remove($http.pendingRequests, config);
-			}, function() {
+			}, function () {
 				_.remove($http.pendingRequests, config);
 			});
 			
 			// 构造回调
 			function done(status, response, headersString, statusText) {
 				status = Math.max(status, 0);
-				deferred[isSuccess(status) ? 'resolve' : 'reject']({
-					status: status,
-					data: response,
-					statusText: statusText,
-					headers: headersGetter(headersString),
-					config: config
-				});
+				
+				function resolvePromise() {
+					deferred[isSuccess(status) ? 'resolve' : 'reject']({
+						status: status,
+						data: response,
+						statusText: statusText,
+						headers: headersGetter(headersString),
+						config: config
+					});
+				}
+				// 根据 useApplyAsync 标识判断是否立刻进入digest
+				if (useApplyAsync) {
+					$rootScope.$applyAsync(resolvePromise);
+				} else {
+					resolvePromise();
+					if (!$rootScope.$$phase) {
+						$rootScope.$apply();
+					}
+				}
+				
 				// 如果当前没有digest，手动触发
 				if (!$rootScope.$$phase) {
 					$rootScope.$apply();

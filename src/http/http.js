@@ -74,22 +74,28 @@ function $HttpParamSerializerJQLikeProvider() {
 	this.$get = function () {
 		return function (params) {
 			const parts = [];
+			// 序列化参数， topLevel是否为一级水平的数据对象
 			function serialize(value, prefix, topLevel) {
+				// 如果为null、undefined直接跳过
 				if (_.isNull(value) || _.isUndefined(value)) {
 					return;
 				}
 				if (_.isArray(value)) {
+					// 如果value为数组，继续嵌套循环
 					_.forEach(value, function (v, i) {
 						serialize(v, prefix + '[' + (_.isObject(v) ? i : '') + ']');
 					});
 				} else if (_.isObject(value)) {
+					// 如果value为对象，也需要循环这个数据，再根据是否为一级对象判断是否添加[]
 					_.forEach(value, function (v, k) {
 						serialize(v, prefix + (topLevel ? '' : '[') + k + (topLevel ? '' : ']'));
 					});
 				} else {
+					// 如果为一般值直接push到数组中
 					parts.push(encodeURIComponent(prefix) + '=' + encodeURIComponent(value));
 				}
 			}
+			// 递归调用序列化参数函数
 			serialize(params, '', true);
 			return parts.join('&');
 		};
@@ -97,6 +103,9 @@ function $HttpParamSerializerJQLikeProvider() {
 }
 
 function $HttpProvider() {
+	
+	let interceptorFactories = this.interceptors = [];
+	
 	// 默认值
 	const defaults = this.defaults = {
 		headers: {
@@ -127,6 +136,16 @@ function $HttpProvider() {
 	
 	this.$get = ['$httpBackend', '$q', '$rootScope', '$injector', function ($httpBackend, $q, $rootScope, $injector) {
 		
+		let interceptors = _.map(interceptorFactories, function (fn) {
+			return _.isString(fn) ? $injector.get(fn) : $injector.invoke(fn);
+		});
+		
+		/**
+		 * 发送请求
+		 * @param config
+		 * @param reqData
+		 * @returns {IPromise<T>}
+		 */
 		function sendReq(config, reqData) {
 			// create a Deferred
 			const deferred = $q.defer();
@@ -161,25 +180,10 @@ function $HttpProvider() {
 			return deferred.promise;
 		}
 		
-		function $http(requestConfig) {
-			
-			// 配置默认值
-			const config = _.extend({
-				method: 'GET',
-				transformRequest: defaults.transformRequest,
-				transformResponse: defaults.transformResponse,
-				paramSerializer: defaults.paramSerializer
-			}, requestConfig);
-			
-			// 将请求配置参数与headers合并
-			config.headers = mergeHeaders(requestConfig);
-			
-			if (_.isString(config.paramSerializer)) {
-				config.paramSerializer = $injector.get(config.paramSerializer);
-			}
-			
-			if (_.isUndefined(config.withCredentials) &&
-				!_.isUndefined(defaults.withCredentials)) {
+		
+		function serverRequest(config) {
+			// 配置是否可以跨域请求
+			if (_.isUndefined(config.withCredentials) && !_.isUndefined(defaults.withCredentials)) {
 				config.withCredentials = defaults.withCredentials;
 			}
 			
@@ -215,12 +219,49 @@ function $HttpProvider() {
 					return $q.reject(response);
 				}
 			}
-			return sendReq(config, reqData)
-				.then(transformResponse, transformResponse);
+			return sendReq(config, reqData).then(transformResponse, transformResponse);
 		}
+		
+		/**
+		 * 发送请求前的准备工作
+		 * @param requestConfig  请求配置
+		 * @returns
+		 */
+		function $http(requestConfig) {
+			
+			// 配置默认值
+			const config = _.extend({
+				method: 'GET',
+				transformRequest: defaults.transformRequest,
+				transformResponse: defaults.transformResponse,
+				paramSerializer: defaults.paramSerializer
+			}, requestConfig);
+			
+			// 将请求配置参数与headers合并
+			config.headers = mergeHeaders(requestConfig);
+			
+			// 如果配置了参数序列化，且为字符串，那么从provider中去获取
+			if (_.isString(config.paramSerializer)) {
+				config.paramSerializer = $injector.get(config.paramSerializer);
+			}
+			// 创建promise
+			let promise = $q.when(config);
+			// request拦截器在发送请求前使用
+			_.forEach(interceptors, interceptor => {
+				promise = promise.then(interceptor.request, interceptor.requestError);
+			});
+			// 发送http请求
+			promise = promise.then(serverRequest);
+			// 在相应回来后，倒序处理 response 拦截器
+			_.forEachRight(interceptors, interceptor => {
+				promise = promise.then(interceptor.response, interceptor.responseError);
+			});
+			return promise;
+		}
+		
 		$http.defaults = defaults;
 		
-		// 处理get、head、delete
+		// 处理get、head、delete快捷方法
 		_.forEach(['get', 'head', 'delete'], method => {
 			$http[method] = function (url, config) {
 				return $http(_.extend(config || {}, {
@@ -229,7 +270,7 @@ function $HttpProvider() {
 				}));
 			};
 		});
-		// 处理post、put、patch
+		// 处理post、put、patch快捷方法
 		_.forEach(['post', 'put', 'patch'], method => {
 			$http[method] = function (url, data, config) {
 				return $http(_.extend(config || {}, {
@@ -265,7 +306,7 @@ function $HttpProvider() {
 			defaults.headers.common,
 			defaults.headers[(config.method || 'get').toLowerCase()]
 		);
-		
+		// 循环定义的头
 		_.forEach(defHeaders, (value, key) => {
 			const headerExists = _.some(reqHeaders, (v, k) => {
 				return k.toLowerCase() === key.toLowerCase();
@@ -302,7 +343,7 @@ function $HttpProvider() {
 	 * @returns {Function}
 	 */
 	function headersGetter(headers) {
-		var headersObj;
+		let headersObj;
 		return function (name) {
 			headersObj = headersObj || parseHeaders(headers);
 			if (name) {
@@ -320,10 +361,11 @@ function $HttpProvider() {
 	 */
 	function parseHeaders(headers) {
 		if (_.isObject(headers)) {
-			return _.transform(headers, function (result, v, k) {
+			return _.transform(headers, (result, v, k) => {
 				result[_.trim(k.toLowerCase())] = _.trim(v);
 			}, {});
 		} else {
+			// 按换行分割数据，循环解析
 			const lines = headers.split('\n');
 			return _.transform(lines, (result, line) => {
 				const separatorAt = line.indexOf(':');

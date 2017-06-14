@@ -174,6 +174,7 @@ function $HttpProvider() {
 				reqData,
 				done,
 				config.headers,
+				config.timeout,
 				config.withCredentials
 			);
 			// 返回 Deferred 结果

@@ -256,6 +256,21 @@ function $HttpProvider() {
 			_.forEachRight(interceptors, interceptor => {
 				promise = promise.then(interceptor.response, interceptor.responseError);
 			});
+			// 添加sucess方法
+			promise.success = function (fn) {
+				promise.then(response => {
+					fn(response.data, response.status, response.headers, config);
+				});
+				return promise;
+			};
+			// 错误处理
+			promise.error = function (fn) {
+				promise.catch(response => {
+					fn(response.data, response.status, response.headers, config);
+				});
+				return promise;
+			};
+			
 			return promise;
 		}
 		

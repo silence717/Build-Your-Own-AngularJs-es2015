@@ -41,4 +41,9 @@ describe('angularPublic', () => {
 		expect(injector.has('$http')).toBe(true);
 		expect(injector.has('$httpBackend')).toBe(true);
 	});
+	it('sets up $compile', () => {
+		publishExternalAPI();
+		const injector = createInjector(['ng']);
+		expect(injector.has('$compile')).toBe(true);
+	});
 });

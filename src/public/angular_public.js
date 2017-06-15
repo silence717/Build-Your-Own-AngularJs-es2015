@@ -22,4 +22,5 @@ export default function publishExternalAPI() {
 	ngModule.provider('$http', require('../http/http').$HttpProvider);
 	ngModule.provider('$httpParamSerializer', require('../http/http').$HttpParamSerializerProvider);
 	ngModule.provider('$httpParamSerializerJQLike', require('../http/http').$HttpParamSerializerJQLikeProvider);
+	ngModule.provider('$compile', require('../compile/compile'));
 }

@@ -44,14 +44,29 @@ describe('$compile', () => {
 	it('allows creating directives with object notation', () => {
 		const myModule = window.angular.module('myModule', []);
 		myModule.directive({
-			a: function() { },
-			b: function() { },
-			c: function() { }
+			a: function () { },
+			b: function () { },
+			c: function () { }
 		});
 		const injector = createInjector(['ng', 'myModule']);
 		
 		expect(injector.has('aDirective')).toBe(true);
 		expect(injector.has('bDirective')).toBe(true);
 		expect(injector.has('cDirective')).toBe(true);
+	});
+	
+	it('compiles element directives from a single element', () => {
+		const injector = makeInjectorWithDirectives('myDirective', () => {
+			return {
+				compile: function(element) {
+					element.data('hasCompiled', true);
+				}
+			};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<my-directive></my-directive>');
+			$compile(el);
+			expect(el.data('hasCompiled')).toBe(true);
+		});
 	});
 });

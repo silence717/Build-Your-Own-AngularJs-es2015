@@ -4,6 +4,16 @@
  * @date 2017-06-15
  */
 import _ from 'lodash';
+import $ from 'jquery';
+/**
+ * 获取当前DOM节点名称
+ * @param element
+ * @returns {string}
+ */
+function nodeName(element) {
+	return element.nodeName ? element.nodeName : element[0].nodeName;
+}
+
 function $CompileProvider($provide) {
 	
 	// 记录当前已经有的指令
@@ -34,10 +44,67 @@ function $CompileProvider($provide) {
 			}, this));
 		}
 	};
-	this.$get = function () {
+	this.$get = ['$injector', function ($injector) {
+		/**
+		 * 编译
+		 * @param $compileNodes
+		 * @returns {*}
+		 */
+		function compile($compileNodes) {
+			return compileNodes($compileNodes);
+		}
+		
+		/**
+		 * 编译节点
+		 * @param $compileNodes
+		 */
+		function compileNodes($compileNodes) {
+			_.forEach($compileNodes, node => {
+				const directives = collectDirectives(node);
+				applyDirectivesToNode(directives, node);
+			});
+		}
+		
+		/**
+		 * 查找和应用指令
+		 * @param node
+		 */
+		function collectDirectives(node) {
+			const directives = [];
+			const normalizedNodeName = _.camelCase(nodeName(node).toLowerCase());
+			addDirective(directives, normalizedNodeName);
+			return directives;
+		}
+		
+		/**
+		 * 添加指令
+		 * @param directives
+		 * @param name
+		 */
+		function addDirective(directives, name) {
+			// 判断当前名称的指令是否存在
+			if (hasDirectives.hasOwnProperty(name)) {
+				directives.push.apply(directives, $injector.get(name + 'Directive'));
+			}
+		}
+		
+		/**
+		 * 为节点应用指令
+		 * @param directives
+		 * @param compileNode
+		 */
+		function applyDirectivesToNode(directives, compileNode) {
+			const $compileNode = $(compileNode);
+			_.forEach(directives, directive => {
+				if (directive.compile) {
+					directive.compile($compileNode);
+				}
+			});
+		}
+		
+		return compile;
+	}];
 	
-	};
-	
-}
+};
 $CompileProvider.$inject = ['$provide'];
 module.exports = $CompileProvider;

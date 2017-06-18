@@ -4,6 +4,7 @@
  * @date 2017-06-15
  */
 import _ from 'lodash';
+import $ from 'jquery';
 import publishExternalAPI from '../public/angular_public';
 import createInjector from '../injector/injector';
 
@@ -35,7 +36,7 @@ describe('$compile', () => {
 	
 	it('does not allow a directive called hasOwnProperty', () => {
 		const myModule = window.angular.module('myModule', []);
-		myModule.directive('hasOwnProperty', function() { });
+		myModule.directive('hasOwnProperty', function () { });
 		expect(function () {
 			createInjector(['ng', 'myModule']);
 		}).toThrow();
@@ -56,9 +57,17 @@ describe('$compile', () => {
 	});
 	
 	it('compiles element directives from a single element', () => {
+		
+		function makeInjectorWithDirectives() {
+			const args = arguments;
+			return createInjector(['ng', function ($compileProvider) {
+				$compileProvider.directive.apply($compileProvider, args);
+			}]);
+		}
+		
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
-				compile: function(element) {
+				compile: function (element) {
 					element.data('hasCompiled', true);
 				}
 			};

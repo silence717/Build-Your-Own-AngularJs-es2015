@@ -8,6 +8,13 @@ import $ from 'jquery';
 import publishExternalAPI from '../public/angular_public';
 import createInjector from '../injector/injector';
 
+function makeInjectorWithDirectives() {
+	const args = arguments;
+	return createInjector(['ng', function ($compileProvider) {
+		$compileProvider.directive.apply($compileProvider, args);
+	}]);
+}
+
 describe('$compile', () => {
 	
 	beforeEach(() => {
@@ -57,14 +64,6 @@ describe('$compile', () => {
 	});
 	
 	it('compiles element directives from a single element', () => {
-		
-		function makeInjectorWithDirectives() {
-			const args = arguments;
-			return createInjector(['ng', function ($compileProvider) {
-				$compileProvider.directive.apply($compileProvider, args);
-			}]);
-		}
-		
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
 				compile: function (element) {
@@ -76,6 +75,41 @@ describe('$compile', () => {
 			const el = $('<my-directive></my-directive>');
 			$compile(el);
 			expect(el.data('hasCompiled')).toBe(true);
+		});
+	});
+	
+	it('compiles element directives from child elements', () => {
+		let idx = 1;
+		const injector = makeInjectorWithDirectives('myDirective', () => {
+			return {
+				compile: function (element) {
+					element.data('hasCompiled', idx++);
+				}
+			};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<div><my-directive></my-directive></div>');
+			$compile(el);
+			expect(el.data('hasCompiled')).toBeUndefined();
+			expect(el.find('> my-directive').data('hasCompiled')).toBe(1);
+		});
+	});
+	
+	it('compiles nested directives', () => {
+		let idx = 1;
+		const injector = makeInjectorWithDirectives('myDir', () => {
+			return {
+				compile: function (element) {
+					element.data('hasCompiled', idx++);
+				}
+			};
+		});
+		injector.invoke(function($compile) {
+			const el = $('<my-dir><my-dir><my-dir></my-dir></my-dir></my-dir>');
+			$compile(el);
+			expect(el.data('hasCompiled')).toBe(1);
+			expect(el.find('> my-dir').data('hasCompiled')).toBe(2);
+			expect(el.find('> my-dir > my-dir').data('hasCompiled')).toBe(3);
 		});
 	});
 });

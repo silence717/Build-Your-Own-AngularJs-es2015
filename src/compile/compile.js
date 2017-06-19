@@ -62,6 +62,10 @@ function $CompileProvider($provide) {
 			_.forEach($compileNodes, node => {
 				const directives = collectDirectives(node);
 				applyDirectivesToNode(directives, node);
+				// 如果当前节点有子元素，递归调用，应用指令
+				if (node.childNodes && node.childNodes.length) {
+					compileNodes(node.childNodes);
+				}
 			});
 		}
 		

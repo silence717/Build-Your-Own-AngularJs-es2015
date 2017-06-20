@@ -13,7 +13,16 @@ import $ from 'jquery';
 function nodeName(element) {
 	return element.nodeName ? element.nodeName : element[0].nodeName;
 }
-
+// 指令前缀正则表达式
+const PREFIX_REGEXP = /(x[\:\-_]|data[\:\-_])/i;
+/**
+ * 指令名字统一化
+ * @param name
+ * @returns {*}
+ */
+function directiveNormalize(name) {
+	return _.camelCase(name.replace(PREFIX_REGEXP, ''));
+}
 function $CompileProvider($provide) {
 	
 	// 记录当前已经有的指令
@@ -75,8 +84,19 @@ function $CompileProvider($provide) {
 		 */
 		function collectDirectives(node) {
 			const directives = [];
-			const normalizedNodeName = _.camelCase(nodeName(node).toLowerCase());
+			// 通过元素名称匹配
+			const normalizedNodeName = directiveNormalize(nodeName(node).toLowerCase());
 			addDirective(directives, normalizedNodeName);
+			// 通过属性匹配
+			_.forEach(node.attributes, attr => {
+				let normalizedAttrName = directiveNormalize(attr.name.toLowerCase());
+				// 判断是否以ngAttr开头
+				if (/^ngAttr[A-Z]/.test(normalizedAttrName)) {
+					// 将ngAttr后面的第一个字符抓为小写，并且截取字符串
+					normalizedAttrName = normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7);
+				}
+				addDirective(directives, normalizedAttrName);
+			});
 			return directives;
 		}
 		

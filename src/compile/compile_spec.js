@@ -104,7 +104,7 @@ describe('$compile', () => {
 				}
 			};
 		});
-		injector.invoke(function($compile) {
+		injector.invoke(function ($compile) {
 			const el = $('<my-dir><my-dir><my-dir></my-dir></my-dir></my-dir>');
 			$compile(el);
 			expect(el.data('hasCompiled')).toBe(1);
@@ -112,4 +112,134 @@ describe('$compile', () => {
 			expect(el.find('> my-dir > my-dir').data('hasCompiled')).toBe(3);
 		});
 	});
+	
+	_.forEach(['x', 'data'], prefix => {
+		_.forEach([':', '-', '_'], delim => {
+			it('compiles element directives with ' + prefix + delim + ' prefix', () => {
+				const injector = makeInjectorWithDirectives('myDir', () => {
+					return {
+						compile: function(element) {
+							element.data('hasCompiled', true);
+						}
+					};
+				});
+				injector.invoke(function($compile) {
+					const el = $('<' + prefix + delim + 'my-dir></' + prefix + delim + 'my-dir>');
+					$compile(el);
+					expect(el.data('hasCompiled')).toBe(true);
+				});
+			});
+		});
+	});
+	
+	it('compiles attribute directives', () => {
+		const injector = makeInjectorWithDirectives('myDirective', () => {
+			return {
+				compile: function (element) {
+					element.data('hasCompiled', true);
+				}
+			};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<div my-directive></div>');
+			$compile(el);
+			expect(el.data('hasCompiled')).toBe(true);
+		});
+	});
+	
+	it('compiles attribute directives with pre xes', () => {
+		const injector = makeInjectorWithDirectives('myDirective', () => {
+			return {
+				compile: function (element) {
+					element.data('hasCompiled', true);
+				}
+			};
+		});
+		injector.invoke(function($compile) {
+			const el = $('<div x:my-directive></div>');
+			$compile(el);
+			expect(el.data('hasCompiled')).toBe(true);
+		});
+	});
+	
+	it('compiles several attribute directives in an element', () => {
+		const injector = makeInjectorWithDirectives({
+			myDirective: function () {
+				return {
+					compile: function (element) {
+						element.data('hasCompiled', true);
+					}
+				};
+			},
+			mySecondDirective: function() {
+				return {
+					compile: function(element) {
+						element.data('secondCompiled', true);
+					}
+				};
+			}
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<div my-directive my-second-directive></div>');
+			$compile(el);
+			expect(el.data('hasCompiled')).toBe(true);
+			expect(el.data('secondCompiled')).toBe(true);
+		});
+	});
+	
+	it('compiles both element and attributes directives in an element', () => {
+		const injector = makeInjectorWithDirectives({
+			myDirective: function () {
+				return {
+					compile: function (element) {
+						element.data('hasCompiled', true);
+					}
+				};
+			},
+			mySecondDirective: function () {
+				return {
+					compile: function (element) {
+						element.data('secondCompiled', true);
+					}
+				};
+			}
+		});
+		injector.invoke(function($compile) {
+			const el = $('<my-directive my-second-directive></my-directive>');
+			$compile(el);
+			expect(el.data('hasCompiled')).toBe(true);
+			expect(el.data('secondCompiled')).toBe(true);
+		});
+	});
+	
+	it('compiles attribute directives with ng-attr pre x', () => {
+		const injector = makeInjectorWithDirectives('myDirective', () => {
+			return {
+				compile: function (element) {
+					element.data('hasCompiled', true);
+				}
+			};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<div ng-attr-my-directive></div>');
+			$compile(el);
+			expect(el.data('hasCompiled')).toBe(true);
+		});
+	});
+	
+	it('compiles attribute directives with data:ng-attr prefix', () => {
+		const injector = makeInjectorWithDirectives('myDirective', () => {
+			return {
+				compile: function (element) {
+					element.data('hasCompiled', true);
+				}
+			};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<div data:ng-attr-my-directive></div>');
+			$compile(el);
+			expect(el.data('hasCompiled')).toBe(true);
+		});
+	});
+	
 });

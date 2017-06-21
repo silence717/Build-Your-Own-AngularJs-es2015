@@ -84,19 +84,34 @@ function $CompileProvider($provide) {
 		 */
 		function collectDirectives(node) {
 			const directives = [];
-			// 通过元素名称匹配
-			const normalizedNodeName = directiveNormalize(nodeName(node).toLowerCase());
-			addDirective(directives, normalizedNodeName);
-			// 通过属性匹配
-			_.forEach(node.attributes, attr => {
-				let normalizedAttrName = directiveNormalize(attr.name.toLowerCase());
-				// 判断是否以ngAttr开头
-				if (/^ngAttr[A-Z]/.test(normalizedAttrName)) {
-					// 将ngAttr后面的第一个字符抓为小写，并且截取字符串
-					normalizedAttrName = normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7);
+			// 处理针对于元素的情况
+			if (node.nodeType === Node.ELEMENT_NODE) {
+				// 通过元素名称匹配
+				const normalizedNodeName = directiveNormalize(nodeName(node).toLowerCase());
+				addDirective(directives, normalizedNodeName);
+				// 通过属性匹配
+				_.forEach(node.attributes, attr => {
+					let normalizedAttrName = directiveNormalize(attr.name.toLowerCase());
+					// 判断是否以ngAttr开头
+					if (/^ngAttr[A-Z]/.test(normalizedAttrName)) {
+						// 将ngAttr后面的第一个字符抓为小写，并且截取字符串
+						normalizedAttrName = normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7);
+					}
+					addDirective(directives, normalizedAttrName);
+				});
+				// 通过class名称匹配
+				_.forEach(node.classList, cls => {
+					const normalizedClassName = directiveNormalize(cls);
+					addDirective(directives, normalizedClassName);
+				});
+			} else if (node.nodeType === Node.COMMENT_NODE) {
+				// 处理注释的情况
+				// 匹配是否以directive开头
+				const match = /^\s*directive\:\s*([\d\w\-_]+)/.exec(node.nodeValue);
+				if (match) {
+					addDirective(directives, directiveNormalize(match[1]));
 				}
-				addDirective(directives, normalizedAttrName);
-			});
+			}
 			return directives;
 		}
 		

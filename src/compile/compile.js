@@ -35,14 +35,18 @@ function $CompileProvider($provide) {
 			if (name === 'hasOwnProperty') {
 				throw 'hasOwnProperty is not a valid directive name';
 			}
-			
 			// 如果当前不存在这个指令，那么将其对应的值清空
 			if (!hasDirectives.hasOwnProperty(name)) {
 				hasDirectives[name] = [];
 				// 使用provider注册一个指令
 				$provide.factory(name + 'Directive', ['$injector', function ($injector) {
 					let factories = hasDirectives[name];
-					return _.map(factories, $injector.invoke);
+					return _.map(factories, factory => {
+						const directive = $injector.invoke(factory);
+						// 设置restrict属性默认值为EA
+						directive.restrict = directive.restrict || 'EA';
+						return directive;
+					});
 				}]);
 			}
 			hasDirectives[name].push(directiveFactory);
@@ -88,7 +92,7 @@ function $CompileProvider($provide) {
 			if (node.nodeType === Node.ELEMENT_NODE) {
 				// 通过元素名称匹配
 				const normalizedNodeName = directiveNormalize(nodeName(node).toLowerCase());
-				addDirective(directives, normalizedNodeName);
+				addDirective(directives, normalizedNodeName, 'E');
 				// 通过属性匹配
 				_.forEach(node.attributes, attr => {
 					let normalizedAttrName = directiveNormalize(attr.name.toLowerCase());
@@ -97,19 +101,19 @@ function $CompileProvider($provide) {
 						// 将ngAttr后面的第一个字符抓为小写，并且截取字符串
 						normalizedAttrName = normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7);
 					}
-					addDirective(directives, normalizedAttrName);
+					addDirective(directives, normalizedAttrName, 'A');
 				});
 				// 通过class名称匹配
 				_.forEach(node.classList, cls => {
 					const normalizedClassName = directiveNormalize(cls);
-					addDirective(directives, normalizedClassName);
+					addDirective(directives, normalizedClassName, 'C');
 				});
 			} else if (node.nodeType === Node.COMMENT_NODE) {
 				// 处理注释的情况
 				// 匹配是否以directive开头
 				const match = /^\s*directive\:\s*([\d\w\-_]+)/.exec(node.nodeValue);
 				if (match) {
-					addDirective(directives, directiveNormalize(match[1]));
+					addDirective(directives, directiveNormalize(match[1]), 'M');
 				}
 			}
 			return directives;
@@ -120,10 +124,16 @@ function $CompileProvider($provide) {
 		 * @param directives
 		 * @param name
 		 */
-		function addDirective(directives, name) {
+		function addDirective(directives, name, mode) {
 			// 判断当前名称的指令是否存在
 			if (hasDirectives.hasOwnProperty(name)) {
-				directives.push.apply(directives, $injector.get(name + 'Directive'));
+				// 获取当前指令
+				const foundDirectives = $injector.get(name + 'Directive');
+				// 过滤当前指令
+				const applicableDirectives = _.filter(foundDirectives, dir => {
+					return dir.restrict.indexOf(mode) !== -1;
+				});
+				directives.push.apply(directives, applicableDirectives);
 			}
 		}
 		

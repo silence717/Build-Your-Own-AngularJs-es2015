@@ -66,6 +66,7 @@ describe('$compile', () => {
 	it('compiles element directives from a single element', () => {
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					element.data('hasCompiled', true);
 				}
@@ -82,6 +83,7 @@ describe('$compile', () => {
 		let idx = 1;
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					element.data('hasCompiled', idx++);
 				}
@@ -99,6 +101,7 @@ describe('$compile', () => {
 		let idx = 1;
 		const injector = makeInjectorWithDirectives('myDir', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					element.data('hasCompiled', idx++);
 				}
@@ -118,6 +121,7 @@ describe('$compile', () => {
 			it('compiles element directives with ' + prefix + delim + ' prefix', () => {
 				const injector = makeInjectorWithDirectives('myDir', () => {
 					return {
+						restrict: 'EACM',
 						compile: function (element) {
 							element.data('hasCompiled', true);
 						}
@@ -135,6 +139,7 @@ describe('$compile', () => {
 	it('compiles attribute directives', () => {
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					element.data('hasCompiled', true);
 				}
@@ -150,6 +155,7 @@ describe('$compile', () => {
 	it('compiles attribute directives with pre xes', () => {
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					element.data('hasCompiled', true);
 				}
@@ -166,6 +172,7 @@ describe('$compile', () => {
 		const injector = makeInjectorWithDirectives({
 			myDirective: function () {
 				return {
+					restrict: 'EACM',
 					compile: function (element) {
 						element.data('hasCompiled', true);
 					}
@@ -173,6 +180,7 @@ describe('$compile', () => {
 			},
 			mySecondDirective: function () {
 				return {
+					restrict: 'EACM',
 					compile: function (element) {
 						element.data('secondCompiled', true);
 					}
@@ -191,6 +199,7 @@ describe('$compile', () => {
 		const injector = makeInjectorWithDirectives({
 			myDirective: function () {
 				return {
+					restrict: 'EACM',
 					compile: function (element) {
 						element.data('hasCompiled', true);
 					}
@@ -198,6 +207,7 @@ describe('$compile', () => {
 			},
 			mySecondDirective: function () {
 				return {
+					restrict: 'EACM',
 					compile: function (element) {
 						element.data('secondCompiled', true);
 					}
@@ -215,6 +225,7 @@ describe('$compile', () => {
 	it('compiles attribute directives with ng-attr pre x', () => {
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					element.data('hasCompiled', true);
 				}
@@ -230,6 +241,7 @@ describe('$compile', () => {
 	it('compiles attribute directives with data:ng-attr prefix', () => {
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					element.data('hasCompiled', true);
 				}
@@ -245,6 +257,7 @@ describe('$compile', () => {
 	it('compiles class directives', () => {
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					element.data('hasCompiled', true);
 				}
@@ -261,6 +274,7 @@ describe('$compile', () => {
 		const injector = makeInjectorWithDirectives({
 			myDirective: function () {
 				return {
+					restrict: 'EACM',
 					compile: function (element) {
 						element.data('hasCompiled', true);
 					}
@@ -268,6 +282,7 @@ describe('$compile', () => {
 			},
 			mySecondDirective: function () {
 				return {
+					restrict: 'EACM',
 					compile: function (element) {
 						element.data('secondCompiled', true);
 					}
@@ -285,6 +300,7 @@ describe('$compile', () => {
 	it('compiles class directives with pre xes', () => {
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					element.data('hasCompiled', true);
 				}
@@ -301,6 +317,7 @@ describe('$compile', () => {
 		let hasCompiled;
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
+				restrict: 'EACM',
 				compile: function (element) {
 					hasCompiled = true;
 				}
@@ -310,6 +327,91 @@ describe('$compile', () => {
 			const el = $('<!-- directive: my-directive -->');
 			$compile(el);
 			expect(hasCompiled).toBe(true);
+		});
+	});
+	
+	_.forEach({
+		E: {element: true, attribute: false, class: false, comment: false},
+		A: {element: false, attribute: true, class: false, comment: false},
+		C: {element: false, attribute: false, class: true, comment: false},
+		M: {element: false, attribute: false, class: false, comment: true},
+		EA: {element: true, attribute: true, class: false, comment: false},
+		AC: {element: false, attribute: true, class: true, comment: false},
+		EAM: {element: true, attribute: true, class: false, comment: true},
+		EACM: {element: true, attribute: true, class: true, comment: true}
+	}, (expected, restrict) => {
+		describe('restricted to ' + restrict, function () {
+			_.forEach({
+				element: '<my-directive></my-directive>',
+				attribute: '<div my-directive></div>',
+				class: '<div class="my-directive"></div>',
+				comment: '<!-- directive: my-directive -->'
+			}, (dom, type) => {
+				it((expected[type] ? 'matches' : 'does not match') + ' on ' + type, () => {
+					let hasCompiled = false;
+					const injector = makeInjectorWithDirectives('myDirective', () => {
+						return {
+							restrict: restrict,
+							compile: function (element) {
+								hasCompiled = true;
+							}
+						};
+					});
+					injector.invoke(function ($compile) {
+						const el = $(dom);
+						$compile(el);
+						expect(hasCompiled).toBe(expected[type]);
+					});
+				});
+			});
+		});
+	});
+	
+	it('applies to attributes when no restrict given', () => {
+		let hasCompiled = false;
+		const injector = makeInjectorWithDirectives('myDirective', () => {
+			return {
+				compile: function (element) {
+					hasCompiled = true;
+				}
+			};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<div my-directive></div>');
+			$compile(el);
+			expect(hasCompiled).toBe(true);
+		});
+	});
+	
+	it('applies to elements when no restrict given', () => {
+		let hasCompiled = false;
+		const injector = makeInjectorWithDirectives('myDirective', () => {
+			return {
+				compile: function (element) {
+					hasCompiled = true;
+				}
+			};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<my-directive></my-directive>');
+			$compile(el);
+			expect(hasCompiled).toBe(true);
+		});
+	});
+	
+	it('does not apply to classes when no restrict given', () => {
+		let hasCompiled = false;
+		const injector = makeInjectorWithDirectives('myDirective', () => {
+			return {
+				compile: function (element) {
+					hasCompiled = true;
+				}
+			};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<div class="my-directive"></div>');
+			$compile(el);
+			expect(hasCompiled).toBe(false);
 		});
 	});
 	

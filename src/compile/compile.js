@@ -23,6 +23,27 @@ const PREFIX_REGEXP = /(x[\:\-_]|data[\:\-_])/i;
 function directiveNormalize(name) {
 	return _.camelCase(name.replace(PREFIX_REGEXP, ''));
 }
+/**
+ * 指令优先级比较函数
+ * @param a
+ * @param b
+ */
+function byPriority(a, b) {
+	const diff = b.priority - a.priority;
+	// 处理优先级不同
+	if (diff !== 0) {
+		return diff;
+	} else {
+		// 优先级相同的时候比较名称
+		if (a.name !== b.name) {
+			return (a.name < b.name ? -1 : 1);
+		} else {
+			// 如果名称也相同，那么比较注册顺序
+			return a.index - b.index;
+		}
+	}
+}
+
 function $CompileProvider($provide) {
 	
 	// 记录当前已经有的指令
@@ -41,10 +62,16 @@ function $CompileProvider($provide) {
 				// 使用provider注册一个指令
 				$provide.factory(name + 'Directive', ['$injector', function ($injector) {
 					let factories = hasDirectives[name];
-					return _.map(factories, factory => {
+					return _.map(factories, (factory, i) => {
 						const directive = $injector.invoke(factory);
 						// 设置restrict属性默认值为EA
 						directive.restrict = directive.restrict || 'EA';
+						// 设置优先级
+						directive.priority = directive.priority || 0;
+						// 设置name属性
+						directive.name = directive.name || name;
+						// 设置注册索引
+						directive.index = i;
 						return directive;
 					});
 				}]);
@@ -116,6 +143,8 @@ function $CompileProvider($provide) {
 					addDirective(directives, directiveNormalize(match[1]), 'M');
 				}
 			}
+			// 排序
+			directives.sort(byPriority);
 			return directives;
 		}
 		

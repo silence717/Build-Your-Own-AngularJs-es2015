@@ -100,10 +100,11 @@ function $CompileProvider($provide) {
 		 */
 		function compileNodes($compileNodes) {
 			_.forEach($compileNodes, node => {
+				// 收集到当前节点上所有的指令
 				const directives = collectDirectives(node);
-				applyDirectivesToNode(directives, node);
+				const terminal = applyDirectivesToNode(directives, node);
 				// 如果当前节点有子元素，递归调用，应用指令
-				if (node.childNodes && node.childNodes.length) {
+				if (!terminal && node.childNodes && node.childNodes.length) {
 					compileNodes(node.childNodes);
 				}
 			});
@@ -173,11 +174,25 @@ function $CompileProvider($provide) {
 		 */
 		function applyDirectivesToNode(directives, compileNode) {
 			const $compileNode = $(compileNode);
+			// 设置所有指令的终止为最小
+			let terminalPriority = -Number.MAX_VALUE;
+			// 是否有终止指令标识
+			let terminal = false;
 			_.forEach(directives, directive => {
+				// 如果当前指令的优先级小于终止优先级，退出循环终止编译
+				if (directive.priority < terminalPriority) {
+					return false;
+				}
 				if (directive.compile) {
 					directive.compile($compileNode);
 				}
+				// 如果指令设置了terminal则更新
+				if (directive.terminal) {
+					terminal = true;
+					terminalPriority = directive.priority;
+				}
 			});
+			return terminal;
 		}
 		
 		return compile;

@@ -100,9 +100,10 @@ function $CompileProvider($provide) {
 		 */
 		function compileNodes($compileNodes) {
 			_.forEach($compileNodes, node => {
+				const attrs = {};
 				// 收集到当前节点上所有的指令
-				const directives = collectDirectives(node);
-				const terminal = applyDirectivesToNode(directives, node);
+				const directives = collectDirectives(node, attrs);
+				const terminal = applyDirectivesToNode(directives, node, attrs);
 				// 如果当前节点有子元素，递归调用，应用指令
 				if (!terminal && node.childNodes && node.childNodes.length) {
 					compileNodes(node.childNodes);
@@ -127,7 +128,7 @@ function $CompileProvider($provide) {
 		 * 查找和应用指令
 		 * @param node
 		 */
-		function collectDirectives(node) {
+		function collectDirectives(node, attrs) {
 			const directives = [];
 			// 处理针对于元素的情况
 			if (node.nodeType === Node.ELEMENT_NODE) {
@@ -159,6 +160,7 @@ function $CompileProvider($provide) {
 					}
 					normalizedAttrName = directiveNormalize(name.toLowerCase());
 					addDirective(directives, normalizedAttrName, 'A', attrStartName, attrEndName);
+					attrs[normalizedAttrName] = attr.value.trim();
 				});
 				// 通过class名称匹配
 				_.forEach(node.classList, cls => {
@@ -210,7 +212,7 @@ function $CompileProvider($provide) {
 		 * @param directives
 		 * @param compileNode
 		 */
-		function applyDirectivesToNode(directives, compileNode) {
+		function applyDirectivesToNode(directives, compileNode, attrs) {
 			let $compileNode = $(compileNode);
 			// 设置所有指令的终止为最小
 			let terminalPriority = -Number.MAX_VALUE;
@@ -226,7 +228,7 @@ function $CompileProvider($provide) {
 					return false;
 				}
 				if (directive.compile) {
-					directive.compile($compileNode);
+					directive.compile($compileNode, attrs);
 				}
 				// 如果指令设置了terminal则更新
 				if (directive.terminal) {
@@ -247,7 +249,6 @@ function $CompileProvider($provide) {
 	 * @returns {*|jQuery|HTMLElement}
 	 */
 	function groupScan(node, startAttr, endAttr) {
-		console.log('group Scan..................................');
 		const nodes = [];
 		// 如果初始化节点包含开始属性
 		if (startAttr && node && node.hasAttribute(startAttr)) {

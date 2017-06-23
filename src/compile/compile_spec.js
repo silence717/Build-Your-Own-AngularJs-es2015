@@ -7,12 +7,29 @@ import _ from 'lodash';
 import $ from 'jquery';
 import publishExternalAPI from '../public/angular_public';
 import createInjector from '../injector/injector';
-
+// 注册指令
 function makeInjectorWithDirectives() {
 	const args = arguments;
 	return createInjector(['ng', function ($compileProvider) {
 		$compileProvider.directive.apply($compileProvider, args);
 	}]);
+}
+// 注册并编译
+function registerAndCompile(dirName, domString, callback) {
+	let givenAttrs;
+	const injector = makeInjectorWithDirectives(dirName, function () {
+		return {
+			restrict: 'EACM',
+			compile: function (element, attrs) {
+				givenAttrs = attrs;
+			}
+		};
+	});
+	injector.invoke(function ($compile) {
+		const el = $(domString);
+		$compile(el);
+		callback(el, givenAttrs);
+	});
 }
 
 describe('$compile', () => {
@@ -624,39 +641,26 @@ describe('$compile', () => {
 	
 	describe('attributes', () => {
 		
-		it('passes the element attributes to the compile function', () => {
-			const injector = makeInjectorWithDirectives('myDirective', () => {
-				return {
-					restrict: 'E',
-					compile: function (element, attrs) {
-						element.data('givenAttrs', attrs);
-					}
-				};
-			});
-			injector.invoke(function($compile) {
-				const el = $('<my-directive my-attr="1" my-other-attr="two"></my-directive>');
-				$compile(el);
-				expect(el.data('givenAttrs').myAttr).toEqual('1');
-				expect(el.data('givenAttrs').myOtherAttr).toEqual('two');
-			});
+		it('passes the element attributes to the compile function', function() {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive my-attr="1" my-other-attr="two"></my-directive>',
+				function(element, attrs) {
+					expect(attrs.myAttr).toEqual('1');
+					expect(attrs.myOtherAttr).toEqual('two');
+				}
+			);
 		});
-		
-		it('trims attribute values', function () {
-			const injector = makeInjectorWithDirectives('myDirective', function () {
-				return {
-					restrict: 'E',
-					compile: function (element, attrs) {
-						element.data('givenAttrs', attrs);
-					}
-				};
-			});
-			injector.invoke(function ($compile) {
-				const el = $('<my-directive my-attr=" val "></my-directive>');
-				$compile(el);
-				expect(el.data('givenAttrs').myAttr).toEqual('val');
-			});
+		it('trims attribute values', function() {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive my-attr=" val "></my-directive>',
+				function(element, attrs) {
+					expect(attrs.myAttr).toEqual('val');
+				}
+			);
 		});
-		
+	
 	});
 	
 });

@@ -16,7 +16,7 @@ function nodeName(element) {
 // 指令前缀正则表达式
 const PREFIX_REGEXP = /(x[\:\-_]|data[\:\-_])/i;
 /**
- * 指令名字统一化
+ * 指令名字驼峰化
  * @param name
  * @returns {*}
  */
@@ -111,6 +111,19 @@ function $CompileProvider($provide) {
 		}
 		
 		/**
+		 * 判断是否为多元素指令
+		 * @param name
+		 * @returns {boolean}
+		 */
+		function directiveIsMultiElement(name) {
+			if (hasDirectives.hasOwnProperty(name)) {
+				const directives = $injector.get(name + 'Directive');
+				return _.some(directives, {multiElement: true});
+			}
+			return false;
+		}
+		
+		/**
 		 * 查找和应用指令
 		 * @param node
 		 */
@@ -123,13 +136,29 @@ function $CompileProvider($provide) {
 				addDirective(directives, normalizedNodeName, 'E');
 				// 通过属性匹配
 				_.forEach(node.attributes, attr => {
-					let normalizedAttrName = directiveNormalize(attr.name.toLowerCase());
+					let attrStartName, attrEndName;
+					let name = attr.name;
+					let normalizedAttrName = directiveNormalize(name.toLowerCase());
 					// 判断是否以ngAttr开头
 					if (/^ngAttr[A-Z]/.test(normalizedAttrName)) {
 						// 将ngAttr后面的第一个字符抓为小写，并且截取字符串
-						normalizedAttrName = normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7);
+						name = _.kebabCase(normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7));
 					}
-					addDirective(directives, normalizedAttrName, 'A');
+					const directiveNName = normalizedAttrName.replace(/(Start|End)$/, '');
+					// 判断是否为多元素指令
+					if (directiveIsMultiElement(directiveNName)) {
+						// 判断名称中是否有Start后缀
+						if (/Start$/.test(normalizedAttrName)) {
+							// 开始名字就为当前指令名
+							attrStartName = name;
+							// 从当前指令名截取掉后5个字符，拼接End就为结束名称
+							attrEndName = name.substring(0, name.length - 5) + 'end';
+							// 去掉start获取纯粹的指令名
+							name = name.substring(0, name.length - 6);
+						}
+					}
+					normalizedAttrName = directiveNormalize(name.toLowerCase());
+					addDirective(directives, normalizedAttrName, 'A', attrStartName, attrEndName);
 				});
 				// 通过class名称匹配
 				_.forEach(node.classList, cls => {
@@ -154,7 +183,7 @@ function $CompileProvider($provide) {
 		 * @param directives
 		 * @param name
 		 */
-		function addDirective(directives, name, mode) {
+		function addDirective(directives, name, mode, attrStartName, attrEndName) {
 			// 判断当前名称的指令是否存在
 			if (hasDirectives.hasOwnProperty(name)) {
 				// 获取当前指令
@@ -163,7 +192,16 @@ function $CompileProvider($provide) {
 				const applicableDirectives = _.filter(foundDirectives, dir => {
 					return dir.restrict.indexOf(mode) !== -1;
 				});
-				directives.push.apply(directives, applicableDirectives);
+				_.forEach(applicableDirectives, directive => {
+					// 如果当前指令存在开始名称，那么为它添加$$start和$$end key
+					if (attrStartName) {
+						directive = _.create(directive, {
+							$$start: attrStartName,
+							$$end: attrEndName
+						});
+					}
+					directives.push(directive);
+				});
 			}
 		}
 		
@@ -173,12 +211,16 @@ function $CompileProvider($provide) {
 		 * @param compileNode
 		 */
 		function applyDirectivesToNode(directives, compileNode) {
-			const $compileNode = $(compileNode);
+			let $compileNode = $(compileNode);
 			// 设置所有指令的终止为最小
 			let terminalPriority = -Number.MAX_VALUE;
 			// 是否有终止指令标识
 			let terminal = false;
 			_.forEach(directives, directive => {
+				// 如果存在$$start key，说明是多元素匹配节点
+				if (directive.$$start) {
+					$compileNode = groupScan(compileNode, directive.$$start, directive.$$end);
+				}
 				// 如果当前指令的优先级小于终止优先级，退出循环终止编译
 				if (directive.priority < terminalPriority) {
 					return false;
@@ -197,7 +239,37 @@ function $CompileProvider($provide) {
 		
 		return compile;
 	}];
-	
-};
+	/**
+	 * 组装节点
+	 * @param node
+	 * @param startAttr
+	 * @param endAttr
+	 * @returns {*|jQuery|HTMLElement}
+	 */
+	function groupScan(node, startAttr, endAttr) {
+		console.log('group Scan..................................');
+		const nodes = [];
+		// 如果初始化节点包含开始属性
+		if (startAttr && node && node.hasAttribute(startAttr)) {
+			let depth = 0;
+			do {
+				if (node.nodeType === Node.ELEMENT_NODE) {
+					// 遇到start自增
+					if (node.hasAttribute(startAttr)) {
+						depth++;
+					} else if (node.hasAttribute(endAttr)) {
+						// 遇到end自减
+						depth--;
+					}
+				}
+			} while (depth > 0);
+		} else {
+			// 如果初始化节点不包含开始属性
+			nodes.push(node);
+		}
+		return $(nodes);
+	}
+}
+
 $CompileProvider.$inject = ['$provide'];
 module.exports = $CompileProvider;

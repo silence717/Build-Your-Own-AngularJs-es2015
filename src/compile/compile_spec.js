@@ -222,7 +222,7 @@ describe('$compile', () => {
 		});
 	});
 	
-	it('compiles attribute directives with ng-attr pre x', () => {
+	it('compiles attribute directives with ng-attr prefix', () => {
 		const injector = makeInjectorWithDirectives('myDirective', () => {
 			return {
 				restrict: 'EACM',
@@ -534,7 +534,7 @@ describe('$compile', () => {
 				}
 			};
 		});
-		myModule.directive('secondDirective', function() {
+		myModule.directive('secondDirective', function () {
 			return {
 				priority: 0,
 				compile: function (element) {
@@ -603,4 +603,22 @@ describe('$compile', () => {
 			expect(compilations).toEqual(['parent']);
 		});
 	});
+	
+	xit('allows applying a directive to multiple elements', () => {
+		let compileEl = false;
+		const injector = makeInjectorWithDirectives('myDir', function () {
+			return {
+				multiElement: true,
+				compile: function (element) {
+					compileEl = element;
+				}
+			};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<div my-dir-start></div><span></span><div my-dir-end></div>');
+			$compile(el);
+			expect(compileEl.length).toBe(3);
+		});
+	});
+	
 });

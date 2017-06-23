@@ -36,10 +36,10 @@ describe('$http', () => {
 		xhr.restore();
 	});
 	
-	beforeEach(function() {
+	beforeEach(function () {
 		jasmine.clock().install();
 	});
-	afterEach(function() {
+	afterEach(function () {
 		jasmine.clock().uninstall();
 	});
 	

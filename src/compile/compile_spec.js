@@ -641,26 +641,47 @@ describe('$compile', () => {
 	
 	describe('attributes', () => {
 		
-		it('passes the element attributes to the compile function', function() {
+		it('passes the element attributes to the compile function', () => {
 			registerAndCompile(
 				'myDirective',
 				'<my-directive my-attr="1" my-other-attr="two"></my-directive>',
-				function(element, attrs) {
+				function (element, attrs) {
 					expect(attrs.myAttr).toEqual('1');
 					expect(attrs.myOtherAttr).toEqual('two');
 				}
 			);
 		});
-		it('trims attribute values', function() {
+		
+		it('trims attribute values', () => {
 			registerAndCompile(
 				'myDirective',
 				'<my-directive my-attr=" val "></my-directive>',
-				function(element, attrs) {
+				function (element, attrs) {
 					expect(attrs.myAttr).toEqual('val');
 				}
 			);
 		});
-	
+		
+		it('sets the value of boolean attributes to true', () => {
+			registerAndCompile(
+				'myDirective',
+				'<input my-directive disabled>',
+				function (element, attrs) {
+					expect(attrs.disabled).toBe(true);
+				}
+			);
+		});
+		
+		it('does not set the value of custom boolean attributes to true', () => {
+			registerAndCompile(
+				'myDirective',
+				'<input my-directive whatever>',
+				function (element, attrs) {
+					expect(attrs.whatever).toEqual('');
+				}
+			);
+		});
+		
 	});
 	
 });

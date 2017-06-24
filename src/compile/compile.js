@@ -15,6 +15,35 @@ function nodeName(element) {
 }
 // 指令前缀正则表达式
 const PREFIX_REGEXP = /(x[\:\-_]|data[\:\-_])/i;
+// 布尔属性名称
+const BOOLEAN_ATTRS = {
+	multiple: true,
+	selected: true,
+	checked: true,
+	disabled: true,
+	readOnly: true,
+	required: true,
+	open: true
+};
+// 布尔元素名称
+const BOOLEAN_ELEMENTS = {
+	INPUT: true,
+	SELECT: true,
+	OPTION: true,
+	TEXTAREA: true,
+	BUTTON: true,
+	FORM: true,
+	DETAILS: true
+};
+/**
+ * 是否为布尔属性
+ * @param node
+ * @param attrName
+ * @returns {*}
+ */
+function isBooleanAttribute(node, attrName) {
+	return BOOLEAN_ATTRS[attrName] && BOOLEAN_ELEMENTS[node.nodeName];
+}
 /**
  * 指令名字驼峰化
  * @param name
@@ -161,6 +190,10 @@ function $CompileProvider($provide) {
 					normalizedAttrName = directiveNormalize(name.toLowerCase());
 					addDirective(directives, normalizedAttrName, 'A', attrStartName, attrEndName);
 					attrs[normalizedAttrName] = attr.value.trim();
+					// 设置布尔属性
+					if (isBooleanAttribute(node, normalizedAttrName)) {
+						attrs[normalizedAttrName] = true;
+					}
 				});
 				// 通过class名称匹配
 				_.forEach(node.classList, cls => {

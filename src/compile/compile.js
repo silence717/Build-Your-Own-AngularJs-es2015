@@ -169,8 +169,9 @@ function $CompileProvider($provide) {
 					let attrStartName, attrEndName;
 					let name = attr.name;
 					let normalizedAttrName = directiveNormalize(name.toLowerCase());
+					const isNgAttr = /^ngAttr[A-Z]/.test(normalizedAttrName);
 					// 判断是否以ngAttr开头
-					if (/^ngAttr[A-Z]/.test(normalizedAttrName)) {
+					if (isNgAttr) {
 						// 将ngAttr后面的第一个字符抓为小写，并且截取字符串
 						name = _.kebabCase(normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7));
 					}
@@ -189,10 +190,12 @@ function $CompileProvider($provide) {
 					}
 					normalizedAttrName = directiveNormalize(name.toLowerCase());
 					addDirective(directives, normalizedAttrName, 'A', attrStartName, attrEndName);
-					attrs[normalizedAttrName] = attr.value.trim();
-					// 设置布尔属性
-					if (isBooleanAttribute(node, normalizedAttrName)) {
-						attrs[normalizedAttrName] = true;
+					if (isNgAttr || !attrs.hasOwnProperty(normalizedAttrName)) {
+						attrs[normalizedAttrName] = attr.value.trim();
+						// 设置布尔属性
+						if (isBooleanAttribute(node, normalizedAttrName)) {
+							attrs[normalizedAttrName] = true;
+						}
 					}
 				});
 				// 通过class名称匹配

@@ -682,7 +682,7 @@ describe('$compile', () => {
 			);
 		});
 		
-		it('overrides attributes with ng-attr- versions', function() {
+		it('overrides attributes with ng-attr- versions', () => {
 			registerAndCompile(
 				'myDirective',
 				'<input my-directive ng-attr-whatever="42" whatever="41">',
@@ -690,6 +690,64 @@ describe('$compile', () => {
 					expect(attrs.whatever).toEqual('42');
 				}
 			);
+		});
+		
+		it('allows setting attributes', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive attr="true"></my-directive>',
+				function (element, attrs) {
+					attrs.$set('attr', 'false');
+					expect(attrs.attr).toEqual('false');
+				}
+			);
+		});
+		
+		it('sets attributes to DOM', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive attr="true"></my-directive>',
+				function (element, attrs) {
+					attrs.$set('attr', 'false');
+					expect(element.attr('attr')).toEqual('false');
+				}
+			);
+		});
+		
+		it('does not set attributes to DOM when flag is false', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive attr="true"></my-directive>',
+				function (element, attrs) {
+					attrs.$set('attr', 'false', false);
+					expect(element.attr('attr')).toEqual('true');
+				}
+			);
+		});
+		
+		it('shares attributes between directives', () => {
+			let attrs1, attrs2;
+			const injector = makeInjectorWithDirectives({
+				myDir: function () {
+					return {
+						compile: function (element, attrs) {
+							attrs1 = attrs;
+						}
+					};
+				},
+				myOtherDir: function () {
+					return {
+						compile: function (element, attrs) {
+							attrs2 = attrs;
+						}
+					};
+				}
+			});
+			injector.invoke(function ($compile) {
+				const el = $('<div my-dir my-other-dir></div>');
+				$compile(el);
+				expect(attrs1).toBe(attrs2);
+			});
 		});
 		
 	});

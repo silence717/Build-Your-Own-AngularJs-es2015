@@ -114,6 +114,24 @@ function $CompileProvider($provide) {
 		}
 	};
 	this.$get = ['$injector', function ($injector) {
+		
+		function Attributes(element) {
+			this.$$element = element;
+		}
+		
+		/**
+		 * 给原型设置方法
+		 * @param key   设置的属性名
+		 * @param value 设置的属性值
+		 * @param writeAttr  是否刷新到DOM元素
+		 */
+		Attributes.prototype.$set = function (key, value, writeAttr) {
+			this[key] = value;
+			//
+			if (writeAttr !== false) {
+				this.$$element.attr(key, value);
+			}
+		};
 		/**
 		 * 编译
 		 * @param $compileNodes
@@ -129,7 +147,7 @@ function $CompileProvider($provide) {
 		 */
 		function compileNodes($compileNodes) {
 			_.forEach($compileNodes, node => {
-				const attrs = {};
+				const attrs = new Attributes($(node));
 				// 收集到当前节点上所有的指令
 				const directives = collectDirectives(node, attrs);
 				const terminal = applyDirectivesToNode(directives, node, attrs);

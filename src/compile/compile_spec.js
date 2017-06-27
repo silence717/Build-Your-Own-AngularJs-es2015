@@ -750,6 +750,28 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('sets prop for boolean attributes', () => {
+			registerAndCompile(
+				'myDirective',
+				'<input my-directive>',
+				function (element, attrs) {
+					attrs.$set('disabled', true);
+					expect(element.prop('disabled')).toBe(true);
+				}
+			);
+		});
+		
+		it('sets prop for boolean attributes even when not flushing', () => {
+			registerAndCompile(
+				'myDirective',
+				'<input my-directive>',
+				function (element, attrs) {
+					attrs.$set('disabled', true, false);
+					expect(element.prop('disabled')).toBe(true);
+				}
+			);
+		});
+		
 	});
 	
 });

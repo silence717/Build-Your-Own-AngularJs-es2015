@@ -117,6 +117,7 @@ function $CompileProvider($provide) {
 		
 		function Attributes(element) {
 			this.$$element = element;
+			this.$attr = {};
 		}
 		
 		/**
@@ -125,16 +126,27 @@ function $CompileProvider($provide) {
 		 * @param value 设置的属性值
 		 * @param writeAttr  是否刷新到DOM元素
 		 */
-		Attributes.prototype.$set = function (key, value, writeAttr) {
+		Attributes.prototype.$set = function (key, value, writeAttr, attrName) {
 			this[key] = value;
 			
 			// 如果这个元素是布尔型属性
 			if (isBooleanAttribute(this.$$element[0], key)) {
 				this.$$element.prop(key, value);
 			}
+			// 如果没有提供要反统一化的名字，那么使用snake-case
+			if (!attrName) {
+				// 如果没有提供，首先从$attr中去查找
+				if (this.$attr[key]) {
+					attrName = this.$attr[key];
+				} else {
+					attrName = this.$attr[key] = _.kebabCase(key, '-');
+				}
+			} else {
+				this.$attr[key] = attrName;
+			}
 			
 			if (writeAttr !== false) {
-				this.$$element.attr(key, value);
+				this.$$element.attr(attrName, value);
 			}
 		};
 		/**
@@ -197,7 +209,9 @@ function $CompileProvider($provide) {
 					if (isNgAttr) {
 						// 将ngAttr后面的第一个字符抓为小写，并且截取字符串
 						name = _.kebabCase(normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7));
+						normalizedAttrName = directiveNormalize(name.toLowerCase());
 					}
+					attrs.$attr[normalizedAttrName] = name;
 					const directiveNName = normalizedAttrName.replace(/(Start|End)$/, '');
 					// 判断是否为多元素指令
 					if (directiveIsMultiElement(directiveNName)) {

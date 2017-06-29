@@ -772,6 +772,63 @@ describe('$compile', () => {
 			);
 		});
 		
+		it('denormalizes attribute name when explicitly given', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive some-attribute="42"></my-directive>',
+				function (element, attrs) {
+					attrs.$set('someAttribute', 43, true, 'some-attribute');
+					expect(element.attr('some-attribute')).toEqual('43');
+				}
+			);
+		});
+		
+		it('denormalizes attribute by snake-casing', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive some-attribute="42"></my-directive>',
+				function (element, attrs) {
+					attrs.$set('someAttribute', 43);
+					expect(element.attr('some-attribute')).toEqual('43');
+				}
+			);
+		});
+		
+		it('denormalizes attribute by using original attribute name', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive x-some-attribute="42"></my-directive>',
+				function (element, attrs) {
+					attrs.$set('someAttribute', '43');
+					expect(element.attr('x-some-attribute')).toEqual('43');
+				}
+			);
+		});
+		
+		it('does not use ng-attr- pre x in denormalized names', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive ng-attr-some-attribute="42"></my-directive>',
+				function (element, attrs) {
+					attrs.$set('someAttribute', 43);
+					expect(element.attr('some-attribute')).toEqual('43');
+				}
+			);
+		});
+		
+		it('uses new attribute name after once given', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive x-some-attribute="42"></my-directive>',
+				function (element, attrs) {
+					attrs.$set('someAttribute', 43, true, 'some-attribute');
+					attrs.$set('someAttribute', 44);
+					expect(element.attr('some-attribute')).toEqual('44');
+					expect(element.attr('x-some-attribute')).toEqual('42');
+				}
+			);
+		});
+		
 	});
 	
 });

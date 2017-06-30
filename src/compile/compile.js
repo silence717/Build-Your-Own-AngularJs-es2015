@@ -148,6 +148,27 @@ function $CompileProvider($provide) {
 			if (writeAttr !== false) {
 				this.$$element.attr(attrName, value);
 			}
+			
+			if (this.$$observers) {
+				_.forEach(this.$$observers[key], observer => {
+					try {
+						observer();
+					} catch (e) {
+						console.log(e);
+					}
+				});
+			}
+			
+		};
+		/**
+		 * 观察者函数
+		 * @param key
+		 * @param fn
+		 */
+		Attributes.prototype.$observe = function (key, fn) {
+			this.$$observers = this.$$observers || Object.create(null);
+			this.$$observers[key] = this.$$observers[key] || [];
+			this.$$observers[key].push(fn);
 		};
 		/**
 		 * 编译

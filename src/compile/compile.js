@@ -113,7 +113,7 @@ function $CompileProvider($provide) {
 			}, this));
 		}
 	};
-	this.$get = ['$injector', function ($injector) {
+	this.$get = ['$injector', '$rootScope', function ($injector, $rootScope) {
 		
 		function Attributes(element) {
 			this.$$element = element;
@@ -148,7 +148,7 @@ function $CompileProvider($provide) {
 			if (writeAttr !== false) {
 				this.$$element.attr(attrName, value);
 			}
-			
+			// 如果observer存在，循环执行每一个observer函数
 			if (this.$$observers) {
 				_.forEach(this.$$observers[key], observer => {
 					try {
@@ -166,9 +166,19 @@ function $CompileProvider($provide) {
 		 * @param fn
 		 */
 		Attributes.prototype.$observe = function (key, fn) {
+			const self = this;
 			this.$$observers = this.$$observers || Object.create(null);
 			this.$$observers[key] = this.$$observers[key] || [];
 			this.$$observers[key].push(fn);
+			$rootScope.$evalAsync(function () {
+				fn(self[key]);
+			});
+			return function () {
+				const index = self.$$observers[key].indexOf(fn);
+				if (index >= 0) {
+					self.$$observers[key].splice(index, 1);
+				}
+			};
 		};
 		/**
 		 * 编译

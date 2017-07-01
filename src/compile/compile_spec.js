@@ -7,32 +7,16 @@ import _ from 'lodash';
 import $ from 'jquery';
 import publishExternalAPI from '../public/angular_public';
 import createInjector from '../injector/injector';
-// 注册指令
-function makeInjectorWithDirectives() {
-	const args = arguments;
-	return createInjector(['ng', function ($compileProvider) {
-		$compileProvider.directive.apply($compileProvider, args);
-	}]);
-}
-// 注册并编译
-function registerAndCompile(dirName, domString, callback) {
-	let givenAttrs;
-	const injector = makeInjectorWithDirectives(dirName, function () {
-		return {
-			restrict: 'EACM',
-			compile: function (element, attrs) {
-				givenAttrs = attrs;
-			}
-		};
-	});
-	injector.invoke(function ($compile) {
-		const el = $(domString);
-		$compile(el);
-		callback(el, givenAttrs);
-	});
-}
 
 describe('$compile', () => {
+	
+	// 注册指令
+	function makeInjectorWithDirectives() {
+		const args = arguments;
+		return createInjector(['ng', function ($compileProvider) {
+			$compileProvider.directive.apply($compileProvider, args);
+		}]);
+	}
 	
 	beforeEach(() => {
 		delete window.angular;
@@ -641,6 +625,24 @@ describe('$compile', () => {
 	
 	describe('attributes', () => {
 		
+		// 注册并编译
+		function registerAndCompile(dirName, domString, callback) {
+			let givenAttrs;
+			const injector = makeInjectorWithDirectives(dirName, function () {
+				return {
+					restrict: 'EACM',
+					compile: function (element, attrs) {
+						givenAttrs = attrs;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $(domString);
+				$compile(el);
+				callback(el, givenAttrs, $rootScope);
+			});
+		}
+		
 		it('passes the element attributes to the compile function', () => {
 			registerAndCompile(
 				'myDirective',
@@ -834,7 +836,7 @@ describe('$compile', () => {
 				'myDirective',
 				'<my-directive some-attribute="42"></my-directive>',
 				function (element, attrs) {
-					var gotValue;
+					let gotValue;
 					attrs.$observe('someAttribute', value => {
 						gotValue = value;
 					});
@@ -843,6 +845,40 @@ describe('$compile', () => {
 				}
 			);
 		});
+		
+		it('calls observer on next $digest after registration', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive some-attribute="42"></my-directive>',
+				function (element, attrs, $rootScope) {
+					let gotValue;
+					attrs.$observe('someAttribute', value => {
+						gotValue = value;
+					});
+					$rootScope.$digest();
+					expect(gotValue).toEqual('42');
+				}
+			);
+		});
+		
+		it('lets observers be deregistered', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive some-attribute="42"></my-directive>',
+				function (element, attrs) {
+					let gotValue;
+					const remove = attrs.$observe('someAttribute', function (value) {
+						gotValue = value;
+					});
+					attrs.$set('someAttribute', '43');
+					expect(gotValue).toEqual('43');
+					remove();
+					attrs.$set('someAttribute', '44');
+					expect(gotValue).toEqual('43');
+				}
+			);
+		});
+		
 		
 	});
 	

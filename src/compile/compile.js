@@ -158,7 +158,6 @@ function $CompileProvider($provide) {
 					}
 				});
 			}
-			
 		};
 		/**
 		 * 观察者函数

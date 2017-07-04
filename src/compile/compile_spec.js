@@ -884,6 +884,46 @@ describe('$compile', () => {
 			);
 		});
 		
+		it('adds an attribute from a class directive', () => {
+			registerAndCompile(
+				'myDirective',
+				'<div class="my-directive"></div>',
+				function (element, attrs) {
+					expect(attrs.hasOwnProperty('myDirective')).toBe(true);
+				}
+			);
+		});
+		
+		it('does not add attribute from class without a directive', () => {
+			registerAndCompile(
+				'myDirective',
+				'<my-directive class="some-class"></my-directive>',
+				function (element, attrs) {
+					expect(attrs.hasOwnProperty('someClass')).toBe(false);
+				}
+			);
+		});
+		
+		it('supports values for class directive attributes', () => {
+			registerAndCompile(
+				'myDirective',
+				'<div class="my-directive: my attribute value"></div>',
+				function (element, attrs) {
+					expect(attrs.myDirective).toEqual('my attribute value');
+				}
+			);
+		});
+		
+		it('terminates class directive attribute value at semicolon', () => {
+			registerAndCompile(
+				'myDirective',
+				'<div class="my-directive: my attribute value; some-other-class"></div>',
+				function (element, attrs) {
+					expect(attrs.myDirective).toEqual('my attribute value');
+				}
+			);
+		});
+		
 	});
 	
 });

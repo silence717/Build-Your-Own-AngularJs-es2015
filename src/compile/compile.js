@@ -112,238 +112,257 @@ function $CompileProvider($provide) {
 				this.directive(name, directiveFactory);
 			}, this));
 		}
-	};
-	this.$get = ['$injector', '$rootScope', function ($injector, $rootScope) {
-		
-		function Attributes(element) {
-			this.$$element = element;
-			this.$attr = {};
-		}
-		
-		/**
-		 * 给原型设置方法
-		 * @param key   设置的属性名
-		 * @param value 设置的属性值
-		 * @param writeAttr  是否刷新到DOM元素
-		 */
-		Attributes.prototype.$set = function (key, value, writeAttr, attrName) {
-			this[key] = value;
+		this.$get = ['$injector', '$rootScope', function ($injector, $rootScope) {
 			
-			// 如果这个元素是布尔型属性
-			if (isBooleanAttribute(this.$$element[0], key)) {
-				this.$$element.prop(key, value);
+			function Attributes(element) {
+				this.$$element = element;
+				this.$attr = {};
 			}
-			// 如果没有提供要反统一化的名字，那么使用snake-case
-			if (!attrName) {
-				// 如果没有提供，首先从$attr中去查找
-				if (this.$attr[key]) {
-					attrName = this.$attr[key];
-				} else {
-					attrName = this.$attr[key] = _.kebabCase(key, '-');
+			
+			/**
+			 * 给原型设置方法
+			 * @param key   设置的属性名
+			 * @param value 设置的属性值
+			 * @param writeAttr  是否刷新到DOM元素
+			 */
+			Attributes.prototype.$set = function (key, value, writeAttr, attrName) {
+				this[key] = value;
+				
+				// 如果这个元素是布尔型属性
+				if (isBooleanAttribute(this.$$element[0], key)) {
+					this.$$element.prop(key, value);
 				}
-			} else {
-				this.$attr[key] = attrName;
-			}
-			
-			if (writeAttr !== false) {
-				this.$$element.attr(attrName, value);
-			}
-			// 如果observer存在，循环执行每一个observer函数
-			if (this.$$observers) {
-				_.forEach(this.$$observers[key], observer => {
-					try {
-						observer();
-					} catch (e) {
-						console.log(e);
+				// 如果没有提供要反统一化的名字，那么使用snake-case
+				if (!attrName) {
+					// 如果没有提供，首先从$attr中去查找
+					if (this.$attr[key]) {
+						attrName = this.$attr[key];
+					} else {
+						attrName = this.$attr[key] = _.kebabCase(key, '-');
 					}
-				});
-			}
-		};
-		/**
-		 * 观察者函数
-		 * @param key
-		 * @param fn
-		 */
-		Attributes.prototype.$observe = function (key, fn) {
-			const self = this;
-			this.$$observers = this.$$observers || Object.create(null);
-			this.$$observers[key] = this.$$observers[key] || [];
-			this.$$observers[key].push(fn);
-			$rootScope.$evalAsync(function () {
-				fn(self[key]);
-			});
-			return function () {
-				const index = self.$$observers[key].indexOf(fn);
-				if (index >= 0) {
-					self.$$observers[key].splice(index, 1);
+				} else {
+					this.$attr[key] = attrName;
+				}
+				
+				if (writeAttr !== false) {
+					this.$$element.attr(attrName, value);
+				}
+				// 如果observer存在，循环执行每一个observer函数
+				if (this.$$observers) {
+					_.forEach(this.$$observers[key], observer => {
+						try {
+							observer();
+						} catch (e) {
+							console.log(e);
+						}
+					});
 				}
 			};
-		};
-		/**
-		 * 编译
-		 * @param $compileNodes
-		 * @returns {*}
-		 */
-		function compile($compileNodes) {
-			return compileNodes($compileNodes);
-		}
-		
-		/**
-		 * 编译节点
-		 * @param $compileNodes
-		 */
-		function compileNodes($compileNodes) {
-			_.forEach($compileNodes, node => {
-				const attrs = new Attributes($(node));
-				// 收集到当前节点上所有的指令
-				const directives = collectDirectives(node, attrs);
-				const terminal = applyDirectivesToNode(directives, node, attrs);
-				// 如果当前节点有子元素，递归调用，应用指令
-				if (!terminal && node.childNodes && node.childNodes.length) {
-					compileNodes(node.childNodes);
-				}
-			});
-		}
-		
-		/**
-		 * 判断是否为多元素指令
-		 * @param name
-		 * @returns {boolean}
-		 */
-		function directiveIsMultiElement(name) {
-			if (hasDirectives.hasOwnProperty(name)) {
-				const directives = $injector.get(name + 'Directive');
-				return _.some(directives, {multiElement: true});
+			/**
+			 * 观察者函数
+			 * @param key
+			 * @param fn
+			 */
+			Attributes.prototype.$observe = function (key, fn) {
+				const self = this;
+				this.$$observers = this.$$observers || Object.create(null);
+				this.$$observers[key] = this.$$observers[key] || [];
+				this.$$observers[key].push(fn);
+				$rootScope.$evalAsync(function () {
+					fn(self[key]);
+				});
+				return function () {
+					const index = self.$$observers[key].indexOf(fn);
+					if (index >= 0) {
+						self.$$observers[key].splice(index, 1);
+					}
+				};
+			};
+			/**
+			 * 编译
+			 * @param $compileNodes
+			 * @returns {*}
+			 */
+			function compile($compileNodes) {
+				return compileNodes($compileNodes);
 			}
-			return false;
-		}
-		
-		/**
-		 * 查找和应用指令
-		 * @param node
-		 */
-		function collectDirectives(node, attrs) {
-			const directives = [];
-			// 处理针对于元素的情况
-			if (node.nodeType === Node.ELEMENT_NODE) {
-				// 通过元素名称匹配
-				const normalizedNodeName = directiveNormalize(nodeName(node).toLowerCase());
-				addDirective(directives, normalizedNodeName, 'E');
-				// 通过属性匹配
-				_.forEach(node.attributes, attr => {
-					let attrStartName, attrEndName;
-					let name = attr.name;
-					let normalizedAttrName = directiveNormalize(name.toLowerCase());
-					const isNgAttr = /^ngAttr[A-Z]/.test(normalizedAttrName);
-					// 判断是否以ngAttr开头
-					if (isNgAttr) {
-						// 将ngAttr后面的第一个字符抓为小写，并且截取字符串
-						name = _.kebabCase(normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7));
+			
+			/**
+			 * 编译节点
+			 * @param $compileNodes
+			 */
+			function compileNodes($compileNodes) {
+				_.forEach($compileNodes, node => {
+					const attrs = new Attributes($(node));
+					// 收集到当前节点上所有的指令
+					const directives = collectDirectives(node, attrs);
+					const terminal = applyDirectivesToNode(directives, node, attrs);
+					// 如果当前节点有子元素，递归调用，应用指令
+					if (!terminal && node.childNodes && node.childNodes.length) {
+						compileNodes(node.childNodes);
+					}
+				});
+			}
+			
+			/**
+			 * 判断是否为多元素指令
+			 * @param name
+			 * @returns {boolean}
+			 */
+			function directiveIsMultiElement(name) {
+				if (hasDirectives.hasOwnProperty(name)) {
+					const directives = $injector.get(name + 'Directive');
+					return _.some(directives, {multiElement: true});
+				}
+				return false;
+			}
+			
+			/**
+			 * 查找和应用指令
+			 * @param node
+			 */
+			function collectDirectives(node, attrs) {
+				const directives = [];
+				let match;
+				// 处理针对于元素的情况
+				if (node.nodeType === Node.ELEMENT_NODE) {
+					// 通过元素名称匹配
+					const normalizedNodeName = directiveNormalize(nodeName(node).toLowerCase());
+					addDirective(directives, normalizedNodeName, 'E');
+					// 通过属性匹配
+					_.forEach(node.attributes, attr => {
+						let attrStartName, attrEndName;
+						let name = attr.name;
+						let normalizedAttrName = directiveNormalize(name.toLowerCase());
+						const isNgAttr = /^ngAttr[A-Z]/.test(normalizedAttrName);
+						// 判断是否以ngAttr开头
+						if (isNgAttr) {
+							// 将ngAttr后面的第一个字符抓为小写，并且截取字符串
+							name = _.kebabCase(normalizedAttrName[6].toLowerCase() + normalizedAttrName.substring(7));
+							normalizedAttrName = directiveNormalize(name.toLowerCase());
+						}
+						attrs.$attr[normalizedAttrName] = name;
+						const directiveNName = normalizedAttrName.replace(/(Start|End)$/, '');
+						// 判断是否为多元素指令
+						if (directiveIsMultiElement(directiveNName)) {
+							// 判断名称中是否有Start后缀
+							if (/Start$/.test(normalizedAttrName)) {
+								// 开始名字就为当前指令名
+								attrStartName = name;
+								// 从当前指令名截取掉后5个字符，拼接End就为结束名称
+								attrEndName = name.substring(0, name.length - 5) + 'end';
+								// 去掉start获取纯粹的指令名
+								name = name.substring(0, name.length - 6);
+							}
+						}
 						normalizedAttrName = directiveNormalize(name.toLowerCase());
-					}
-					attrs.$attr[normalizedAttrName] = name;
-					const directiveNName = normalizedAttrName.replace(/(Start|End)$/, '');
-					// 判断是否为多元素指令
-					if (directiveIsMultiElement(directiveNName)) {
-						// 判断名称中是否有Start后缀
-						if (/Start$/.test(normalizedAttrName)) {
-							// 开始名字就为当前指令名
-							attrStartName = name;
-							// 从当前指令名截取掉后5个字符，拼接End就为结束名称
-							attrEndName = name.substring(0, name.length - 5) + 'end';
-							// 去掉start获取纯粹的指令名
-							name = name.substring(0, name.length - 6);
+						addDirective(directives, normalizedAttrName, 'A', attrStartName, attrEndName);
+						if (isNgAttr || !attrs.hasOwnProperty(normalizedAttrName)) {
+							attrs[normalizedAttrName] = attr.value.trim();
+							// 设置布尔属性
+							if (isBooleanAttribute(node, normalizedAttrName)) {
+								attrs[normalizedAttrName] = true;
+							}
+						}
+					});
+					// 通过class名称匹配
+					_.forEach(node.classList, cls => {
+						const normalizedClassName = directiveNormalize(cls);
+						// 如果这个class和指令匹配，那么为它添加
+						if (addDirective(directives, normalizedClassName, 'C')) {
+							attrs[normalizedClassName] = undefined;
+						}
+					});
+					// 判断className是否为不为空的字符串
+					let className = node.className;
+					if (_.isString(className) && className !== '') {
+						while ((match = /([\d\w\-_]+)(?:\:([^;]+))?;?/.exec(className))) {
+							const normalizedClassName = directiveNormalize(match[1]);
+							if (addDirective(directives, normalizedClassName, 'C')) {
+								attrs[normalizedClassName] = match[2] ? match[2].trim() : undefined;
+							}
+							className = className.substr(match.index + match[0].length);
 						}
 					}
-					normalizedAttrName = directiveNormalize(name.toLowerCase());
-					addDirective(directives, normalizedAttrName, 'A', attrStartName, attrEndName);
-					if (isNgAttr || !attrs.hasOwnProperty(normalizedAttrName)) {
-						attrs[normalizedAttrName] = attr.value.trim();
-						// 设置布尔属性
-						if (isBooleanAttribute(node, normalizedAttrName)) {
-							attrs[normalizedAttrName] = true;
+				} else if (node.nodeType === Node.COMMENT_NODE) {
+					// 处理注释的情况
+					// 匹配是否以directive开头
+					match = /^\s*directive\:\s*([\d\w\-_]+)/.exec(node.nodeValue);
+					if (match) {
+						addDirective(directives, directiveNormalize(match[1]), 'M');
+					}
+				}
+				// 排序
+				directives.sort(byPriority);
+				return directives;
+			}
+			
+			/**
+			 * 添加指令
+			 * @param directives
+			 * @param name
+			 */
+			function addDirective(directives, name, mode, attrStartName, attrEndName) {
+				// 标记是否匹配
+				let match;
+				// 判断当前名称的指令是否存在
+				if (hasDirectives.hasOwnProperty(name)) {
+					// 获取当前指令
+					const foundDirectives = $injector.get(name + 'Directive');
+					// 过滤当前指令
+					const applicableDirectives = _.filter(foundDirectives, dir => {
+						return dir.restrict.indexOf(mode) !== -1;
+					});
+					_.forEach(applicableDirectives, directive => {
+						// 如果当前指令存在开始名称，那么为它添加$$start和$$end key
+						if (attrStartName) {
+							directive = _.create(directive, {
+								$$start: attrStartName,
+								$$end: attrEndName
+							});
 						}
+						directives.push(directive);
+						match = directive;
+					});
+				}
+				return match;
+			}
+			
+			/**
+			 * 为节点应用指令
+			 * @param directives
+			 * @param compileNode
+			 */
+			function applyDirectivesToNode(directives, compileNode, attrs) {
+				let $compileNode = $(compileNode);
+				// 设置所有指令的终止为最小
+				let terminalPriority = -Number.MAX_VALUE;
+				// 是否有终止指令标识
+				let terminal = false;
+				_.forEach(directives, directive => {
+					// 如果存在$$start key，说明是多元素匹配节点
+					if (directive.$$start) {
+						$compileNode = groupScan(compileNode, directive.$$start, directive.$$end);
+					}
+					// 如果当前指令的优先级小于终止优先级，退出循环终止编译
+					if (directive.priority < terminalPriority) {
+						return false;
+					}
+					if (directive.compile) {
+						directive.compile($compileNode, attrs);
+					}
+					// 如果指令设置了terminal则更新
+					if (directive.terminal) {
+						terminal = true;
+						terminalPriority = directive.priority;
 					}
 				});
-				// 通过class名称匹配
-				_.forEach(node.classList, cls => {
-					const normalizedClassName = directiveNormalize(cls);
-					addDirective(directives, normalizedClassName, 'C');
-				});
-			} else if (node.nodeType === Node.COMMENT_NODE) {
-				// 处理注释的情况
-				// 匹配是否以directive开头
-				const match = /^\s*directive\:\s*([\d\w\-_]+)/.exec(node.nodeValue);
-				if (match) {
-					addDirective(directives, directiveNormalize(match[1]), 'M');
-				}
+				return terminal;
 			}
-			// 排序
-			directives.sort(byPriority);
-			return directives;
-		}
-		
-		/**
-		 * 添加指令
-		 * @param directives
-		 * @param name
-		 */
-		function addDirective(directives, name, mode, attrStartName, attrEndName) {
-			// 判断当前名称的指令是否存在
-			if (hasDirectives.hasOwnProperty(name)) {
-				// 获取当前指令
-				const foundDirectives = $injector.get(name + 'Directive');
-				// 过滤当前指令
-				const applicableDirectives = _.filter(foundDirectives, dir => {
-					return dir.restrict.indexOf(mode) !== -1;
-				});
-				_.forEach(applicableDirectives, directive => {
-					// 如果当前指令存在开始名称，那么为它添加$$start和$$end key
-					if (attrStartName) {
-						directive = _.create(directive, {
-							$$start: attrStartName,
-							$$end: attrEndName
-						});
-					}
-					directives.push(directive);
-				});
-			}
-		}
-		
-		/**
-		 * 为节点应用指令
-		 * @param directives
-		 * @param compileNode
-		 */
-		function applyDirectivesToNode(directives, compileNode, attrs) {
-			let $compileNode = $(compileNode);
-			// 设置所有指令的终止为最小
-			let terminalPriority = -Number.MAX_VALUE;
-			// 是否有终止指令标识
-			let terminal = false;
-			_.forEach(directives, directive => {
-				// 如果存在$$start key，说明是多元素匹配节点
-				if (directive.$$start) {
-					$compileNode = groupScan(compileNode, directive.$$start, directive.$$end);
-				}
-				// 如果当前指令的优先级小于终止优先级，退出循环终止编译
-				if (directive.priority < terminalPriority) {
-					return false;
-				}
-				if (directive.compile) {
-					directive.compile($compileNode, attrs);
-				}
-				// 如果指令设置了terminal则更新
-				if (directive.terminal) {
-					terminal = true;
-					terminalPriority = directive.priority;
-				}
-			});
-			return terminal;
-		}
-		
-		return compile;
-	}];
+			
+			return compile;
+		}];
+	};
 	/**
 	 * 组装节点
 	 * @param node

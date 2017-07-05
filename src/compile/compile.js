@@ -179,6 +179,37 @@ function $CompileProvider($provide) {
 				};
 			};
 			/**
+			 * 添加class
+			 * @param classVal
+			 */
+			Attributes.prototype.$addClass = function (classVal) {
+				this.$$element.addClass(classVal);
+			};
+			/**
+			 * 更新class
+			 * @param newClassVal
+			 * @param oldClassVal
+			 */
+			Attributes.prototype.$updateClass = function (newClassVal, oldClassVal) {
+				const newClasses = newClassVal.split(/\s+/);
+				const oldClasses = oldClassVal.split(/\s+/);
+				const addedClasses = _.difference(newClasses, oldClasses);
+				const removedClasses = _.difference(oldClasses, newClasses);
+				if (addedClasses.length) {
+					this.$addClass(addedClasses.join(' '));
+				}
+				if (removedClasses.length) {
+					this.$removeClass(removedClasses.join(' '));
+				}
+			};
+			/**
+			 * 移除class
+			 * @param classVal
+			 */
+			Attributes.prototype.$removeClass = function (classVal) {
+				this.$$element.removeClass(classVal);
+			};
+			/**
 			 * 编译
 			 * @param $compileNodes
 			 * @returns {*}

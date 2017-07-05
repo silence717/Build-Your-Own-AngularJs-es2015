@@ -287,9 +287,12 @@ function $CompileProvider($provide) {
 				} else if (node.nodeType === Node.COMMENT_NODE) {
 					// 处理注释的情况
 					// 匹配是否以directive开头
-					match = /^\s*directive\:\s*([\d\w\-_]+)/.exec(node.nodeValue);
+					match = /^\s*directive\:\s*([\d\w\-_]+)\s*(.*)$/.exec(node.nodeValue);
 					if (match) {
-						addDirective(directives, directiveNormalize(match[1]), 'M');
+						const normalizedName = directiveNormalize(match[1]);
+						if (addDirective(directives, normalizedName, 'M')) {
+							attrs[normalizedName] = match[2] ? match[2].trim() : undefined;
+						}
 					}
 				}
 				// 排序

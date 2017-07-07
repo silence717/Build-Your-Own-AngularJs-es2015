@@ -215,7 +215,10 @@ function $CompileProvider($provide) {
 			 * @returns {*}
 			 */
 			function compile($compileNodes) {
-				return compileNodes($compileNodes);
+				compileNodes($compileNodes);
+				return function publicLinkFn(scope) {
+					$compileNodes.data('$scope', scope);
+				};
 			}
 			
 			/**

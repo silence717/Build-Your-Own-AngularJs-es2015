@@ -959,7 +959,31 @@ describe('$compile', () => {
 				}
 			);
 		});
-		
+	});
+	
+	it('returns a public link function from compile', () => {
+		const injector = makeInjectorWithDirectives('myDirective', function() {
+			return {compile: _.noop};
+		});
+		injector.invoke(function ($compile) {
+			const el = $('<div my-directive></div>');
+			const linkFn = $compile(el);
+			expect(linkFn).toBeDefined();
+			expect(_.isFunction(linkFn)).toBe(true);
+		});
+	});
+	
+	describe('linking', () => {
+		it('takes a scope and attaches it to elements', () => {
+			var injector = makeInjectorWithDirectives('myDirective', function () {
+				return {compile: _.noop};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				var el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				expect(el.data('$scope')).toBe($rootScope);
+			});
+		});
 	});
 	
 });

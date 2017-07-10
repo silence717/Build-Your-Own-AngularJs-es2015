@@ -961,29 +961,54 @@ describe('$compile', () => {
 		});
 	});
 	
-	it('returns a public link function from compile', () => {
-		const injector = makeInjectorWithDirectives('myDirective', function() {
-			return {compile: _.noop};
-		});
-		injector.invoke(function ($compile) {
-			const el = $('<div my-directive></div>');
-			const linkFn = $compile(el);
-			expect(linkFn).toBeDefined();
-			expect(_.isFunction(linkFn)).toBe(true);
-		});
-	});
-	
 	describe('linking', () => {
+		
+		it('returns a public link function from compile', () => {
+			const injector = makeInjectorWithDirectives('myDirective', function() {
+				return {compile: _.noop};
+			});
+			injector.invoke(function ($compile) {
+				const el = $('<div my-directive></div>');
+				const linkFn = $compile(el);
+				expect(linkFn).toBeDefined();
+				expect(_.isFunction(linkFn)).toBe(true);
+			});
+		});
+		
 		it('takes a scope and attaches it to elements', () => {
-			var injector = makeInjectorWithDirectives('myDirective', function () {
+			const injector = makeInjectorWithDirectives('myDirective', () => {
 				return {compile: _.noop};
 			});
 			injector.invoke(function ($compile, $rootScope) {
-				var el = $('<div my-directive></div>');
+				const el = $('<div my-directive></div>');
 				$compile(el)($rootScope);
 				expect(el.data('$scope')).toBe($rootScope);
 			});
 		});
+		
+		it('calls directive link function with scope', () => {
+			let givenScope, givenElement, givenAttrs;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					compile: function () {
+						return function link(scope, element, attrs) {
+							givenScope = scope;
+							givenElement = element;
+							givenAttrs = attrs;
+						};
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				expect(givenScope).toBe($rootScope);
+				expect(givenElement[0]).toBe(el[0]);
+				expect(givenAttrs).toBeDefined();
+				expect(givenAttrs.myDirective).toBeDefined();
+			});
+		});
+		
 	});
 	
 });

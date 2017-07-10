@@ -215,9 +215,10 @@ function $CompileProvider($provide) {
 			 * @returns {*}
 			 */
 			function compile($compileNodes) {
-				compileNodes($compileNodes);
+				const compositeLinkFn = compileNodes($compileNodes);
 				return function publicLinkFn(scope) {
 					$compileNodes.data('$scope', scope);
+					compositeLinkFn(scope, $compileNodes);
 				};
 			}
 			
@@ -226,16 +227,36 @@ function $CompileProvider($provide) {
 			 * @param $compileNodes
 			 */
 			function compileNodes($compileNodes) {
-				_.forEach($compileNodes, node => {
+				const linkFns = [];
+				_.forEach($compileNodes, (node, i) => {
 					const attrs = new Attributes($(node));
 					// 收集到当前节点上所有的指令
 					const directives = collectDirectives(node, attrs);
-					const terminal = applyDirectivesToNode(directives, node, attrs);
+					let nodeLinkFn;
+					if (directives.length) {
+						nodeLinkFn = applyDirectivesToNode(directives, node, attrs);
+					}
 					// 如果当前节点有子元素，递归调用，应用指令
-					if (!terminal && node.childNodes && node.childNodes.length) {
+					if ((!nodeLinkFn || !nodeLinkFn.terminal) && node.childNodes && node.childNodes.length) {
 						compileNodes(node.childNodes);
 					}
+					// 如果每个节点的link函数存在，将push到数组中，并且添加索引
+					if (nodeLinkFn) {
+						linkFns.push({
+							nodeLinkFn: nodeLinkFn,
+							idx: i
+						});
+					}
 				});
+				// 编译所有的DOM元素，然后返回复合link函数
+				function compositeLinkFn(scope, linkNodes) {
+					// 循环调用节点link函数
+					_.forEach(linkFns, linkFn => {
+						linkFn.nodeLinkFn(scope, linkNodes[linkFn.idx]);
+					});
+				}
+				return compositeLinkFn;
+				
 			}
 			
 			/**
@@ -376,6 +397,8 @@ function $CompileProvider($provide) {
 				let terminalPriority = -Number.MAX_VALUE;
 				// 是否有终止指令标识
 				let terminal = false;
+				// 存储所有的指令link函数
+				const linkFns = [];
 				_.forEach(directives, directive => {
 					// 如果存在$$start key，说明是多元素匹配节点
 					if (directive.$$start) {
@@ -386,7 +409,10 @@ function $CompileProvider($provide) {
 						return false;
 					}
 					if (directive.compile) {
-						directive.compile($compileNode, attrs);
+						const linkFn = directive.compile($compileNode, attrs);
+						if (linkFn) {
+							linkFns.push(linkFn);
+						}
 					}
 					// 如果指令设置了terminal则更新
 					if (directive.terminal) {
@@ -394,7 +420,14 @@ function $CompileProvider($provide) {
 						terminalPriority = directive.priority;
 					}
 				});
-				return terminal;
+				function nodeLinkFn(scope, linkNode) {
+					_.forEach(linkFns, linkFn => {
+						const $element = $(linkNode);
+						linkFn(scope, $element, attrs);
+					});
+				}
+				nodeLinkFn.terminal = terminal;
+				return nodeLinkFn;
 			}
 			
 			return compile;

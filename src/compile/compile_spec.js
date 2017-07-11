@@ -1009,6 +1009,27 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('supports link function in directive de nition object', () => {
+			let givenScope, givenElement, givenAttrs;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					link: function (scope, element, attrs) {
+						givenScope = scope;
+						givenElement = element;
+						givenAttrs = attrs;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				expect(givenScope).toBe($rootScope);
+				expect(givenElement[0]).toBe(el[0]);
+				expect(givenAttrs).toBeDefined();
+				expect(givenAttrs.myDirective).toBeDefined();
+			});
+		});
+		
 	});
 	
 });

@@ -101,6 +101,10 @@ function $CompileProvider($provide) {
 						directive.name = directive.name || name;
 						// 设置注册索引
 						directive.index = i;
+						// 判断当指令有link属性，但是没有compile属性的时候，将link赋值给compile
+						if (directive.link && !directive.compile) {
+							directive.compile = _.constant(directive.link);
+						}
 						return directive;
 					});
 				}]);

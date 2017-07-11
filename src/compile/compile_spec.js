@@ -1030,6 +1030,42 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('links directive on child elements  rst', () => {
+			const givenElements = [];
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					link: function (scope, element, attrs) {
+						givenElements.push(element);
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive><div my-directive></div></div>');
+				$compile(el)($rootScope);
+				expect(givenElements.length).toBe(2);
+				expect(givenElements[0][0]).toBe(el[0].firstChild);
+				expect(givenElements[1][0]).toBe(el[0]);
+			});
+		});
+		
+		xit('links children when parent has no directives', () => {
+			const givenElements = [];
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					link: function (scope, element, attrs) {
+						givenElements.push(element);
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div><div my-directive></div></div>');
+				$compile(el)($rootScope);
+				expect(givenElements.length).toBe(1);
+				expect(givenElements[0][0]).toBe(el[0].firstChild);
+			});
+		});
+		
+		
 	});
 	
 });

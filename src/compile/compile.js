@@ -240,14 +240,16 @@ function $CompileProvider($provide) {
 					if (directives.length) {
 						nodeLinkFn = applyDirectivesToNode(directives, node, attrs);
 					}
+					let childLinkFn;
 					// 如果当前节点有子元素，递归调用，应用指令
 					if ((!nodeLinkFn || !nodeLinkFn.terminal) && node.childNodes && node.childNodes.length) {
-						compileNodes(node.childNodes);
+						childLinkFn = compileNodes(node.childNodes);
 					}
 					// 如果每个节点的link函数存在，将push到数组中，并且添加索引
 					if (nodeLinkFn) {
 						linkFns.push({
 							nodeLinkFn: nodeLinkFn,
+							childLinkFn: childLinkFn,
 							idx: i
 						});
 					}
@@ -256,11 +258,21 @@ function $CompileProvider($provide) {
 				function compositeLinkFn(scope, linkNodes) {
 					// 循环调用节点link函数
 					_.forEach(linkFns, linkFn => {
-						linkFn.nodeLinkFn(scope, linkNodes[linkFn.idx]);
+						if (linkFn.nodeLinkFn) {
+							linkFn.nodeLinkFn(
+								linkFn.childLinkFn,
+								scope,
+								linkNodes[linkFn.idx]
+							);
+						} else {
+							linkFn.childLinkFn(
+								scope,
+								linkNodes[linkFn.idx].childNodes
+							);
+						}
 					});
 				}
 				return compositeLinkFn;
-				
 			}
 			
 			/**
@@ -424,7 +436,10 @@ function $CompileProvider($provide) {
 						terminalPriority = directive.priority;
 					}
 				});
-				function nodeLinkFn(scope, linkNode) {
+				function nodeLinkFn(childLinkFn, scope, linkNode) {
+					if (childLinkFn) {
+						childLinkFn(scope, linkNode.childNodes);
+					}
 					_.forEach(linkFns, linkFn => {
 						const $element = $(linkNode);
 						linkFn(scope, $element, attrs);

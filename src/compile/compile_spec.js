@@ -1030,7 +1030,7 @@ describe('$compile', () => {
 			});
 		});
 		
-		it('links directive on child elements  rst', () => {
+		it('links directive on child elements first', () => {
 			const givenElements = [];
 			const injector = makeInjectorWithDirectives('myDirective', () => {
 				return {

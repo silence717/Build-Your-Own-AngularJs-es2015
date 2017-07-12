@@ -414,7 +414,8 @@ function $CompileProvider($provide) {
 				// 是否有终止指令标识
 				let terminal = false;
 				// 存储所有的指令link函数
-				const linkFns = [];
+				const preLinkFns = [];
+				const	postLinkFns = [];
 				_.forEach(directives, directive => {
 					// 如果存在$$start key，说明是多元素匹配节点
 					if (directive.$$start) {
@@ -426,8 +427,16 @@ function $CompileProvider($provide) {
 					}
 					if (directive.compile) {
 						const linkFn = directive.compile($compileNode, attrs);
-						if (linkFn) {
-							linkFns.push(linkFn);
+						// 如果linkFn是一个函数
+						if (_.isFunction(linkFn)) {
+							postLinkFns.push(linkFn);
+						} else if (linkFn) {
+							if (linkFn.pre) {
+								preLinkFns.push(linkFn.pre);
+							}
+							if (linkFn.post) {
+								postLinkFns.push(linkFn.post);
+							}
 						}
 					}
 					// 如果指令设置了terminal则更新
@@ -436,14 +445,21 @@ function $CompileProvider($provide) {
 						terminalPriority = directive.priority;
 					}
 				});
+				
 				function nodeLinkFn(childLinkFn, scope, linkNode) {
+					const $element = $(linkNode);
+					// 先循环prelink数组
+					_.forEach(preLinkFns, linkFn => {
+						linkFn(scope, $element, attrs);
+					});
+					// 判断子link是否存在
 					if (childLinkFn) {
 						childLinkFn(scope, linkNode.childNodes);
 					}
-					_.forEach(linkFns, linkFn => {
-						const $element = $(linkNode);
+					_.forEachRight(postLinkFns, linkFn => {
 						linkFn(scope, $element, attrs);
 					});
+					
 				}
 				nodeLinkFn.terminal = terminal;
 				return nodeLinkFn;

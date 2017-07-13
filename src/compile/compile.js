@@ -256,18 +256,25 @@ function $CompileProvider($provide) {
 				});
 				// 编译所有的DOM元素，然后返回复合link函数
 				function compositeLinkFn(scope, linkNodes) {
+					// 存储稳定的节点集合
+					const stableNodeList = [];
+					_.forEach(linkFns, function (linkFn) {
+						const nodeIdx = linkFn.idx;
+						stableNodeList[nodeIdx] = linkNodes[nodeIdx];
+					});
+					
 					// 循环调用节点link函数
 					_.forEach(linkFns, linkFn => {
 						if (linkFn.nodeLinkFn) {
 							linkFn.nodeLinkFn(
 								linkFn.childLinkFn,
 								scope,
-								linkNodes[linkFn.idx]
+								stableNodeList[linkFn.idx]
 							);
 						} else {
 							linkFn.childLinkFn(
 								scope,
-								linkNodes[linkFn.idx].childNodes
+								stableNodeList[linkFn.idx].childNodes
 							);
 						}
 					});

@@ -423,6 +423,23 @@ function $CompileProvider($provide) {
 				// 存储所有的指令link函数
 				const preLinkFns = [];
 				const	postLinkFns = [];
+				
+				// 添加节点的link函数
+				function addLinkFns(preLinkFn, postLinkFn, attrStart, attrEnd) {
+					if (preLinkFn) {
+						if (attrStart) {
+							preLinkFn = groupElementsLinkFnWrapper(preLinkFn, attrStart, attrEnd);
+						}
+						preLinkFns.push(preLinkFn);
+					}
+					if (postLinkFn) {
+						if (attrStart) {
+							postLinkFn = groupElementsLinkFnWrapper(preLinkFn, attrStart, attrEnd);
+						}
+						postLinkFns.push(postLinkFn);
+					}
+				}
+				
 				_.forEach(directives, directive => {
 					// 如果存在$$start key，说明是多元素匹配节点
 					if (directive.$$start) {
@@ -434,16 +451,15 @@ function $CompileProvider($provide) {
 					}
 					if (directive.compile) {
 						const linkFn = directive.compile($compileNode, attrs);
+						const attrStart = directive.$$start;
+						const attrEnd = directive.$$end;
+						
 						// 如果linkFn是一个函数
 						if (_.isFunction(linkFn)) {
+							addLinkFns(null, linkFn, attrStart, attrEnd);
 							postLinkFns.push(linkFn);
 						} else if (linkFn) {
-							if (linkFn.pre) {
-								preLinkFns.push(linkFn.pre);
-							}
-							if (linkFn.post) {
-								postLinkFns.push(linkFn.post);
-							}
+							addLinkFns(linkFn.pre, linkFn.post, attrStart, attrEnd);
 						}
 					}
 					// 如果指令设置了terminal则更新
@@ -503,6 +519,13 @@ function $CompileProvider($provide) {
 			nodes.push(node);
 		}
 		return $(nodes);
+	}
+	// 包装link函数
+	function groupElementsLinkFnWrapper(linkFn, attrStart, attrEnd) {
+		return function (scope, element, attrs) {
+			const group = groupScan(element[0], attrStart, attrEnd);
+			return linkFn(scope, group, attrs);
+		};
 	}
 }
 

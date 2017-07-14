@@ -1030,7 +1030,7 @@ describe('$compile', () => {
 			});
 		});
 		
-		it('links directive on child elements first', () => {
+		xit('links directive on child elements first', () => {
 			const givenElements = [];
 			const injector = makeInjectorWithDirectives('myDirective', () => {
 				return {
@@ -1048,7 +1048,7 @@ describe('$compile', () => {
 			});
 		});
 		
-		xit('links children when parent has no directives', () => {
+		it('links children when parent has no directives', () => {
 			const givenElements = [];
 			const injector = makeInjectorWithDirectives('myDirective', () => {
 				return {
@@ -1170,6 +1170,27 @@ describe('$compile', () => {
 				expect(givenElements.length).toBe(2);
 				expect(givenElements[0]).toBe(el1);
 				expect(givenElements[1]).toBe(el2);
+			});
+		});
+		
+		xit('invokes multi-element directive link functions with whole group', () => {
+			let givenElements;
+			const injector = makeInjectorWithDirectives('myDirective', function () {
+				return {
+					multiElement: true,
+					link: function (scope, element, attrs) {
+						givenElements = element;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $(
+					'<div my-directive-start></div>' +
+					'<p></p>' +
+					'<div my-directive-end></div>'
+				);
+				$compile(el)($rootScope);
+				expect(givenElements.length).toBe(3);
 			});
 		});
 		

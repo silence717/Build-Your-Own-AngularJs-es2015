@@ -1194,6 +1194,46 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('makes new scope for element when directive asks for it', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: true,
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				var el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.$parent).toBe($rootScope);
+			});
+		});
+		
+		it('gives inherited scope to all directives on element', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives({
+				myDirective: function () {
+					return {
+						scope: true
+					};
+				},
+				myOtherDirective: function () {
+					return {
+						link: function (scope) {
+							givenScope = scope;
+						}
+					};
+				}
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive my-other-directive></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.$parent).toBe($rootScope);
+			});
+		});
+		
 	});
 	
 });

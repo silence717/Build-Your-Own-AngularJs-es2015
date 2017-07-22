@@ -245,6 +245,11 @@ function $CompileProvider($provide) {
 					if ((!nodeLinkFn || !nodeLinkFn.terminal) && node.childNodes && node.childNodes.length) {
 						childLinkFn = compileNodes(node.childNodes);
 					}
+					// 如果节点link存在
+					if (nodeLinkFn && nodeLinkFn.scope) {
+						attrs.$$element.addClass('ng-scope');
+					}
+					
 					// 如果每个节点的link函数存在，将push到数组中，并且添加索引
 					if (nodeLinkFn) {
 						linkFns.push({
@@ -265,7 +270,12 @@ function $CompileProvider($provide) {
 					
 					// 循环调用节点link函数
 					_.forEach(linkFns, linkFn => {
+						var node = stableNodeList[linkFn.idx];
 						if (linkFn.nodeLinkFn) {
+							if (linkFn.nodeLinkFn.scope) {
+								scope = scope.$new();
+								$(node).data('$scope', scope);
+							}
 							linkFn.nodeLinkFn(
 								linkFn.childLinkFn,
 								scope,
@@ -423,6 +433,7 @@ function $CompileProvider($provide) {
 				// 存储所有的指令link函数
 				const preLinkFns = [];
 				const	postLinkFns = [];
+				let newScopeDirective;
 				
 				// 添加节点的link函数
 				function addLinkFns(preLinkFn, postLinkFn, attrStart, attrEnd) {
@@ -448,6 +459,10 @@ function $CompileProvider($provide) {
 					// 如果当前指令的优先级小于终止优先级，退出循环终止编译
 					if (directive.priority < terminalPriority) {
 						return false;
+					}
+					// 如果指令是继承的scope,
+					if (directive.scope) {
+						newScopeDirective = newScopeDirective || directive;
 					}
 					if (directive.compile) {
 						const linkFn = directive.compile($compileNode, attrs);
@@ -485,6 +500,8 @@ function $CompileProvider($provide) {
 					
 				}
 				nodeLinkFn.terminal = terminal;
+				// 设置节点link函数
+				nodeLinkFn.scope = newScopeDirective && newScopeDirective.scope;
 				return nodeLinkFn;
 			}
 			

@@ -1048,7 +1048,7 @@ describe('$compile', () => {
 			});
 		});
 		
-		it('links children when parent has no directives', () => {
+		xit('links children when parent has no directives', () => {
 			const givenElements = [];
 			const injector = makeInjectorWithDirectives('myDirective', () => {
 				return {
@@ -1138,7 +1138,7 @@ describe('$compile', () => {
 							}
 						}
 					};
-				},
+				}
 			});
 			injector.invoke(function ($compile, $rootScope) {
 				const el = $('<div first-directive second-directive></div>');
@@ -1231,6 +1231,24 @@ describe('$compile', () => {
 				const el = $('<div my-directive my-other-directive></div>');
 				$compile(el)($rootScope);
 				expect(givenScope.$parent).toBe($rootScope);
+			});
+		});
+		
+		it('adds scope class and data for element with new scope', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: true,
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				expect(el.hasClass('ng-scope')).toBe(true);
+				expect(el.data('$scope')).toBe(givenScope);
 			});
 		});
 		

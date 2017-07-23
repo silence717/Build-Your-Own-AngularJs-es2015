@@ -434,19 +434,22 @@ function $CompileProvider($provide) {
 				const preLinkFns = [];
 				const	postLinkFns = [];
 				let newScopeDirective;
+				let newIsolateScopeDirective;
 				
 				// 添加节点的link函数
-				function addLinkFns(preLinkFn, postLinkFn, attrStart, attrEnd) {
+				function addLinkFns(preLinkFn, postLinkFn, attrStart, attrEnd, isolateScope) {
 					if (preLinkFn) {
 						if (attrStart) {
 							preLinkFn = groupElementsLinkFnWrapper(preLinkFn, attrStart, attrEnd);
 						}
+						preLinkFn.isolateScope = isolateScope;
 						preLinkFns.push(preLinkFn);
 					}
 					if (postLinkFn) {
 						if (attrStart) {
 							postLinkFn = groupElementsLinkFnWrapper(preLinkFn, attrStart, attrEnd);
 						}
+						postLinkFn.isolateScope = isolateScope;
 						postLinkFns.push(postLinkFn);
 					}
 				}
@@ -462,19 +465,33 @@ function $CompileProvider($provide) {
 					}
 					// 如果指令是继承的scope,
 					if (directive.scope) {
-						newScopeDirective = newScopeDirective || directive;
+						// 如果是隔离scope
+						if (_.isObject(directive.scope)) {
+							// 如果隔离scope或者继承scope已经存在,抛出异常信息
+							if (newIsolateScopeDirective || newScopeDirective) {
+								throw 'Multiple directives asking for new/inherited scope';
+							}
+							newScopeDirective = directive;
+						} else {
+							// 如果隔离scope已经存在，抛出异常信息
+							if (newIsolateScopeDirective) {
+								throw 'Multiple directives asking for new/inherited scope';
+							}
+							newScopeDirective = newScopeDirective || directive;
+						}
 					}
 					if (directive.compile) {
 						const linkFn = directive.compile($compileNode, attrs);
+						const isolateScope = (directive === newIsolateScopeDirective);
 						const attrStart = directive.$$start;
 						const attrEnd = directive.$$end;
 						
 						// 如果linkFn是一个函数
 						if (_.isFunction(linkFn)) {
-							addLinkFns(null, linkFn, attrStart, attrEnd);
+							addLinkFns(null, linkFn, attrStart, attrEnd, isolateScope);
 							postLinkFns.push(linkFn);
 						} else if (linkFn) {
-							addLinkFns(linkFn.pre, linkFn.post, attrStart, attrEnd);
+							addLinkFns(linkFn.pre, linkFn.post, attrStart, attrEnd, isolateScope);
 						}
 					}
 					// 如果指令设置了terminal则更新
@@ -486,16 +503,24 @@ function $CompileProvider($provide) {
 				
 				function nodeLinkFn(childLinkFn, scope, linkNode) {
 					const $element = $(linkNode);
+					// 如果存在隔离Scope,那么使用$new创建一个新的Scope
+					let isolateScope;
+					if (newIsolateScopeDirective) {
+						isolateScope = scope.$new(true);
+						$element.addClass('ng-isolate-scope');
+						$element.data('$isolateScope', isolateScope);
+					}
+					
 					// 先循环prelink数组
 					_.forEach(preLinkFns, linkFn => {
-						linkFn(scope, $element, attrs);
+						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs);
 					});
 					// 判断子link是否存在
 					if (childLinkFn) {
 						childLinkFn(scope, linkNode.childNodes);
 					}
 					_.forEachRight(postLinkFns, linkFn => {
-						linkFn(scope, $element, attrs);
+						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs);
 					});
 					
 				}

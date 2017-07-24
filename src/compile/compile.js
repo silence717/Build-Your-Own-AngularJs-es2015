@@ -471,7 +471,7 @@ function $CompileProvider($provide) {
 							if (newIsolateScopeDirective || newScopeDirective) {
 								throw 'Multiple directives asking for new/inherited scope';
 							}
-							newScopeDirective = directive;
+							newIsolateScopeDirective = directive;
 						} else {
 							// 如果隔离scope已经存在，抛出异常信息
 							if (newIsolateScopeDirective) {

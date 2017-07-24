@@ -964,7 +964,7 @@ describe('$compile', () => {
 	describe('linking', () => {
 		
 		it('returns a public link function from compile', () => {
-			const injector = makeInjectorWithDirectives('myDirective', function() {
+			const injector = makeInjectorWithDirectives('myDirective', function () {
 				return {compile: _.noop};
 			});
 			injector.invoke(function ($compile) {
@@ -1296,7 +1296,7 @@ describe('$compile', () => {
 		it('does not use isolate scope on child elements', () => {
 			let givenScope;
 			const injector = makeInjectorWithDirectives({
-				myDirective: function() {
+				myDirective: function () {
 					return {
 						scope: {}
 					};
@@ -1325,10 +1325,11 @@ describe('$compile', () => {
 				},
 				myOtherDirective: function () {
 					return {
-						scope: {} };
+						scope: {}
+					};
 				}
 			});
-			injector.invoke(function($compile, $rootScope) {
+			injector.invoke(function ($compile, $rootScope) {
 				const el = $('<div my-directive my-other-directive></div>');
 				expect(function () {
 					$compile(el);
@@ -1340,7 +1341,8 @@ describe('$compile', () => {
 			const injector = makeInjectorWithDirectives({
 				myDirective: function () {
 					return {
-						scope: {} };
+						scope: {}
+					};
 				},
 				myOtherDirective: function () {
 					return {

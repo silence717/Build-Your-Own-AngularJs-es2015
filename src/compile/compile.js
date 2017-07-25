@@ -72,6 +72,22 @@ function byPriority(a, b) {
 		}
 	}
 }
+/**
+ * 解析隔离scope绑定
+ * @param scope
+ * @returns {{}}
+ */
+function parseIsolateBindings(scope) {
+	const bindings = {};
+	_.forEach(scope, (definition, scopeName) => {
+		var match = definition.match(/\s*@\s*(\w*)\s*/);
+		bindings[scopeName] = {
+			mode: '@',
+			attrName: match[1] || scopeName
+		};
+	});
+	return bindings;
+}
 
 function $CompileProvider($provide) {
 	
@@ -104,6 +120,9 @@ function $CompileProvider($provide) {
 						// 判断当指令有link属性，但是没有compile属性的时候，将link赋值给compile
 						if (directive.link && !directive.compile) {
 							directive.compile = _.constant(directive.link);
+						}
+						if (_.isObject(directive.scope)) {
+							directive.$$isolateBindings = parseIsolateBindings(directive.scope);
 						}
 						return directive;
 					});
@@ -509,6 +528,20 @@ function $CompileProvider($provide) {
 						isolateScope = scope.$new(true);
 						$element.addClass('ng-isolate-scope');
 						$element.data('$isolateScope', isolateScope);
+						_.forEach(newIsolateScopeDirective.$$isolateBindings, (definition, scopeName) => {
+							const attrName = definition.attrName;
+							switch (definition.mode) {
+								case '@':
+									attrs.$observe(attrName, function (newAttrValue) {
+										isolateScope[scopeName] = newAttrValue;
+									});
+									// 如果元素上当前属性存在，初始化指令scope的值为元素的属性值
+									if (attrs[attrName]) {
+										isolateScope[scopeName] = attrs[attrName];
+									}
+									break;
+							}
+						});
 					}
 					
 					// 先循环prelink数组

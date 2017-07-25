@@ -1377,6 +1377,63 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('allows observing attribute to the isolate scope', () => {
+			let givenScope, givenAttrs;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						anAttr: '@'
+					},
+					link: function (scope, element, attrs) {
+						givenScope = scope;
+						givenAttrs = attrs;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				givenAttrs.$set('anAttr', '42');
+				expect(givenScope.anAttr).toEqual('42');
+			});
+		});
 		
+		it('sets initial value of observed attr to the isolate scope', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						anAttr: '@'
+					},
+					link: function (scope, element, attrs) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive an-attr="42"></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.anAttr).toEqual('42');
+			});
+		});
+		
+		it('allows aliasing observed attribute', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						aScopeAttr: '@anAttr'
+					},
+					link: function (scope, element, attrs) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive an-attr="42"></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.aScopeAttr).toEqual('42');
+			});
+		});
 	});
 });

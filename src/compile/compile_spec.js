@@ -1435,5 +1435,44 @@ describe('$compile', () => {
 				expect(givenScope.aScopeAttr).toEqual('42');
 			});
 		});
+		
+		it('allows binding expression to isolate scope', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						anAttr: '<'
+					},
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive an-attr="42"></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.anAttr).toBe(42);
+			});
+		});
+		
+		it('allows aliasing expression attribute on isolate scope', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myAttr: '<theAttr'
+					},
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive the-attr="42"></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.myAttr).toBe(42);
+			});
+		});
+		
 	});
 });

@@ -80,10 +80,10 @@ function byPriority(a, b) {
 function parseIsolateBindings(scope) {
 	const bindings = {};
 	_.forEach(scope, (definition, scopeName) => {
-		var match = definition.match(/\s*@\s*(\w*)\s*/);
+		const match = definition.match(/\s*([@<])\s*(\w*)\s*/);
 		bindings[scopeName] = {
-			mode: '@',
-			attrName: match[1] || scopeName
+			mode: match[1],
+			attrName: match[2] || scopeName
 		};
 	});
 	return bindings;
@@ -539,6 +539,10 @@ function $CompileProvider($provide) {
 									if (attrs[attrName]) {
 										isolateScope[scopeName] = attrs[attrName];
 									}
+									break;
+								case '<':
+									var parentGet = $parse(attrs[attrName]);
+									isolateScope[scopeName] = parentGet(scope);
 									break;
 							}
 						});

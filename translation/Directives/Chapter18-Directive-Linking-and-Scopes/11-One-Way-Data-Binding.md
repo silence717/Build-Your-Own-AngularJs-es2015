@@ -129,3 +129,111 @@ _.forEach(
     } 
   });
 ```
+我们使用早期实现的`$parse`服务去解析表达式，但是为了使用它我们需要把它注入到`CompileProvider`的`$get`函数。我们这么做：
+```js
+this.$get = ['$injector', '$parse', '$rootScope',
+  function($injector, $parse, $rootScope) {
+  // ...
+};
+```
+随着我们第一个单向数据绑定的测试用例现在通过，让我们开始扩展它来覆盖更多的地方。数据绑定的一个重要方面是，它不仅像我们当前实现的那样数据绑定一次，并且
+观察表达式将隔离scope属性更新到每个新值上在每次digest的时候。
+
+```js
+it('watches isolated scope expressions', function() {
+  var givenScope;
+  var injector = makeInjectorWithDirectives('myDirective', function() {
+    return {
+      scope: {
+        myAttr: '<'
+      },
+      link: function(scope) {
+        givenScope = scope;
+      }
+    }; 
+  });
+  injector.invoke(function($compile, $rootScope) {
+    var el = $('<div my-directive my-attr="parentAttr + 1"></div>');
+    $compile(el)($rootScope);
+    $rootScope.parentAttr = 41;
+    $rootScope.$digest();
+    expect(givenScope.myAttr).toBe(42);
+  }); 
+});
+```
+我们设置父scope的属性，并且触发一个digest，我们期望绑定的表达式被计算并且更新隔离scope的结果。这正是观察器做的，所以让我们为已经解析的表达式添加一个：
+```js
+case '<':
+  var parentGet = $parse(attrs[attrName]);
+  isolateScope[scopeName] = parentGet(scope);
+  scope.$watch(parentGet, function(newValue) {
+    isolateScope[scopeName] = newValue;
+  });
+  break;
+```
+你可以将数据绑定设置为可选，这意味着如果通过绑定的属性引用不存在于DOM元素上，则不会创建观察器。这通过使用绑定父`<?`而不是`<`:
+```js
+it('does not watch optional missing isolate scope expressions', function() {
+  var givenScope;
+  var injector = makeInjectorWithDirectives('myDirective', function() {
+    return {
+      scope: {
+        myAttr: '<?'
+      },
+      link: function(scope) {
+        givenScope = scope;
+      }
+    }; 
+  });
+  injector.invoke(function($compile, $rootScope) {
+    var el = $('<div my-directive></div>');
+    $compile(el)($rootScope);
+    expect($rootScope.$$watchers.length).toBe(0);
+  }); 
+});
+```
+这里我们测试`$rootScope`没有设置watchers在指令link后。我们现在的实现当表达式为`undefined`的时候创建了一个watcher，这当然不是一个突变，但还添加了一些不必要的开销。
+
+扩展一个绑定符的正则表达式。它需要支持在绑定符的后面有一个问号。
+```
+/\s*([@<])(\??)\s*(\w*)\s*/
+```
+应用这个正则，我们可以设置一个`optional`标识在绑定对象。注意到现在属性名称现在切到索引`3`去匹配结果：
+```js
+function parseIsolateBindings(scope) {
+  var bindings = {};
+  _.forEach(scope, function(definition, scopeName) {
+    var match = definition.match(/\s*([@<])(\??)\s*(\w*)\s*/);
+    bindings[scopeName] = {
+      mode: match[1],
+      optional: match[2],
+      attrName: match[3] || scopeName
+      }; 
+  });
+  return bindings;
+}
+```
+现在，如果属性是`undefined`在linking和绑定的中是可选的，我们将跳过watcher创建：
+```js
+case '<':
+    if (definition.optional && !attrs[attrName]) {
+      break; 
+    }
+    // ...
+```
+单向数据绑定的最后一方面是清理自己本身。由于我们已经设置了一个watcher,我们需要确保当隔离scope被销毁的时候我们需要注销watcher。否则我们将导致内存泄漏，
+因为watcher在父Scope,但是在隔离scope上没有销毁。
+```js
+case '<':
+  if (definition.optional && !attrs[attrName]) {
+    break; 
+  }
+  var parentGet = $parse(attrs[attrName]);
+  isolateScope[scopeName] = parentGet(scope);
+  var unwatch = scope.$watch(parentGet, function(newValue) {
+    isolateScope[scopeName] = newValue;
+  });
+  isolateScope.$on('$destroy', unwatch);
+  break;
+```
+这里我们的单向数据绑定就有了。

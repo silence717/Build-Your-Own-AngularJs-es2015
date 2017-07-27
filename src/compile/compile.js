@@ -80,10 +80,11 @@ function byPriority(a, b) {
 function parseIsolateBindings(scope) {
 	const bindings = {};
 	_.forEach(scope, (definition, scopeName) => {
-		const match = definition.match(/\s*([@<])\s*(\w*)\s*/);
+		const match = definition.match(/\s*([@<])(\??)\s*(\w*)\s*/);
 		bindings[scopeName] = {
 			mode: match[1],
-			attrName: match[2] || scopeName
+			optional: match[2],
+			attrName: match[3] || scopeName
 		};
 	});
 	return bindings;
@@ -135,7 +136,7 @@ function $CompileProvider($provide) {
 				this.directive(name, directiveFactory);
 			}, this));
 		}
-		this.$get = ['$injector', '$rootScope', function ($injector, $rootScope) {
+		this.$get = ['$injector', '$parse', '$rootScope', function ($injector, $parse, $rootScope) {
 			
 			function Attributes(element) {
 				this.$$element = element;
@@ -541,8 +542,15 @@ function $CompileProvider($provide) {
 									}
 									break;
 								case '<':
-									var parentGet = $parse(attrs[attrName]);
+									if (definition.optional && !attrs[attrName]) {
+										break;
+									}
+									const parentGet = $parse(attrs[attrName]);
 									isolateScope[scopeName] = parentGet(scope);
+									const unwatch = scope.$watch(parentGet, newValue => {
+										isolateScope[scopeName] = newValue;
+									});
+									isolateScope.$on('$destroy', unwatch);
 									break;
 							}
 						});

@@ -1377,7 +1377,7 @@ describe('$compile', () => {
 			});
 		});
 		
-		it('allows observing attribute to the isolate scope', () => {
+		xit('allows observing attribute to the isolate scope', () => {
 			let givenScope, givenAttrs;
 			const injector = makeInjectorWithDirectives('myDirective', () => {
 				return {
@@ -1473,6 +1473,47 @@ describe('$compile', () => {
 				expect(givenScope.myAttr).toBe(42);
 			});
 		});
+		
+		it('watches isolated scope expressions', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myAttr: '<'
+					},
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive my-attr="parentAttr + 1"></div>');
+				$compile(el)($rootScope);
+				$rootScope.parentAttr = 41;
+				$rootScope.$digest();
+				expect(givenScope.myAttr).toBe(42);
+			});
+		});
+		
+		it('does not watch optional missing isolate scope expressions', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myAttr: '<?'
+					},
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				expect($rootScope.$$watchers.length).toBe(0);
+			});
+		});
+		
 		
 	});
 });

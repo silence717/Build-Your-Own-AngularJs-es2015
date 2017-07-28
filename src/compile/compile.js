@@ -80,7 +80,7 @@ function byPriority(a, b) {
 function parseIsolateBindings(scope) {
 	const bindings = {};
 	_.forEach(scope, (definition, scopeName) => {
-		const match = definition.match(/\s*([@<])(\??)\s*(\w*)\s*/);
+		const match = definition.match(/\s*([@<=])(\??)\s*(\w*)\s*/);
 		bindings[scopeName] = {
 			mode: match[1],
 			optional: match[2],
@@ -531,6 +531,7 @@ function $CompileProvider($provide) {
 						$element.data('$isolateScope', isolateScope);
 						_.forEach(newIsolateScopeDirective.$$isolateBindings, (definition, scopeName) => {
 							const attrName = definition.attrName;
+							let parentGet, unwatch;
 							switch (definition.mode) {
 								case '@':
 									attrs.$observe(attrName, function (newAttrValue) {
@@ -545,9 +546,20 @@ function $CompileProvider($provide) {
 									if (definition.optional && !attrs[attrName]) {
 										break;
 									}
-									const parentGet = $parse(attrs[attrName]);
+									parentGet = $parse(attrs[attrName]);
 									isolateScope[scopeName] = parentGet(scope);
-									const unwatch = scope.$watch(parentGet, newValue => {
+									unwatch = scope.$watch(parentGet, newValue => {
+										isolateScope[scopeName] = newValue;
+									});
+									isolateScope.$on('$destroy', unwatch);
+									break;
+								case '=':
+									if (definition.optional && !attrs[attrName]) {
+										break;
+									}
+									parentGet = $parse(attrs[attrName]);
+									isolateScope[scopeName] = parentGet(scope);
+									unwatch = scope.$watch(parentGet, newValue => {
 										isolateScope[scopeName] = newValue;
 									});
 									isolateScope.$on('$destroy', unwatch);

@@ -1514,6 +1514,83 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('allows binding two-way expression to isolate scope', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						anAttr: '='
+					},
+					link: function(scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function($compile, $rootScope) {
+				const el = $('<div my-directive an-attr="42"></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.anAttr).toBe(42);
+			});
+		});
+		
+		it('allows aliasing two-way expression attribute on isolate scope', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myAttr: '=theAttr'
+					},
+					link: function(scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function($compile, $rootScope) {
+				const el = $('<div my-directive the-attr="42"></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.myAttr).toBe(42);
+			});
+		});
+		
+		it('watches two-way expressions', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myAttr: '='
+					},
+					link: function(scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function($compile, $rootScope) {
+				const el = $('<div my-directive my-attr="parentAttr + 1"></div>');
+				$compile(el)($rootScope);
+				$rootScope.parentAttr = 41;
+				$rootScope.$digest();
+				expect(givenScope.myAttr).toBe(42);
+			});
+		});
+		
+		it('does not watch optional missing two-way expressions', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myAttr: '=?'
+					},
+					link: function(scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function($compile, $rootScope) {
+				const el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				expect($rootScope.$$watchers.length).toBe(0);
+			});
+		});
 		
 	});
 });

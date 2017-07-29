@@ -558,10 +558,16 @@ function $CompileProvider($provide) {
 										break;
 									}
 									parentGet = $parse(attrs[attrName]);
-									isolateScope[scopeName] = parentGet(scope);
-									unwatch = scope.$watch(parentGet, newValue => {
-										isolateScope[scopeName] = newValue;
-									});
+									let lastValue = isolateScope[scopeName] = parentGet(scope);
+									const parentValueWatch = function () {
+										const parentValue = parentGet(scope);
+										if (parentValue !== lastValue) {
+											isolateScope[scopeName] = parentValue;
+										}
+										lastValue = parentValue;
+										return lastValue;
+									};
+									unwatch = scope.$watch(parentValueWatch);
 									isolateScope.$on('$destroy', unwatch);
 									break;
 							}

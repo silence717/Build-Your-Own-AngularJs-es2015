@@ -560,9 +560,13 @@ function $CompileProvider($provide) {
 									parentGet = $parse(attrs[attrName]);
 									let lastValue = isolateScope[scopeName] = parentGet(scope);
 									const parentValueWatch = function () {
-										const parentValue = parentGet(scope);
+										let parentValue = parentGet(scope);
+										// 如果父scope的值和最后一次digest的值不一样，需要将隔离scope的值更新为父Scope的
 										if (parentValue !== lastValue) {
 											isolateScope[scopeName] = parentValue;
+										} else {
+											parentValue = isolateScope[scopeName];
+											parentGet.assign(scope, parentValue);
 										}
 										lastValue = parentValue;
 										return lastValue;

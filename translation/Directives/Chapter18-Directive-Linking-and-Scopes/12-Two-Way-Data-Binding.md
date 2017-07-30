@@ -231,6 +231,63 @@ case '=':
   };
   unwatch = scope.$watch(parentValueWatch);
   isolateScope.$on('$destroy', unwatch);
-  break;	
-  
+  break;
 ```
+新变量出现的目的变得非常清晰，当我们看到隔离scope的当前属性值和父scope的相同属性的当前值不一样的时候，但是和`lastValue`相同？
+这意味着这个值在隔离Scope上已经改变了，并且我们需要更新父scope:
+```js
+case '=':
+  if (definition.optional && !attrs[attrName]) {
+    break; 
+  }
+  parentGet = $parse(attrs[attrName]);
+  var lastValue = isolateScope[scopeName] = parentGet(scope);
+  var parentValueWatch = function() {
+    var parentValue = parentGet(scope);
+    if (isolateScope[scopeName] !== parentValue) {
+      if (parentValue !== lastValue) {
+        isolateScope[scopeName] = parentValue;
+      } else {
+      	
+      }
+    }
+    lastValue = parentValue;
+    return lastValue;
+  };
+  unwatch = scope.$watch(parentValueWatch);
+  isolateScope.$on('$destroy', unwatch);
+  break;
+```
+我们如何更新父scope?当我们实现表达式的时候，我们看到一些表达式是被赋值的，意味着衙门不仅可以被计算为一个值，并且我们可以使用
+`assign`函数更新一个新值到表达式。这就是我们用于放到父Scope的新值：
+```js
+case '=':
+  if (definition.optional && !attrs[attrName]) {
+    break; 
+  }
+  parentGet = $parse(attrs[attrName]);
+  var lastValue = isolateScope[scopeName] = parentGet(scope);
+  var parentValueWatch = function() {
+    var parentValue = parentGet(scope);
+    if (isolateScope[scopeName] !== parentValue) {
+      if (parentValue !== lastValue) {
+        isolateScope[scopeName] = parentValue;
+      } else {
+      	parentValue = isolateScope[scopeName];
+        parentGet.assign(scope, parentValue);
+      }
+    }
+    lastValue = parentValue;
+    return lastValue;
+  };
+  unwatch = scope.$watch(parentValueWatch);
+  isolateScope.$on('$destroy', unwatch);
+  break;
+```
+注意到除了调用`assign`,我们更新了局部变量`parentValue`，从而`lastValue`的变量也被赋予了我们的值。所有的都会在下一次的digest中同步。
+
+注意到优先级规则现在也已经实现了：我们有一个 if-else 语句，我们首先检查父scope的属性是否发生变化， 并且只有在没有变化的时候我们认为子scope
+没有任何变化。当父和子scope的值都发生变化，子的变化会被忽略并且重写。
+
+
+你可以已经注意到数据绑定

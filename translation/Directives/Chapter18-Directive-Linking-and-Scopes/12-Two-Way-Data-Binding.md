@@ -290,4 +290,94 @@ case '=':
 没有任何变化。当父和子scope的值都发生变化，子的变化会被忽略并且重写。
 
 
-你可以已经注意到数据绑定
+你可以已经注意到数据绑定使用引用来检测值变化。虽然不可能改变这种行为来使用基于值的watch，在使用双向绑定的时候我们可以很容易的查看集合的更改。使用一个特殊的
+符号在Scope定义对象里面该诉框架我们对双向数据绑定应该使用`$watchCollection`而不是`$watch`。例如，当我们绑定一个函数，每次调用返回一个新数组是非常有用的：
+```js
+it('throws when two-way expression returns new arrays', function() {
+  var givenScope;
+  var injector = makeInjectorWithDirectives('myDirective', function() {
+    return {
+      scope: {
+        myAttr: '='
+      },
+      link: function(scope) {
+        givenScope = scope;
+      }
+    }; 
+  });
+  injector.invoke(function($compile, $rootScope) {
+      $rootScope.parentFunction = function() {
+        return [1, 2, 3];
+      };
+      var el = $('<div my-directive my-attr="parentFunction()"></div>');
+      $compile(el)($rootScope);
+      expect(function() {
+        $rootScope.$digest();
+      }).toThrow();
+  }); 
+});
+```
+我们在这里看到，正常的引用是不会覆盖this: watch每次看到一个新数组，并且认为它是一个新值。digest运行到迭代限制并且抛出异常，这是测试用例希望发生的。
+
+为了修复这个，我们引入一个集合watch使用`=*`符号在scope定义：
+```js
+it('can watch two-way bindings as collections', function() {
+  var givenScope;
+  var injector = makeInjectorWithDirectives('myDirective', function() {
+    return {
+      scope: {
+        myAttr: '=*'
+      },
+      link: function(scope) {
+        givenScope = scope;
+      }
+    }; 
+  });
+  injector.invoke(function($compile, $rootScope) {
+    $rootScope.parentFunction = function() {
+      return [1, 2, 3];
+    };
+    var el = $('<div my-directive my-attr="parentFunction()"></div>');
+    $compile(el)($rootScope);
+    $rootScope.$digest();
+    expect(givenScope.myAttr).toEqual([1, 2, 3]);
+  }); 
+});
+```
+我们需要再次扩展我们的解析函数。它应该有一个可选的星号在双向数据绑定的符号`=`后面：
+```
+/\s*([@<]|=(\*?))(\??)\s*(\w*)\s*/
+```
+现在有效地匹配表达式的开头，像`@`或者`<`或者`=`和可选的`*`。使用这个正则表达式，`parseIsolateBindings`可以填充`collection`标识在绑定，基于是否看到了星号。
+注意，我们需要再次调整匹配的索引：
+```js
+function parseIsolateBindings(scope) {
+  var bindings = {};
+  _.forEach(scope, function(definition, scopeName) {
+    var match = definition.match(/\s*([@<]|=(\*?))(\??)\s*(\w*)\s*/);
+    bindings[scopeName] = {
+    mode: match[1][0],
+    collection: match[2] === '*',
+    optional: match[3],
+    attrName: match[4] || scopeName
+    }; 
+  });
+  return bindings;
+}
+```
+现在我们基于`collection`标识简单的来选择使用`$watch`或者`$watchCollection`。实现剩下的部分可以保持不变：
+```js
+case :'=':
+	// ...
+	if (definition.collection) {
+      unwatch = scope.$watchCollection(attrs[attrName], parentValueWatch);
+    } else {
+      unwatch = scope.$watch(parentValueWatch);
+    }
+    break;
+```
+注意到`$watchCollection`情况我们注册我们的函数作为listener 函数而不是watch函数。这主要是因为`$watchCollection`不支持忽略listener函数就像`$watch`。
+这是好的，因为我们真的不需要做任何工作，指向同一个数组或者对象：因为我们赋值引用相同的数组和对象，任何突变在它都是自动"同步"。只有当父节点开始指向一个新数组
+或者对象时候，我们才需要做出反应，这时listener函数才会触发。
+
+这就是双向数据绑定！

@@ -1637,5 +1637,53 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('throws when two-way expression returns new arrays', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myAttr: '='
+					},
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				$rootScope.parentFunction = function() {
+					return [1, 2, 3];
+				};
+				const el = $('<div my-directive my-attr="parentFunction()"></div>');
+				$compile(el)($rootScope);
+				expect(function () {
+					$rootScope.$digest();
+				}).toThrow();
+			});
+		});
+		
+		it('can watch two-way bindings as collections', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myAttr: '=*'
+					},
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				$rootScope.parentFunction = function () {
+					return [1, 2, 3];
+				};
+				const el = $('<div my-directive my-attr="parentFunction()"></div>');
+				$compile(el)($rootScope);
+				$rootScope.$digest();
+				expect(givenScope.myAttr).toEqual([1, 2, 3]);
+			});
+		});
+		
+		
 	});
 });

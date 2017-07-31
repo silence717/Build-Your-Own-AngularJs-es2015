@@ -80,11 +80,12 @@ function byPriority(a, b) {
 function parseIsolateBindings(scope) {
 	const bindings = {};
 	_.forEach(scope, (definition, scopeName) => {
-		const match = definition.match(/\s*([@<=])(\??)\s*(\w*)\s*/);
+		const match = definition.match(/\s*([@<]|=(\*?))(\??)\s*(\w*)\s*/);
 		bindings[scopeName] = {
-			mode: match[1],
-			optional: match[2],
-			attrName: match[3] || scopeName
+			mode: match[1][0],
+			collection: match[2] === '*',
+			optional: match[3],
+			attrName: match[4] || scopeName
 		};
 	});
 	return bindings;
@@ -571,8 +572,12 @@ function $CompileProvider($provide) {
 										lastValue = parentValue;
 										return lastValue;
 									};
-									unwatch = scope.$watch(parentValueWatch);
-									isolateScope.$on('$destroy', unwatch);
+									// 判断是否为一个集合
+									if (definition.collection) {
+										unwatch = scope.$watchCollection(attrs[attrName], parentValueWatch);
+									} else {
+										unwatch = scope.$watch(parentValueWatch);
+									}
 									break;
 							}
 						});

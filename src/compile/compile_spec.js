@@ -1684,6 +1684,74 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('allows binding an invokable expression on the parent scope', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myExpr: '&'
+					},
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				$rootScope.parentFunction = function() {
+					return 42;
+				};
+				const el = $('<div my-directive my-expr="parentFunction() + 1"></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.myExpr()).toBe(43);
+			});
+		});
+		
+		it('allows passing arguments to parent scope expression', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myExpr: '&'
+					},
+					link: function(scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function($compile, $rootScope) {
+				let gotArg;
+				$rootScope.parentFunction = function(arg) {
+					gotArg = arg;
+				};
+				const el = $('<div my-directive my-expr="parentFunction(argFromChild)"></div>');
+				$compile(el)($rootScope);
+				givenScope.myExpr({argFromChild: 42});
+				expect(gotArg).toBe(42);
+			});
+		});
+		
+		it('sets missing optional parent scope expression to undefined', () => {
+			let givenScope;
+			const injector = makeInjectorWithDirectives('myDirective', () => {
+				return {
+					scope: {
+						myExpr: '&?'
+					},
+					link: function (scope) {
+						givenScope = scope;
+					}
+				};
+			});
+			injector.invoke(function ($compile, $rootScope) {
+				let gotArg;
+				$rootScope.parentFunction = function (arg) {
+					gotArg = arg;
+				};
+				const el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				expect(givenScope.myExpr).toBeUndefined();
+			});
+		});
 		
 	});
 });

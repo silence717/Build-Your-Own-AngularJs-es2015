@@ -80,7 +80,7 @@ function byPriority(a, b) {
 function parseIsolateBindings(scope) {
 	const bindings = {};
 	_.forEach(scope, (definition, scopeName) => {
-		const match = definition.match(/\s*([@<]|=(\*?))(\??)\s*(\w*)\s*/);
+		const match = definition.match(/\s*([@<&]|=(\*?))(\??)\s*(\w*)\s*/);
 		bindings[scopeName] = {
 			mode: match[1][0],
 			collection: match[2] === '*',
@@ -578,6 +578,15 @@ function $CompileProvider($provide) {
 									} else {
 										unwatch = scope.$watch(parentValueWatch);
 									}
+									break;
+								case '&':
+									const parentExpr = $parse(attrs[attrName]);
+									if (parentExpr === _.noop && definition.optional) {
+										break;
+									}
+									isolateScope[scopeName] = function (locals) {
+										return parentExpr(scope, locals);
+									};
 									break;
 							}
 						});

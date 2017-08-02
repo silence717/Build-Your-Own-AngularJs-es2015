@@ -1650,7 +1650,7 @@ describe('$compile', () => {
 				};
 			});
 			injector.invoke(function ($compile, $rootScope) {
-				$rootScope.parentFunction = function() {
+				$rootScope.parentFunction = function () {
 					return [1, 2, 3];
 				};
 				const el = $('<div my-directive my-attr="parentFunction()"></div>');
@@ -1697,7 +1697,7 @@ describe('$compile', () => {
 				};
 			});
 			injector.invoke(function ($compile, $rootScope) {
-				$rootScope.parentFunction = function() {
+				$rootScope.parentFunction = function () {
 					return 42;
 				};
 				const el = $('<div my-directive my-expr="parentFunction() + 1"></div>');
@@ -1713,14 +1713,14 @@ describe('$compile', () => {
 					scope: {
 						myExpr: '&'
 					},
-					link: function(scope) {
+					link: function (scope) {
 						givenScope = scope;
 					}
 				};
 			});
-			injector.invoke(function($compile, $rootScope) {
+			injector.invoke(function ($compile, $rootScope) {
 				let gotArg;
-				$rootScope.parentFunction = function(arg) {
+				$rootScope.parentFunction = function (arg) {
 					gotArg = arg;
 				};
 				const el = $('<div my-directive my-expr="parentFunction(argFromChild)"></div>');

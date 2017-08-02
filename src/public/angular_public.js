@@ -23,4 +23,6 @@ export default function publishExternalAPI() {
 	ngModule.provider('$httpParamSerializer', require('../http/http').$HttpParamSerializerProvider);
 	ngModule.provider('$httpParamSerializerJQLike', require('../http/http').$HttpParamSerializerJQLikeProvider);
 	ngModule.provider('$compile', require('../compile/compile'));
+	// 注册controller服务
+	ngModule.provider('$controller', require('../controller/controller'));
 }

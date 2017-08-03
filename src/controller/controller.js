@@ -4,8 +4,10 @@
  * @date 2017-08-02
  */
 function $ControllerProvider() {
-	this.$get = function () {
-	
-	};
+	this.$get = ['$injector', $injector => {
+		return function (ctrl, locals) {
+			return $injector.instantiate(ctrl, locals);
+		};
+	}];
 }
 module.exports = $ControllerProvider;

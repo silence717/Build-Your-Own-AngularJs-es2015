@@ -86,5 +86,26 @@ describe('$controller', () => {
 		expect(controller).toBeDefined();
 	});
 	
+	it('does not normally look controllers up from window', () => {
+		window.MyController = function MyController() { };
+		const injector = createInjector(['ng']);
+		const $controller = injector.get('$controller');
+		
+		expect(function() {
+			$controller('MyController');
+		}).toThrow();
+	});
+	
+	it('looks up controllers from window when so con gured', () => {
+		window.MyController = function MyController() { };
+		const injector = createInjector(['ng', function($controllerProvider) {
+			$controllerProvider.allowGlobals();
+		}]);
+		
+		const $controller = injector.get('$controller');
+		const controller = $controller('MyController');
+		expect(controller).toBeDefined();
+		expect(controller instanceof window.MyController).toBe(true);
+	});
 	
 });

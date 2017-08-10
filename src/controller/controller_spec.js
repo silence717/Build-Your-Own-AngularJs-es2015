@@ -91,14 +91,14 @@ describe('$controller', () => {
 		const injector = createInjector(['ng']);
 		const $controller = injector.get('$controller');
 		
-		expect(function() {
+		expect(function () {
 			$controller('MyController');
 		}).toThrow();
 	});
 	
 	it('looks up controllers from window when so con gured', () => {
 		window.MyController = function MyController() { };
-		const injector = createInjector(['ng', function($controllerProvider) {
+		const injector = createInjector(['ng', function ($controllerProvider) {
 			$controllerProvider.allowGlobals();
 		}]);
 		

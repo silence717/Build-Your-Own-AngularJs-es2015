@@ -137,7 +137,7 @@ function $CompileProvider($provide) {
 				this.directive(name, directiveFactory);
 			}, this));
 		}
-		this.$get = ['$injector', '$parse', '$rootScope', function ($injector, $parse, $rootScope) {
+		this.$get = ['$injector', '$parse', '$controller', '$rootScope', function ($injector, $parse, $controller, $rootScope) {
 			
 			function Attributes(element) {
 				this.$$element = element;
@@ -456,6 +456,7 @@ function $CompileProvider($provide) {
 				const	postLinkFns = [];
 				let newScopeDirective;
 				let newIsolateScopeDirective;
+				let controllerDirectives;
 				
 				// 添加节点的link函数
 				function addLinkFns(preLinkFn, postLinkFn, attrStart, attrEnd, isolateScope) {
@@ -520,10 +521,26 @@ function $CompileProvider($provide) {
 						terminal = true;
 						terminalPriority = directive.priority;
 					}
+					// 收集所有包含Controller的指令
+					if (directive.controller) {
+						controllerDirectives = controllerDirectives || {};
+						controllerDirectives[directive.name] = directive;
+					}
 				});
 				
 				function nodeLinkFn(childLinkFn, scope, linkNode) {
 					const $element = $(linkNode);
+					// 如果存在包含controller的指令，循环所有的指令controller，并且将其中的controller实例化
+					if (controllerDirectives) {
+						_.forEach(controllerDirectives, directive => {
+							let controllerName = directive.controller;
+							if (controllerName === '@') {
+								controllerName = attrs[directive.name];
+							}
+							$controller(controllerName);
+						});
+					}
+					
 					// 如果存在隔离Scope,那么使用$new创建一个新的Scope
 					let isolateScope;
 					if (newIsolateScopeDirective) {

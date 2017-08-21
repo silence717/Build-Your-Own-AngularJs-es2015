@@ -533,11 +533,16 @@ function $CompileProvider($provide) {
 					// 如果存在包含controller的指令，循环所有的指令controller，并且将其中的controller实例化
 					if (controllerDirectives) {
 						_.forEach(controllerDirectives, directive => {
+							const locals = {
+								$scope: scope,
+								$element: $element,
+								$attrs: attrs
+							};
 							let controllerName = directive.controller;
 							if (controllerName === '@') {
 								controllerName = attrs[directive.name];
 							}
-							$controller(controllerName);
+							$controller(controllerName, locals);
 						});
 					}
 					

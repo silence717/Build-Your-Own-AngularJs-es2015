@@ -1872,7 +1872,7 @@ describe('$compile', () => {
 			}
 			const injector = createInjector(['ng', function($controllerProvider, $compileProvider) {
 				$controllerProvider.register('MyController', MyController);
-				$compileProvider.directive('myDirective', function() {
+				$compileProvider.directive('myDirective', function () {
 					return {controller: 'MyController'};
 				});
 			}]);
@@ -1886,7 +1886,7 @@ describe('$compile', () => {
 			});
 		});
 		
-		it('can be attached on the scope', function() {
+		it('can be attached on the scope', function () {
 			function MyController() { }
 			const injector = createInjector(['ng', function($controllerProvider, $compileProvider) {
 				$controllerProvider.register('MyController', MyController);
@@ -1897,13 +1897,60 @@ describe('$compile', () => {
 					};
 				});
 			}]);
-			injector.invoke(function($compile, $rootScope) {
+			injector.invoke(function ($compile, $rootScope) {
 				const el = $('<div my-directive></div>');
 				$compile(el)($rootScope);
 				expect($rootScope.myCtrl).toBeDefined();
 				expect($rootScope.myCtrl instanceof MyController).toBe(true);
 			});
 		});
+		
+		it('gets isolate scope as injected $scope', function () {
+			let gotScope;
+			function MyController($scope) {
+				gotScope = $scope;
+			}
+			const injector = createInjector(['ng',
+				function ($controllerProvider, $compileProvider) {
+					$controllerProvider.register('MyController', MyController);
+					$compileProvider.directive('myDirective', function () {
+						return {
+							scope: {},
+							controller: 'MyController'
+						};
+					});
+			}]);
+			injector.invoke(function ($compile, $rootScope) {
+				const el = $('<div my-directive></div>');
+				$compile(el)($rootScope);
+				expect(gotScope).not.toBe($rootScope);
+			});
+		});
+		
+		it('has isolate scope bindings available during construction', function () {
+			var gotMyAttr;
+			function MyController($scope) {
+				gotMyAttr = $scope.myAttr;
+			}
+			var injector = createInjector(['ng',
+				function($controllerProvider, $compileProvider) {
+					$controllerProvider.register('MyController', MyController);
+					$compileProvider.directive('myDirective', function() {
+						return {
+							scope: {
+								myAttr: '@myDirective'
+							},
+							controller: 'MyController'
+						};
+					});
+				}]);
+			injector.invoke(function($compile, $rootScope) {
+				var el = $('<div my-directive="abc"></div>');
+				$compile(el)($rootScope);
+				expect(gotMyAttr).toEqual('abc');
+			});
+		});
+		
 		
 	});
 	

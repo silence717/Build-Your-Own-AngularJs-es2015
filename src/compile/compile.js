@@ -530,11 +530,19 @@ function $CompileProvider($provide) {
 				
 				function nodeLinkFn(childLinkFn, scope, linkNode) {
 					const $element = $(linkNode);
+					
+					let isolateScope;
+					if (newIsolateScopeDirective) {
+						isolateScope = scope.$new(true);
+						$element.addClass('ng-isolate-scope');
+						$element.data('$isolateScope', isolateScope);
+					}
+					
 					// 如果存在包含controller的指令，循环所有的指令controller，并且将其中的controller实例化
 					if (controllerDirectives) {
 						_.forEach(controllerDirectives, directive => {
 							const locals = {
-								$scope: scope,
+								$scope: directive === newIsolateScopeDirective ? isolateScope : scope,
 								$element: $element,
 								$attrs: attrs
 							};
@@ -547,11 +555,7 @@ function $CompileProvider($provide) {
 					}
 					
 					// 如果存在隔离Scope,那么使用$new创建一个新的Scope
-					let isolateScope;
 					if (newIsolateScopeDirective) {
-						isolateScope = scope.$new(true);
-						$element.addClass('ng-isolate-scope');
-						$element.data('$isolateScope', isolateScope);
 						_.forEach(newIsolateScopeDirective.$$isolateBindings, (definition, scopeName) => {
 							const attrName = definition.attrName;
 							let parentGet, unwatch;

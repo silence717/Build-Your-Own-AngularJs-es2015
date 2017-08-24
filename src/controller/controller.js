@@ -38,7 +38,7 @@ function $ControllerProvider() {
 	};
 	
 	this.$get = ['$injector', $injector => {
-		return function (ctrl, locals, identifier) {
+		return function (ctrl, locals, later, identifier) {
 			if (_.isString(ctrl)) {
 				if (controllers.hasOwnProperty(ctrl)) {
 					ctrl = controllers[ctrl];
@@ -46,11 +46,26 @@ function $ControllerProvider() {
 					ctrl = window[ctrl];
 				}
 			}
-			const instance = $injector.instantiate(ctrl, locals);
-			if (identifier) {
-				addToScope(locals, identifier, instance);
+			let instance;
+			if (later) {
+				const ctrlConstructor = _.isArray(ctrl) ? _.last(ctrl) : ctrl;
+				instance = Object.create(ctrlConstructor.prototype);
+				if (identifier) {
+					addToScope(locals, identifier, instance);
+				}
+				return _.extend(function () {
+					$injector.invoke(ctrl, instance, locals);
+					return instance;
+				}, {
+					instance: instance
+				});
+			} else {
+				instance = $injector.instantiate(ctrl, locals);
+				if (identifier) {
+					addToScope(locals, identifier, instance);
+				}
+				return instance;
 			}
-			return instance;
 		};
 	}];
 }

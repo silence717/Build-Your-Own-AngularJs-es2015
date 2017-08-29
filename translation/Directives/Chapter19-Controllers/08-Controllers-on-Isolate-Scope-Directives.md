@@ -300,4 +300,354 @@ if (later) {
 ```
 现在我们已经有了在`$controller`中需要的基础设施，我们通过在`$compile`中做一些改变来将他们连接起来。
 
-首先，
+首先，我们引一个变量存储半结构化controller函数。这个是在`applyDirectivesToNode`函数：
+```js
+function applyDirectivesToNode(directives, compileNode, attrs) {
+  var $compileNode = $(compileNode);
+  var preLinkFns = [], postLinkFns = [], controllers = {};
+  // ...
+}
+```
+我们构建了controller，我们存储半结构化函数到这个对象。注意到我们现在传递`true`作为第三个参数给`$controller`去触发`later`标识：
+```js
+_.forEach(controllerDirectives, function(directive) {
+  var locals = {
+    $scope: directive === newIsolateScopeDirective ? isolateScope : scope,
+    $element: $element,
+    $attrs: attrs
+  };
+  var controllerName = directive.controller;
+  if (controllerName === '@') {
+    controllerName = attrs[directive.name];
+  }
+  controllers[directive.name] = $controller(controllerName, locals, true, directive.controllerAs);
+});
+```
+然后，我们设置完隔离scope绑定后，但是在调用prelink函数前，我们调用半结构化的controller 函数，它触发真实的controller构造函数。
+```js
+if (newIsolateScopeDirective) {
+  _.forEach(
+    newIsolateScopeDirective.$$isolateBindings,function(definition, scopeName) {
+    // ...
+  }); 
+}
+_.forEach(controllers, function(controller) {
+  controller();
+});
+_.forEach(preLinkFns, function(linkFn) {
+  linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs);
+});
+```
+实际上，我们现在设置的隔离scope绑定和semi-constructed状态的controller结合。
+
+这样两个高层次的测试用例其中一个通过了，但是另一个对于`bindToController`仍然失败。我们需要做的是扩展隔离scope绑定，达到它可以处理两种不同的情况：常规隔离绑定和绑定到controller代替scope（当`bindToController`为`true`）。
+
+为了让它变得简单，我们稍微修改一下绑定的解析代码。我们现在做的是在指令上设置一个`$$isolateBindings`属性当初始化的时候。我们应该归纳这个到`$$bindings`属性，它会包含scope和controller绑定。为了初始化，我们将使用一个新的帮助函数叫作`parseDirectiveBindings`:
+```js
+return _.map(factories, function(factory, i) {
+  var directive = $injector.invoke(factory);
+  directive.restrict = directive.restrict || 'EA';
+  directive.priority = directive.priority || 0;
+  if (directive.link && !directive.compile) {
+    directive.compile = _.constant(directive.link);
+  }
+  directive.$$bindings = parseDirectiveBindings(directive);
+  directive.name = directive.name || name;
+  directive.index = i;
+  return directive;
+});
+```
+`parseDirectiveBindings`的第一个版本可以merge调用已经存在的`parseIsolateBindings`函数，并且在新绑定对象上设置返回值到`isolateScope`属性：
+```js
+function parseDirectiveBindings(directive) {
+  var bindings = {};
+  if (_.isObject(directive.scope)) {
+    bindings.isolateScope = parseIsolateBindings(directive.scope);
+  }
+  return bindings;
+}
+```
+将这些绑定的初始化移动到link阶段，在这里我们应该要做一些重构。我们从`nodeLinkFn`提取绑定初始化代码到独立的函数。我可以把它叫作`initializeDirectiveBindings`。它包含我们之前写的初始化循环代码，并用它完成工作所需要的参数：
+```js
+function initializeDirectiveBindings(scope, attrs, bindings, isolateScope) {
+    _.forEach(bindings, (definition, scopeName) => {
+        const attrName = definition.attrName;
+        let parentGet, unwatch;
+        switch (definition.mode) {
+            case '@':
+                attrs.$observe(attrName, function (newAttrValue) {
+                    isolateScope[scopeName] = newAttrValue;
+                });
+                // 如果元素上当前属性存在，初始化指令scope的值为元素的属性值
+                if (attrs[attrName]) {
+                    isolateScope[scopeName] = attrs[attrName];
+                }
+                break;
+            case '<':
+                if (definition.optional && !attrs[attrName]) {
+                    break;
+                }
+                parentGet = $parse(attrs[attrName]);
+                isolateScope[scopeName] = parentGet(scope);
+                unwatch = scope.$watch(parentGet, newValue => {
+                    isolateScope[scopeName] = newValue;
+                });
+                isolateScope.$on('$destroy', unwatch);
+                break;
+            case '=':
+                if (definition.optional && !attrs[attrName]) {
+                    break;
+                }
+                parentGet = $parse(attrs[attrName]);
+                let lastValue = isolateScope[scopeName] = parentGet(scope);
+                const parentValueWatch = function () {
+                    let parentValue = parentGet(scope);
+                    // 如果父scope的值和最后一次digest的值不一样，需要将隔离scope的值更新为父Scope的
+                    if (parentValue !== lastValue) {
+                        isolateScope[scopeName] = parentValue;
+                    } else {
+                        parentValue = isolateScope[scopeName];
+                        parentGet.assign(scope, parentValue);
+                    }
+                    lastValue = parentValue;
+                    return lastValue;
+                };
+                // 判断是否为一个集合
+                if (definition.collection) {
+                    unwatch = scope.$watchCollection(attrs[attrName], parentValueWatch);
+                } else {
+                    unwatch = scope.$watch(parentValueWatch);
+                }
+                break;
+            case '&':
+                const parentExpr = $parse(attrs[attrName]);
+                if (parentExpr === _.noop && definition.optional) {
+                    break;
+                }
+                isolateScope[scopeName] = function (locals) {
+                    return parentExpr(scope, locals);
+                };
+                break;
+        }
+    });
+}
+```
+在`nodeLinkFn`本身，现在剩下要做的就是调用这个函数而不是一个大循环。就像bindings，我们给隔离scope bindings是我们在新`parseDirectiveBindings`函数里面创建的:
+```js
+if (newIsolateScopeDirective) {
+    initializeDirectiveBindings(
+      scope,
+      attrs,
+      newIsolateScopeDirective.$$bindings.isolateScope,
+      isolateScope
+    );
+}
+```
+现在我们扩展这个工作到`bindToController`。在`parseDirectiveBindings`，如果这个标识为`true`，我们将bindings放到`bindToController`key值而不是`isolateScope`key:
+```js
+function parseDirectiveBindings(directive) {
+  var bindings = {};
+  if (_.isObject(directive.scope)) {
+    if (directive.bindToController) {
+      bindings.bindToController = parseIsolateBindings(directive.scope);
+    } else {
+      bindings.isolateScope = parseIsolateBindings(directive.scope);
+    }
+  }
+  return bindings;
+}
+```
+这些新绑定在节点link函数的controllers实例化之前就初始化了。如果我们有一个隔离scope并且也有一个controller我们可以这么做。我们可以利用我们之前抽取的`initializeDirectiveBindings`函数：
+```js
+if (newIsolateScopeDirective && controllers[newIsolateScopeDirective.name]) {
+  initializeDirectiveBindings(
+    scope,
+    attrs,
+    newIsolateScopeDirective.$$bindings.bindToController,
+    isolateScope
+  ); 
+}
+_.forEach(controllers, function(controller) {
+  controller();
+});
+```
+现在的问题是这些绑定仍然被添加到隔离scope对象，当所有的指向都应该添加到controller时候！`initializeDirectiveBindings`函数应该多接收一个参数，我们将调用`destination`，它所有指向对象的数据都应该被绑定。
+它用作不同绑定类型的目标。我们仍然会传递到隔离scope,但是我们仅仅调用`newScope`，并且它只用于利用`$destroy`事件当watchers应该被注销时：
+```js
+function initializeDirectiveBindings(scope, attrs, destination, bindings, newScope) {
+    _.forEach(bindings, (definition, scopeName) => {
+        const attrName = definition.attrName;
+        let parentGet, unwatch;
+        switch (definition.mode) {
+            case '@':
+                attrs.$observe(attrName, function (newAttrValue) {
+                    destination[scopeName] = newAttrValue;
+                });
+                // 如果元素上当前属性存在，初始化指令scope的值为元素的属性值
+                if (attrs[attrName]) {
+                    destination[scopeName] = attrs[attrName];
+                }
+                break;
+            case '<':
+                if (definition.optional && !attrs[attrName]) {
+                    break;
+                }
+                parentGet = $parse(attrs[attrName]);
+                destination[scopeName] = parentGet(scope);
+                unwatch = scope.$watch(parentGet, newValue => {
+                    destination[scopeName] = newValue;
+                });
+                newScope.$on('$destroy', unwatch);
+                break;
+            case '=':
+                if (definition.optional && !attrs[attrName]) {
+                    break;
+                }
+                parentGet = $parse(attrs[attrName]);
+                let lastValue = destination[scopeName] = parentGet(scope);
+                const parentValueWatch = function () {
+                    let parentValue = parentGet(scope);
+                    // 如果父scope的值和最后一次digest的值不一样，需要将隔离scope的值更新为父Scope的
+                    if (parentValue !== lastValue) {
+                        destination[scopeName] = parentValue;
+                    } else {
+                        parentValue = destination[scopeName];
+                        parentGet.assign(scope, parentValue);
+                    }
+                    lastValue = parentValue;
+                    return lastValue;
+                };
+                // 判断是否为一个集合
+                if (definition.collection) {
+                    unwatch = scope.$watchCollection(attrs[attrName], parentValueWatch);
+                } else {
+                    unwatch = scope.$watch(parentValueWatch);
+                }
+                newScope.$on('$destroy', unwatch);
+                break;
+            case '&':
+                const parentExpr = $parse(attrs[attrName]);
+                if (parentExpr === _.noop && definition.optional) {
+                    break;
+                }
+                destination[scopeName] = function (locals) {
+                    return parentExpr(scope, locals);
+                };
+                break;
+        }
+    });
+}
+```
+在常规的隔离绑定，destination 就是隔离scope本身：
+```js
+if (newIsolateScopeDirective) {
+  initializeDirectiveBindings(
+    scope,
+    attrs,
+    isolateScope,
+    newIsolateScopeDirective.$$bindings.isolateScope,
+    isolateScope
+  );
+}
+```
+并且在`bindToController`情况下，destination是controller实例化对象：
+```js
+if (newIsolateScopeDirective && controllers[newIsolateScopeDirective.name]) {
+  initializeDirectiveBindings(
+    scope,
+    attrs,
+    controllers[newIsolateScopeDirective.name].instance,
+    newIsolateScopeDirective.$$bindings.bindToController,
+    isolateScope
+  );
+}
+```
+最终所有的测试都通过了！
+
+这种实现还打开了几个便于开发人员使用的模式。首先，人们可能更愿意指定指令绑定作为`bindToController`值代替`isolateScope`,因为controller在这里结束。它使得API稍微方便一点：
+```js
+it('can bind iso scope bindings through bindToController', function() {
+  var gotMyAttr;
+  function MyController() {
+    gotMyAttr = this.myAttr;
+  }
+  var injector = createInjector(['ng',
+                  function($controllerProvider, $compileProvider) {
+    $controllerProvider.register('MyController', MyController);
+    $compileProvider.directive('myDirective', function() {
+      return {
+        scope: {},
+        controller: 'MyController',
+        bindToController: {
+                  myAttr: '@myDirective'
+                }
+      }; 
+    });
+  }]);
+      injector.invoke(function($compile, $rootScope) {
+        var el = $('<div my-directive="abc"></div>');
+        $compile(el)($rootScope);
+        expect(gotMyAttr).toEqual('abc');
+    }); 
+});
+```
+我们可以在`parseDirectiveBindings`函数里面很容易就处理它。如果`bindToController`是一个对象，它的解析就像`scope`对象的解析：
+```js
+function parseDirectiveBindings(directive) {
+  var bindings = {};
+  if (_.isObject(directive.scope)) {
+    if (directive.bindToController) {
+      bindings.bindToController = parseIsolateBindings(directive.scope);
+    } else {
+          bindings.isolateScope = parseIsolateBindings(directive.scope);
+    }
+  }
+  if (_.isObject(directive.bindToController)) {
+      bindings.bindToController = parseIsolateBindings(directive.bindToController);
+  }
+  return bindings;
+}
+```
+第二，我们可以扩展这个实现，这样你就不需要任何隔离scope来进行绑定！你仅仅只需要结合使用继承scope和`bindToController`对象的值：
+```js
+it('can bind through bindToController without iso scope', function () {
+    var gotMyAttr;
+    function MyController() {
+        gotMyAttr = this.myAttr;
+    }
+    var injector = createInjector(['ng', function ($controllerProvider, $compileProvider) {
+        $controllerProvider.register('MyController', MyController);
+        $compileProvider.directive('myDirective', function () {
+            return {
+                scope: true,
+                controller: 'MyController',
+                bindToController: {
+                    myAttr: '@myDirective'
+                }
+            };
+        });
+    }]);
+    injector.invoke(function ($compile, $rootScope) {
+        var el = $('<div my-directive="abc"></div>');
+        $compile(el)($rootScope);
+        expect(gotMyAttr).toEqual('abc');
+    });
+});
+```
+这里我们可以node link 函数的代码，以便于它可以支持controller绑定初始化，不管是隔离scope绑定指令还是新scope指令，当前的任何节点：
+```js
+var scopeDirective = newIsolateScopeDirective || newScopeDirective;
+if (scopeDirective && controllers[scopeDirective.name]) {
+    initializeDirectiveBindings(
+      scope,
+      attrs,
+      controllers[scopeDirective.name].instance,
+      scopeDirective.$$bindings.bindToController,
+      isolateScope
+  );
+}
+```
+
+现在我们controller和隔离scope的实现是完全兼容的，并且实际上支持每一种用有趣的方式。
+
+对于看似简单的功能来说，这是相当多的基础设施，但启用的应用程序规则非常有用：`controllerAs`和`bindToController`组合使用让应用程序开发者写很多代码，没有使用`$scope`对象那么明确，这是许多人的首选。

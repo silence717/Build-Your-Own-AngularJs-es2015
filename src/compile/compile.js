@@ -90,6 +90,26 @@ function parseIsolateBindings(scope) {
 	});
 	return bindings;
 }
+/**
+ * 解析指令绑定
+ * @param directive
+ * @returns {{}}
+ */
+function parseDirectiveBindings(directive) {
+	const bindings = {};
+	if (_.isObject(directive.scope)) {
+		if (directive.bindToController) {
+			bindings.bindToController = parseIsolateBindings(directive.scope);
+		} else {
+			bindings.isolateScope = parseIsolateBindings(directive.scope);
+		}
+	}
+	if (_.isObject(directive.bindToController)) {
+		bindings.bindToController = parseIsolateBindings(directive.bindToController);
+	}
+	return bindings;
+}
+
 
 function $CompileProvider($provide) {
 	
@@ -123,6 +143,7 @@ function $CompileProvider($provide) {
 						if (directive.link && !directive.compile) {
 							directive.compile = _.constant(directive.link);
 						}
+						directive.$$bindings = parseDirectiveBindings(directive);
 						if (_.isObject(directive.scope)) {
 							directive.$$isolateBindings = parseIsolateBindings(directive.scope);
 						}
@@ -454,6 +475,8 @@ function $CompileProvider($provide) {
 				// 存储所有的指令link函数
 				const preLinkFns = [];
 				const	postLinkFns = [];
+				const controllers = {};
+				
 				let newScopeDirective;
 				let newIsolateScopeDirective;
 				let controllerDirectives;
@@ -550,73 +573,34 @@ function $CompileProvider($provide) {
 							if (controllerName === '@') {
 								controllerName = attrs[directive.name];
 							}
-							$controller(controllerName, locals, false, directive.controllerAs);
+							controllers[directive.name] = $controller(controllerName, locals, true, directive.controllerAs);
 						});
 					}
 					
 					// 如果存在隔离Scope,那么使用$new创建一个新的Scope
 					if (newIsolateScopeDirective) {
-						_.forEach(newIsolateScopeDirective.$$isolateBindings, (definition, scopeName) => {
-							const attrName = definition.attrName;
-							let parentGet, unwatch;
-							switch (definition.mode) {
-								case '@':
-									attrs.$observe(attrName, function (newAttrValue) {
-										isolateScope[scopeName] = newAttrValue;
-									});
-									// 如果元素上当前属性存在，初始化指令scope的值为元素的属性值
-									if (attrs[attrName]) {
-										isolateScope[scopeName] = attrs[attrName];
-									}
-									break;
-								case '<':
-									if (definition.optional && !attrs[attrName]) {
-										break;
-									}
-									parentGet = $parse(attrs[attrName]);
-									isolateScope[scopeName] = parentGet(scope);
-									unwatch = scope.$watch(parentGet, newValue => {
-										isolateScope[scopeName] = newValue;
-									});
-									isolateScope.$on('$destroy', unwatch);
-									break;
-								case '=':
-									if (definition.optional && !attrs[attrName]) {
-										break;
-									}
-									parentGet = $parse(attrs[attrName]);
-									let lastValue = isolateScope[scopeName] = parentGet(scope);
-									const parentValueWatch = function () {
-										let parentValue = parentGet(scope);
-										// 如果父scope的值和最后一次digest的值不一样，需要将隔离scope的值更新为父Scope的
-										if (parentValue !== lastValue) {
-											isolateScope[scopeName] = parentValue;
-										} else {
-											parentValue = isolateScope[scopeName];
-											parentGet.assign(scope, parentValue);
-										}
-										lastValue = parentValue;
-										return lastValue;
-									};
-									// 判断是否为一个集合
-									if (definition.collection) {
-										unwatch = scope.$watchCollection(attrs[attrName], parentValueWatch);
-									} else {
-										unwatch = scope.$watch(parentValueWatch);
-									}
-									break;
-								case '&':
-									const parentExpr = $parse(attrs[attrName]);
-									if (parentExpr === _.noop && definition.optional) {
-										break;
-									}
-									isolateScope[scopeName] = function (locals) {
-										return parentExpr(scope, locals);
-									};
-									break;
-							}
-						});
+						initializeDirectiveBindings(
+							scope,
+							attrs,
+							isolateScope,
+							newIsolateScopeDirective.$$bindings.isolateScope,
+							isolateScope
+						);
 					}
+					const scopeDirective = newIsolateScopeDirective || newScopeDirective;
+					if (scopeDirective && controllers[scopeDirective.name]) {
+						initializeDirectiveBindings(
+							scope,
+							attrs,
+							controllers[scopeDirective.name].instance,
+							scopeDirective.$$bindings.bindToController,
+							isolateScope
+						);
+					}
+					// 真正调用controller函数
+					_.forEach(controllers, controller => {
+						controller();
+					});
 					
 					// 先循环prelink数组
 					_.forEach(preLinkFns, linkFn => {
@@ -635,6 +619,77 @@ function $CompileProvider($provide) {
 				// 设置节点link函数
 				nodeLinkFn.scope = newScopeDirective && newScopeDirective.scope;
 				return nodeLinkFn;
+			}
+			
+			/**
+			 * 初始化指令绑定
+			 * @param scope
+			 * @param attrs
+			 * @param bindings
+			 * @param isolateScope
+			 */
+			function initializeDirectiveBindings(scope, attrs, destination, bindings, newScope) {
+				_.forEach(bindings, (definition, scopeName) => {
+					const attrName = definition.attrName;
+					let parentGet, unwatch;
+					switch (definition.mode) {
+						case '@':
+							attrs.$observe(attrName, function (newAttrValue) {
+								destination[scopeName] = newAttrValue;
+							});
+							// 如果元素上当前属性存在，初始化指令scope的值为元素的属性值
+							if (attrs[attrName]) {
+								destination[scopeName] = attrs[attrName];
+							}
+							break;
+						case '<':
+							if (definition.optional && !attrs[attrName]) {
+								break;
+							}
+							parentGet = $parse(attrs[attrName]);
+							destination[scopeName] = parentGet(scope);
+							unwatch = scope.$watch(parentGet, newValue => {
+								destination[scopeName] = newValue;
+							});
+							newScope.$on('$destroy', unwatch);
+							break;
+						case '=':
+							if (definition.optional && !attrs[attrName]) {
+								break;
+							}
+							parentGet = $parse(attrs[attrName]);
+							let lastValue = destination[scopeName] = parentGet(scope);
+							const parentValueWatch = function () {
+								let parentValue = parentGet(scope);
+								// 如果父scope的值和最后一次digest的值不一样，需要将隔离scope的值更新为父Scope的
+								if (parentValue !== lastValue) {
+									destination[scopeName] = parentValue;
+								} else {
+									parentValue = destination[scopeName];
+									parentGet.assign(scope, parentValue);
+								}
+								lastValue = parentValue;
+								return lastValue;
+							};
+							// 判断是否为一个集合
+							if (definition.collection) {
+								unwatch = scope.$watchCollection(attrs[attrName], parentValueWatch);
+							} else {
+								unwatch = scope.$watch(parentValueWatch);
+							}
+							newScope.$on('$destroy', unwatch);
+							break;
+						case '&':
+							const parentExpr = $parse(attrs[attrName]);
+							if (parentExpr === _.noop && definition.optional) {
+								break;
+							}
+							destination[scopeName] = function (locals) {
+								return parentExpr(scope, locals);
+							};
+							break;
+					}
+				});
 			}
 			
 			return compile;

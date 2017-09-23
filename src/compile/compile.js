@@ -481,13 +481,25 @@ function $CompileProvider($provide) {
 				let newIsolateScopeDirective;
 				let controllerDirectives;
 				
+				function getControllers(require) {
+					let value;
+					if (controllers[require]) {
+						value = controllers[require].instance;
+					}
+					if (!value) {
+						throw 'Controller ' + require + ' required by directive, cannot be found!';
+					}
+					return value;
+				}
+				
 				// 添加节点的link函数
-				function addLinkFns(preLinkFn, postLinkFn, attrStart, attrEnd, isolateScope) {
+				function addLinkFns(preLinkFn, postLinkFn, attrStart, attrEnd, isolateScope, require) {
 					if (preLinkFn) {
 						if (attrStart) {
 							preLinkFn = groupElementsLinkFnWrapper(preLinkFn, attrStart, attrEnd);
 						}
 						preLinkFn.isolateScope = isolateScope;
+						preLinkFn.require = require;
 						preLinkFns.push(preLinkFn);
 					}
 					if (postLinkFn) {
@@ -495,6 +507,7 @@ function $CompileProvider($provide) {
 							postLinkFn = groupElementsLinkFnWrapper(preLinkFn, attrStart, attrEnd);
 						}
 						postLinkFn.isolateScope = isolateScope;
+						postLinkFn.require = require;
 						postLinkFns.push(postLinkFn);
 					}
 				}
@@ -530,13 +543,14 @@ function $CompileProvider($provide) {
 						const isolateScope = (directive === newIsolateScopeDirective);
 						const attrStart = directive.$$start;
 						const attrEnd = directive.$$end;
+						const require = directive.require;
 						
 						// 如果linkFn是一个函数
 						if (_.isFunction(linkFn)) {
-							addLinkFns(null, linkFn, attrStart, attrEnd, isolateScope);
+							addLinkFns(null, linkFn, attrStart, attrEnd, isolateScope, require);
 							postLinkFns.push(linkFn);
 						} else if (linkFn) {
-							addLinkFns(linkFn.pre, linkFn.post, attrStart, attrEnd, isolateScope);
+							addLinkFns(linkFn.pre, linkFn.post, attrStart, attrEnd, isolateScope, require);
 						}
 					}
 					// 如果指令设置了terminal则更新
@@ -604,14 +618,14 @@ function $CompileProvider($provide) {
 					
 					// 先循环prelink数组
 					_.forEach(preLinkFns, linkFn => {
-						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs);
+						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require));
 					});
 					// 判断子link是否存在
 					if (childLinkFn) {
 						childLinkFn(scope, linkNode.childNodes);
 					}
 					_.forEachRight(postLinkFns, linkFn => {
-						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs);
+						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require));
 					});
 					
 				}

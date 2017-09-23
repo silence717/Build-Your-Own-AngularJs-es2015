@@ -58,7 +58,7 @@ describe('$controller', () => {
 		expect(controller instanceof MyController).toBe(true);
 	});
 	
-	it('allows registering several controllers in an object', () => {
+	xit('allows registering several controllers in an object', () => {
 		function MyController() { }
 		function MyOtherController() { }
 		const injector = createInjector(['ng', $controllerProvider => {

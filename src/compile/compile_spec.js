@@ -2072,6 +2072,33 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('can be required from a sibling directive', function() {
+			function MyController() { }
+			var gotMyController;
+			var injector = createInjector(['ng', function($compileProvider) {
+				$compileProvider.directive('myDirective', function() {
+					return {
+						scope: {},
+						controller: MyController
+					};
+				});
+				$compileProvider.directive('myOtherDirective', function() {
+					return {
+						require: 'myDirective',
+						link: function(scope, element, attrs, myController) {
+							gotMyController = myController;
+						}
+					};
+				});
+			}]);
+			injector.invoke(function($compile, $rootScope) {
+				var el = $('<div my-directive my-other-directive></div>');
+				$compile(el)($rootScope);
+				expect(gotMyController).toBeDe ned();
+				expect(gotMyController instanceof MyController).toBe(true);
+			});
+		});
+		
 	});
 	
 	

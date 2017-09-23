@@ -109,6 +109,22 @@ function parseDirectiveBindings(directive) {
 	}
 	return bindings;
 }
+/**
+ * 获取Require的指令
+ * @param directive
+ * @returns {*}
+ */
+function getDirectiveRequire(directive) {
+	const require = directive.require;
+	if (!_.isArray(require) && _.isObject(require)) {
+		_.forEach(require, (value, key) => {
+			if (!value.length) {
+				require[key] = key;
+			}
+		});
+	}
+	return require;
+}
 
 
 function $CompileProvider($provide) {
@@ -137,6 +153,8 @@ function $CompileProvider($provide) {
 						directive.priority = directive.priority || 0;
 						// 设置name属性
 						directive.name = directive.name || name;
+						// 获取引入的require属性
+						directive.require = getDirectiveRequire(directive);
 						// 设置注册索引
 						directive.index = i;
 						// 判断当指令有link属性，但是没有compile属性的时候，将link赋值给compile
@@ -484,6 +502,8 @@ function $CompileProvider($provide) {
 				function getControllers(require) {
 					if (_.isArray(require)) {
 						return _.map(require, getControllers());
+					}  else if (_.isObject(require)) {
+						return _.mapValues(require, getControllers);
 					} else {
 						let value;
 						if (controllers[require]) {

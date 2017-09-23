@@ -482,14 +482,18 @@ function $CompileProvider($provide) {
 				let controllerDirectives;
 				
 				function getControllers(require) {
-					let value;
-					if (controllers[require]) {
-						value = controllers[require].instance;
+					if (_.isArray(require)) {
+						return _.map(require, getControllers());
+					} else {
+						let value;
+						if (controllers[require]) {
+							value = controllers[require].instance;
+						}
+						if (!value) {
+							throw 'Controller ' + require + ' required by directive, cannot be found!';
+						}
+						return value;
 					}
-					if (!value) {
-						throw 'Controller ' + require + ' required by directive, cannot be found!';
-					}
-					return value;
 				}
 				
 				// 添加节点的link函数

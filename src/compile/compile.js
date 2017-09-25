@@ -501,7 +501,7 @@ function $CompileProvider($provide) {
 				
 				function getControllers(require) {
 					if (_.isArray(require)) {
-						return _.map(require, getControllers());
+						return _.map(require, getControllers);
 					}  else if (_.isObject(require)) {
 						return _.mapValues(require, getControllers);
 					} else {

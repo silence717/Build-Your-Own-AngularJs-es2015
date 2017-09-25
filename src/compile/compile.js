@@ -502,7 +502,7 @@ function $CompileProvider($provide) {
 				function getControllers(require) {
 					if (_.isArray(require)) {
 						return _.map(require, getControllers);
-					}  else if (_.isObject(require)) {
+					} else if (_.isObject(require)) {
 						return _.mapValues(require, getControllers);
 					} else {
 						let value;
@@ -764,9 +764,9 @@ function $CompileProvider($provide) {
 	}
 	// 包装link函数
 	function groupElementsLinkFnWrapper(linkFn, attrStart, attrEnd) {
-		return function (scope, element, attrs) {
+		return function (scope, element, attrs, ctrl) {
 			const group = groupScan(element[0], attrStart, attrEnd);
-			return linkFn(scope, group, attrs);
+			return linkFn(scope, group, attrs, ctrl);
 		};
 	}
 }

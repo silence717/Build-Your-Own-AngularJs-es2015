@@ -2223,5 +2223,28 @@ describe('$compile', () => {
 			});
 		});
 		
+		xit('is passed through grouped link wrapper', function () {
+			function MyController() { }
+			var gotMyController;
+			var injector = createInjector(['ng', function ($compileProvider) {
+				$compileProvider.directive('myDirective', function () {
+					return {
+						multiElement: true,
+						scope: {},
+						controller: MyController,
+						link: function (scope, element, attrs, myController) {
+							gotMyController = myController;
+						}
+					};
+				});
+			}]);
+			injector.invoke(function ($compile, $rootScope) {
+				var el = $('<div my-directive-start></div><div my-directive-end></div>');
+				$compile(el)($rootScope);
+				expect(gotMyController).toBeDefined();
+				expect(gotMyController instanceof MyController).toBe(true);
+			});
+		});
+		
 	});
 });

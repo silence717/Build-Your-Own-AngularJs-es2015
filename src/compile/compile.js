@@ -114,8 +114,8 @@ function parseDirectiveBindings(directive) {
  * @param directive
  * @returns {*}
  */
-function getDirectiveRequire(directive) {
-	const require = directive.require;
+function getDirectiveRequire(directive, name) {
+	const require = directive.require || (directive.controller && name);
 	if (!_.isArray(require) && _.isObject(require)) {
 		_.forEach(require, (value, key) => {
 			if (!value.length) {
@@ -154,7 +154,7 @@ function $CompileProvider($provide) {
 						// 设置name属性
 						directive.name = directive.name || name;
 						// 获取引入的require属性
-						directive.require = getDirectiveRequire(directive);
+						directive.require = getDirectiveRequire(directive, name);
 						// 设置注册索引
 						directive.index = i;
 						// 判断当指令有link属性，但是没有compile属性的时候，将link赋值给compile

@@ -25,4 +25,6 @@ export default function publishExternalAPI() {
 	ngModule.provider('$compile', require('../compile/compile'));
 	// 注册controller服务
 	ngModule.provider('$controller', require('../controller/controller'));
+	// 注册ngController服务
+	ngModule.directive('ngController', require('../directives/ng_controller'));
 }

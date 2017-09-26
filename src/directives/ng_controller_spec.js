@@ -67,4 +67,20 @@ describe('ngController', function () {
 		});
 	});
 	
+	it('allows aliasing controller in expression', function() {
+		var gotScope;
+		function MyController($scope) {
+			gotScope = $scope;
+		}
+		var injector = createInjector(['ng', function($controllerProvider) {
+			$controllerProvider.register('MyController', MyController);
+		}]);
+		injector.invoke(function($compile, $rootScope) {
+			var el = $('<div ng-controller="MyController as myCtrl"></div>');
+			$compile(el)($rootScope);
+			expect(gotScope.myCtrl).toBeDefined();
+			expect(gotScope.myCtrl instanceof MyController).toBe(true);
+		});
+	});
+	
 });

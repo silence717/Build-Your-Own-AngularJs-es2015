@@ -40,6 +40,9 @@ function $ControllerProvider() {
 	this.$get = ['$injector', $injector => {
 		return function (ctrl, locals, later, identifier) {
 			if (_.isString(ctrl)) {
+				const match = ctrl.match(/^(\S+)(\s+as\s+(\w+))?/);
+				ctrl = match[1];
+				identifier = identifier || match[3];
 				if (controllers.hasOwnProperty(ctrl)) {
 					ctrl = controllers[ctrl];
 				} else if (globals) {

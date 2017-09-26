@@ -668,6 +668,15 @@ function $CompileProvider($provide) {
 						controller();
 					});
 					
+					_.forEach(controllerDirectives, (controllerDirective, name) => {
+						var require = controllerDirective.require;
+						if (_.isObject(require) && !_.isArray(require) && controllerDirective.bindToController) {
+							const controller = controllers[controllerDirective.name].instance;
+							const requiredControllers = getControllers(require, $element);
+							_.assign(controller, requiredControllers);
+						}
+					});
+					
 					// 先循环prelink数组
 					_.forEach(preLinkFns, linkFn => {
 						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require, $element));

@@ -16,7 +16,7 @@ function nodeName(element) {
 // 指令前缀正则表达式
 const PREFIX_REGEXP = /(x[\:\-_]|data[\:\-_])/i;
 // 匹配require前缀
-const REQUIRE_PREFIX_REGEXP = /^(\^\^?)?/;
+const REQUIRE_PREFIX_REGEXP = /^(\^\^?)?(\?)?(\^\^?)?/;
 
 // 布尔属性名称
 const BOOLEAN_ATTRS = {
@@ -516,10 +516,11 @@ function $CompileProvider($provide) {
 					} else {
 						let value;
 						let match = require.match(REQUIRE_PREFIX_REGEXP);
+						const optional = match[2];
 						require = require.substring(match[0].length);
-						if (match[1]) {
-							if (match[1] === '^^') {
-								$element = $element.parent();
+						if (match[1] || match[3]) {
+							if (match[3] && !match[1]) {
+								match[1] = match[3];
 							}
 							while ($element.length) {
 								value = $element.data('$' + require + 'Controller');
@@ -534,10 +535,10 @@ function $CompileProvider($provide) {
 								value = controllers[require].instance;
 							}
 						}
-						if (!value) {
+						if (!value && !optional) {
 							throw 'Controller ' + require + ' required by directive, cannot be found!';
 						}
-						return value;
+						return value || null;
 					}
 				}
 				

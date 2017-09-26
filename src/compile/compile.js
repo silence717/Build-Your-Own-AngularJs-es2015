@@ -15,6 +15,9 @@ function nodeName(element) {
 }
 // 指令前缀正则表达式
 const PREFIX_REGEXP = /(x[\:\-_]|data[\:\-_])/i;
+// 匹配require前缀
+const REQUIRE_PREFIX_REGEXP = /^(\^\^?)?/;
+
 // 布尔属性名称
 const BOOLEAN_ATTRS = {
 	multiple: true,
@@ -118,8 +121,10 @@ function getDirectiveRequire(directive, name) {
 	const require = directive.require || (directive.controller && name);
 	if (!_.isArray(require) && _.isObject(require)) {
 		_.forEach(require, (value, key) => {
-			if (!value.length) {
-				require[key] = key;
+			const prefix = value.match(REQUIRE_PREFIX_REGEXP);
+			const name = value.substring(prefix[0].length);
+			if (!name) {
+				require[key] = prefix[0] + key;
 			}
 		});
 	}
@@ -499,15 +504,35 @@ function $CompileProvider($provide) {
 				let newIsolateScopeDirective;
 				let controllerDirectives;
 				
-				function getControllers(require) {
+				function getControllers(require, $element) {
 					if (_.isArray(require)) {
-						return _.map(require, getControllers);
+						return _.map(require, r => {
+							return getControllers(r, $element);
+						});
 					} else if (_.isObject(require)) {
-						return _.mapValues(require, getControllers);
+						return _.mapValues(require, r => {
+							return getControllers(r, $element);
+						});
 					} else {
 						let value;
-						if (controllers[require]) {
-							value = controllers[require].instance;
+						let match = require.match(REQUIRE_PREFIX_REGEXP);
+						require = require.substring(match[0].length);
+						if (match[1]) {
+							if (match[1] === '^^') {
+								$element = $element.parent();
+							}
+							while ($element.length) {
+								value = $element.data('$' + require + 'Controller');
+								if (value) {
+									break;
+								} else {
+									$element = $element.parent();
+								}
+							}
+						} else {
+							if (controllers[require]) {
+								value = controllers[require].instance;
+							}
 						}
 						if (!value) {
 							throw 'Controller ' + require + ' required by directive, cannot be found!';
@@ -611,7 +636,9 @@ function $CompileProvider($provide) {
 							if (controllerName === '@') {
 								controllerName = attrs[directive.name];
 							}
-							controllers[directive.name] = $controller(controllerName, locals, true, directive.controllerAs);
+							const controller = $controller(controllerName, locals, true, directive.controllerAs);
+							controllers[directive.name] = controller;
+							$element.data('$' + directive.name + 'Controller', controller.instance);
 						});
 					}
 					
@@ -642,14 +669,14 @@ function $CompileProvider($provide) {
 					
 					// 先循环prelink数组
 					_.forEach(preLinkFns, linkFn => {
-						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require));
+						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require, $element));
 					});
 					// 判断子link是否存在
 					if (childLinkFn) {
 						childLinkFn(scope, linkNode.childNodes);
 					}
 					_.forEachRight(postLinkFns, linkFn => {
-						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require));
+						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require, $element));
 					});
 					
 				}

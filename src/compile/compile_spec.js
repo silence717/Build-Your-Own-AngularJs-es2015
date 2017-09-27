@@ -2487,4 +2487,22 @@ describe('$compile', () => {
 		});
 		
 	});
+	
+	describe('template', function() {
+		
+		it('populates an element during compilation', function() {
+			var injector = makeInjectorWithDirectives('myDirective', function() {
+				return {
+					template: '<div class="from-template"></div>'
+				};
+			});
+			injector.invoke(function($compile) {
+				var el = $('<div my-directive></div>');
+				$compile(el);
+				expect(el. nd('> .from-template').length).toBe(1);
+			});
+		});
+		
+		
+	});
 });

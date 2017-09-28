@@ -2499,7 +2499,7 @@ describe('$compile', () => {
 			injector.invoke(function($compile) {
 				var el = $('<div my-directive></div>');
 				$compile(el);
-				expect(el. nd('> .from-template').length).toBe(1);
+				expect(el.find('> .from-template').length).toBe(1);
 			});
 		});
 		
@@ -2512,7 +2512,7 @@ describe('$compile', () => {
 			injector.invoke(function($compile) {
 				var el = $('<div my-directive><div class="existing"></div></div>');
 				$compile(el);
-				expect(el. nd('> .existing').length).toBe(0);
+				expect(el.find('> .existing').length).toBe(0);
 			});
 		});
 		
@@ -2533,6 +2533,23 @@ describe('$compile', () => {
 				var el = $('<div my-directive></div>');
 				$compile(el);
 				expect(compileSpy).toHaveBeenCalled();
+			});
+		});
+		
+		it('does not allow two directives with templates', function() {
+			var injector = makeInjectorWithDirectives({
+				myDirective: function() {
+					return {template: '<div></div>'};
+				},
+				myOtherDirective: function() {
+					return {template: '<div></div>'};
+				}
+			});
+			injector.invoke(function($compile) {
+				var el = $('<div my-directive my-other-directive></div>');
+				expect(function() {
+					$compile(el);
+				}).toThrow();
 			});
 		});
 		

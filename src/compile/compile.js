@@ -502,6 +502,7 @@ function $CompileProvider($provide) {
 				
 				let newScopeDirective;
 				let newIsolateScopeDirective;
+				let templateDirective;
 				let controllerDirectives;
 				
 				function getControllers(require, $element) {
@@ -615,6 +616,10 @@ function $CompileProvider($provide) {
 					}
 					// 如果存在模板，使用模板代替当前元素中的内容
 					if (directive.template) {
+						if (templateDirective) {
+							throw 'Multiple directives asking for template';
+						}
+						templateDirective = directive;
 						$compileNode.html(directive.template);
 					}
 				});

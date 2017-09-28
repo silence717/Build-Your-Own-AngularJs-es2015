@@ -692,7 +692,12 @@ function $CompileProvider($provide) {
 					});
 					// 判断子link是否存在
 					if (childLinkFn) {
-						childLinkFn(scope, linkNode.childNodes);
+						let scopeToChild = scope;
+						// 如果存在隔离scope指令，并且这个指令的模板存在，将改变scope为隔离scope，不再为上下文的scope
+						if (newIsolateScopeDirective && newIsolateScopeDirective.template) {
+							scopeToChild = isolateScope;
+						}
+						childLinkFn(scopeToChild, linkNode.childNodes);
 					}
 					_.forEachRight(postLinkFns, linkFn => {
 						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require, $element));

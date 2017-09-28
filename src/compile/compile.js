@@ -613,6 +613,10 @@ function $CompileProvider($provide) {
 						controllerDirectives = controllerDirectives || {};
 						controllerDirectives[directive.name] = directive;
 					}
+					// 如果存在模板，使用模板代替当前元素中的内容
+					if (directive.template) {
+						$compileNode.html(directive.template);
+					}
 				});
 				
 				function nodeLinkFn(childLinkFn, scope, linkNode) {

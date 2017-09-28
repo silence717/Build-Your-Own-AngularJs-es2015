@@ -2481,7 +2481,7 @@ describe('$compile', () => {
 				var el = $('<div ng-controller="MyCtrlOnScope as myCtrl"></div>');
 				$rootScope.MyCtrlOnScope = MyController;
 				$compile(el)($rootScope);
-				expect(gotScope.myCtrl).toBeDe ned();
+				expect(gotScope.myCtrl).toBeDefined();
 				expect(gotScope.myCtrl instanceof MyController).toBe(true);
 			});
 		});
@@ -2503,6 +2503,38 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('replaces any existing children', function() {
+			var injector = makeInjectorWithDirectives('myDirective', function() {
+				return {
+					template: '<div class="from-template"></div>'
+				};
+			});
+			injector.invoke(function($compile) {
+				var el = $('<div my-directive><div class="existing"></div></div>');
+				$compile(el);
+				expect(el. nd('> .existing').length).toBe(0);
+			});
+		});
+		
+		it('compiles template contents also', function() {
+			var compileSpy = jasmine.createSpy();
+			var injector = makeInjectorWithDirectives({
+				myDirective: function() {
+					return {
+						template: '<div my-other-directive></div>'
+					};
+				},
+				myOtherDirective: function() {
+					return {
+						compile: compileSpy
+					};
+				} });
+			injector.invoke(function($compile) {
+				var el = $('<div my-directive></div>');
+				$compile(el);
+				expect(compileSpy).toHaveBeenCalled();
+			});
+		});
 		
 	});
 });

@@ -2553,5 +2553,23 @@ describe('$compile', () => {
 			});
 		});
 		
+		it('supports functions as template values', function() {
+			var templateSpy = jasmine.createSpy().and.returnValue('<div class="from-template"></div>');
+			var injector = makeInjectorWithDirectives({
+				myDirective: function() {
+					return {
+						template: templateSpy
+					};
+				} });
+			injector.invoke(function($compile) {
+				var el = $('<div my-directive></div>');
+				$compile(el);
+				expect(el. nd('> .from-template').length).toBe(1);
+				// Check that template function was called with element and attrs
+				expect(templateSpy.calls. rst().args[0][0]).toBe(el[0]);
+				expect(templateSpy.calls. rst().args[1].myDirective).toBeDefined();
+			});
+		});
+		
 	});
 });

@@ -131,7 +131,6 @@ function getDirectiveRequire(directive, name) {
 	return require;
 }
 
-
 function $CompileProvider($provide) {
 	
 	// 记录当前已经有的指令
@@ -181,7 +180,7 @@ function $CompileProvider($provide) {
 				this.directive(name, directiveFactory);
 			}, this));
 		}
-		this.$get = ['$injector', '$parse', '$controller', '$rootScope', function ($injector, $parse, $controller, $rootScope) {
+		this.$get = ['$injector', '$parse', '$controller', '$rootScope', '$http', function ($injector, $parse, $controller, $rootScope, $http) {
 			
 			function Attributes(element) {
 				this.$$element = element;
@@ -563,7 +562,7 @@ function $CompileProvider($provide) {
 					}
 				}
 				
-				_.forEach(directives, directive => {
+				_.forEach(directives, (directive, i) => {
 					// 如果存在$$start key，说明是多元素匹配节点
 					if (directive.$$start) {
 						$compileNode = groupScan(compileNode, directive.$$start, directive.$$end);
@@ -589,7 +588,11 @@ function $CompileProvider($provide) {
 							newScopeDirective = newScopeDirective || directive;
 						}
 					}
-					if (directive.compile) {
+					// 如果指令存在templateUrl,终止循环
+					if (directive.templateUrl) {
+						compileTemplateUrl(_.drop(directive), $compileNode, attrs);
+						return false;
+					} else if (directive.compile) {
 						const linkFn = directive.compile($compileNode, attrs);
 						const isolateScope = (directive === newIsolateScopeDirective);
 						const attrStart = directive.$$start;
@@ -778,6 +781,30 @@ function $CompileProvider($provide) {
 							};
 							break;
 					}
+				});
+			}
+			
+			/**
+			 * 编译URL模板
+			 * @param directive
+			 * @param $compileNode
+			 */
+			function compileTemplateUrl(directives, $compileNode, attrs) {
+				// 移除带templateUrl的指令
+				const origAsyncDirective = directives.shift();
+				// 创建一个新对象
+				const derivedSyncDirective = _.extend(
+					{},
+					origAsyncDirective,
+					{templateUrl: null}
+				);
+				$compileNode.empty();
+				$http.get(origAsyncDirective.templateUrl).success(template => {
+					// 把新创建的对象重新放入指令数组
+					directives.unshift(derivedSyncDirective);
+					$compileNode.html(template);
+					applyDirectivesToNode(directives, $compileNode, attrs);
+					compileNodes($compileNode[0].childNodes);
 				});
 			}
 			

@@ -488,7 +488,8 @@ function $CompileProvider($provide) {
 			 * @param directives
 			 * @param compileNode
 			 */
-			function applyDirectivesToNode(directives, compileNode, attrs) {
+			function applyDirectivesToNode(directives, compileNode, attrs, previousCompileContext) {
+				previousCompileContext = previousCompileContext || {};
 				let $compileNode = $(compileNode);
 				// 设置所有指令的终止为最小
 				let terminalPriority = -Number.MAX_VALUE;
@@ -501,7 +502,7 @@ function $CompileProvider($provide) {
 				
 				let newScopeDirective;
 				let newIsolateScopeDirective;
-				let templateDirective;
+				let templateDirective = previousCompileContext.templateDirective;
 				let controllerDirectives;
 				
 				function getControllers(require, $element) {
@@ -590,7 +591,11 @@ function $CompileProvider($provide) {
 					}
 					// 如果指令存在templateUrl,终止循环
 					if (directive.templateUrl) {
-						compileTemplateUrl(_.drop(directives, i), $compileNode, attrs);
+						if (templateDirective) {
+							throw 'Multiple directives asking for template';
+						}
+						templateDirective = directive;
+						compileTemplateUrl(_.drop(directives, i), $compileNode, attrs, {templateDirective: templateDirective});
 						return false;
 					} else if (directive.compile) {
 						const linkFn = directive.compile($compileNode, attrs);
@@ -789,7 +794,7 @@ function $CompileProvider($provide) {
 			 * @param directive
 			 * @param $compileNode
 			 */
-			function compileTemplateUrl(directives, $compileNode, attrs) {
+			function compileTemplateUrl(directives, $compileNode, attrs, previousCompileContext) {
 				// 移除带templateUrl的指令
 				const origAsyncDirective = directives.shift();
 				// 创建一个新对象
@@ -805,7 +810,7 @@ function $CompileProvider($provide) {
 					// 把新创建的对象重新放入指令数组
 					directives.unshift(derivedSyncDirective);
 					$compileNode.html(template);
-					applyDirectivesToNode(directives, $compileNode, attrs);
+					applyDirectivesToNode(directives, $compileNode, attrs, previousCompileContext);
 					compileNodes($compileNode[0].childNodes);
 				});
 			}

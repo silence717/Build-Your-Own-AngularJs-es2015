@@ -2754,7 +2754,7 @@ describe('$compile', () => {
 				$compile(el);
 				$rootScope.$apply();
 				requests[0].respond(200, {}, '<div class="from-template"></div>');
-				expect(el.nd('> .from-template').length).toBe(1);
+				expect(el.find('> .from-template').length).toBe(1);
 			});
 		});
 		
@@ -2796,17 +2796,17 @@ describe('$compile', () => {
 			});
 		});
 		
-		it('resumes child compilation after template received', function() {
+		it('resumes child compilation after template received', function () {
 			var otherCompileSpy = jasmine.createSpy();
 			var injector = makeInjectorWithDirectives({
-				myDirective: function() {
+				myDirective: function () {
 					return {templateUrl: '/my_directive.html'};
 				},
-				myOtherDirective: function() {
+				myOtherDirective: function () {
 					return {compile: otherCompileSpy};
 				}
 			});
-			injector.invoke(function($compile, $rootScope) {
+			injector.invoke(function ($compile, $rootScope) {
 				var el = $('<div my-directive></div>');
 				$compile(el);
 				$rootScope.$apply();

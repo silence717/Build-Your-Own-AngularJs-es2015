@@ -590,7 +590,7 @@ function $CompileProvider($provide) {
 					}
 					// 如果指令存在templateUrl,终止循环
 					if (directive.templateUrl) {
-						compileTemplateUrl(_.drop(directive), $compileNode, attrs);
+						compileTemplateUrl(_.drop(directives, i), $compileNode, attrs);
 						return false;
 					} else if (directive.compile) {
 						const linkFn = directive.compile($compileNode, attrs);

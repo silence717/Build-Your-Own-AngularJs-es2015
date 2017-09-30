@@ -798,8 +798,10 @@ function $CompileProvider($provide) {
 					origAsyncDirective,
 					{templateUrl: null}
 				);
+				// 添加templateUrl
+				const templateUrl = _.isFunction(origAsyncDirective.templateUrl) ? origAsyncDirective.templateUrl($compileNode, attrs) : origAsyncDirective.templateUrl;
 				$compileNode.empty();
-				$http.get(origAsyncDirective.templateUrl).success(template => {
+				$http.get(templateUrl).success(template => {
 					// 把新创建的对象重新放入指令数组
 					directives.unshift(derivedSyncDirective);
 					$compileNode.html(template);

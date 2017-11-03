@@ -1,7 +1,7 @@
 ## Disallowing More Than One Template Directive Per Element
 由于模板指令替换了元素的内容，所以在同一个元素上使用两个或多个模板来执行元素指令是毫无意义的。只有最后一个模板仍然存在。
 
-当你尝试这么做的时候，Angular会显式的抛出一个异常，因此这个问题对于英语开发者是很明显的：
+当你尝试这么做的时候，Angular会显式的抛出一个异常，因此这个问题对于应用开发者是很明显的：
 ```js
 it('does not allow two directives with templates', function() {
     var injector = makeInjectorWithDirectives({

@@ -1,7 +1,7 @@
 ## Isolate Scope Directives with Templates
 几章前我们实现了隔离scope，我们讨论了隔离scope只用于请求它的指令 - 不是元素上的其他指令或者子元素。
 
-这里有一个异常，关系到模板：当一个指令同事定义了隔离scope和一个template，用于模板内部的指令将会接收隔离scope。模板内容会被认为是隔离的一部分。当你认为这种指令是有自己模板的组件时这是有意义的。
+这里有一个异常，关系到模板：当一个指令同时定义了隔离scope和一个template，用于模板内部的指令将会接收隔离scope。模板内容会被认为是隔离的一部分。当你认为这种指令是有自己模板的组件时这是有意义的。
 ```js
 it('uses isolate scope for template contents', function() {
     var linkSpy = jasmine.createSpy();

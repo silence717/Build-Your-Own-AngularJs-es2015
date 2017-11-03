@@ -595,7 +595,7 @@ function $CompileProvider($provide) {
 							throw 'Multiple directives asking for template';
 						}
 						templateDirective = directive;
-						compileTemplateUrl(_.drop(directives, i), $compileNode, attrs, {templateDirective: templateDirective});
+						nodeLinkFn = compileTemplateUrl(_.drop(directives, i), $compileNode, attrs, {templateDirective: templateDirective});
 						return false;
 					} else if (directive.compile) {
 						const linkFn = directive.compile($compileNode, attrs);
@@ -805,14 +805,28 @@ function $CompileProvider($provide) {
 				);
 				// 添加templateUrl
 				const templateUrl = _.isFunction(origAsyncDirective.templateUrl) ? origAsyncDirective.templateUrl($compileNode, attrs) : origAsyncDirective.templateUrl;
+				let afterTemplateNodeLinkFn;
+				let afterTemplateChildLinkFn;
+				let linkQueue = [];
 				$compileNode.empty();
 				$http.get(templateUrl).success(template => {
 					// 把新创建的对象重新放入指令数组
 					directives.unshift(derivedSyncDirective);
 					$compileNode.html(template);
-					applyDirectivesToNode(directives, $compileNode, attrs, previousCompileContext);
-					compileNodes($compileNode[0].childNodes);
+					afterTemplateNodeLinkFn = applyDirectivesToNode(directives, $compileNode, attrs, previousCompileContext);
+					afterTemplateChildLinkFn = compileNodes($compileNode[0].childNodes);
+					_.forEach(linkQueue, linkCall => {
+						afterTemplateNodeLinkFn(afterTemplateChildLinkFn, linkCall.scope, linkCall.linkNode);
+					});
+					linkQueue = null;
 				});
+				return function delayedNodeLinkFn(_ignoreChildLinkFn, scope, linkNode) {
+					if (linkQueue) {
+						linkQueue.push({scope: scope, linkNode: linkNode});
+					} else {
+						afterTemplateNodeLinkFn(afterTemplateChildLinkFn, scope, linkNode);
+					}
+				};
 			}
 			
 			return compile;

@@ -575,7 +575,7 @@ function $CompileProvider($provide) {
 					// 如果指令是继承的scope,
 					if (directive.scope) {
 						// 如果是隔离scope
-						if (_.isObject(directive.scope)) {
+						if (_.isObject(directive.scope) && !directive.templateUrl) {
 							// 如果隔离scope或者继承scope已经存在,抛出异常信息
 							if (newIsolateScopeDirective || newScopeDirective) {
 								throw 'Multiple directives asking for new/inherited scope';
@@ -712,7 +712,7 @@ function $CompileProvider($provide) {
 					if (childLinkFn) {
 						let scopeToChild = scope;
 						// 如果存在隔离scope指令，并且这个指令的模板存在，将改变scope为隔离scope，不再为上下文的scope
-						if (newIsolateScopeDirective && newIsolateScopeDirective.template) {
+						if (newIsolateScopeDirective && (newIsolateScopeDirective.template || newIsolateScopeDirective.templateUrl === null)) {
 							scopeToChild = isolateScope;
 						}
 						childLinkFn(scopeToChild, linkNode.childNodes);

@@ -496,12 +496,12 @@ function $CompileProvider($provide) {
 				// 是否有终止指令标识
 				let terminal = false;
 				// 存储所有的指令link函数
-				const preLinkFns = [];
-				const	postLinkFns = [];
+				const preLinkFns = previousCompileContext.preLinkFns || [];
+				const postLinkFns = previousCompileContext.postLinkFns || [];
 				const controllers = {};
 				
 				let newScopeDirective;
-				let newIsolateScopeDirective;
+				let newIsolateScopeDirective = previousCompileContext.newIsolateScopeDirective;
 				let templateDirective = previousCompileContext.templateDirective;
 				let controllerDirectives;
 				
@@ -595,7 +595,17 @@ function $CompileProvider($provide) {
 							throw 'Multiple directives asking for template';
 						}
 						templateDirective = directive;
-						nodeLinkFn = compileTemplateUrl(_.drop(directives, i), $compileNode, attrs, {templateDirective: templateDirective});
+						nodeLinkFn = compileTemplateUrl(
+							_.drop(directives, i),
+							$compileNode,
+							attrs,
+							{
+								templateDirective: templateDirective,
+								newIsolateScopeDirective: newIsolateScopeDirective,
+								preLinkFns: preLinkFns,
+								postLinkFns: postLinkFns
+							}
+						);
 						return false;
 					} else if (directive.compile) {
 						const linkFn = directive.compile($compileNode, attrs);

@@ -503,7 +503,7 @@ function $CompileProvider($provide) {
 				let newScopeDirective;
 				let newIsolateScopeDirective = previousCompileContext.newIsolateScopeDirective;
 				let templateDirective = previousCompileContext.templateDirective;
-				let controllerDirectives;
+				let controllerDirectives = previousCompileContext.controllerDirectives;
 				
 				function getControllers(require, $element) {
 					if (_.isArray(require)) {
@@ -602,6 +602,7 @@ function $CompileProvider($provide) {
 							{
 								templateDirective: templateDirective,
 								newIsolateScopeDirective: newIsolateScopeDirective,
+								controllerDirectives: controllerDirectives,
 								preLinkFns: preLinkFns,
 								postLinkFns: postLinkFns
 							}

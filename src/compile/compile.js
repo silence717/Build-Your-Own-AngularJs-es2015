@@ -287,6 +287,7 @@ function $CompileProvider($provide) {
 				return function publicLinkFn(scope) {
 					$compileNodes.data('$scope', scope);
 					compositeLinkFn(scope, $compileNodes);
+					return $compileNodes;
 				};
 			}
 			
@@ -504,6 +505,8 @@ function $CompileProvider($provide) {
 				let newIsolateScopeDirective = previousCompileContext.newIsolateScopeDirective;
 				let templateDirective = previousCompileContext.templateDirective;
 				let controllerDirectives = previousCompileContext.controllerDirectives;
+				let childTranscludeFn;
+				let hasTranscludeDirective;
 				
 				function getControllers(require, $element) {
 					if (_.isArray(require)) {
@@ -633,6 +636,16 @@ function $CompileProvider($provide) {
 						controllerDirectives = controllerDirectives || {};
 						controllerDirectives[directive.name] = directive;
 					}
+					// 如果transclude属性为真，清除模板内容
+					if (directive.transclude) {
+						if (hasTranscludeDirective) {
+							throw 'Multiple directives asking for transclude';
+						}
+						hasTranscludeDirective = true;
+						const $transcludedNodes = $compileNode.clone().contents();
+						childTranscludeFn = compile($transcludedNodes);
+						$compileNode.empty();
+					}
 					// 如果存在模板，使用模板代替当前元素中的内容
 					if (directive.template) {
 						if (templateDirective) {
@@ -707,7 +720,13 @@ function $CompileProvider($provide) {
 					
 					// 先循环prelink数组
 					_.forEach(preLinkFns, linkFn => {
-						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require, $element));
+						linkFn(
+							linkFn.isolateScope ? isolateScope : scope,
+							$element,
+							attrs,
+							linkFn.require && getControllers(linkFn.require, $element),
+							childTranscludeFn
+						);
 					});
 					// 判断子link是否存在
 					if (childLinkFn) {
@@ -719,7 +738,13 @@ function $CompileProvider($provide) {
 						childLinkFn(scopeToChild, linkNode.childNodes);
 					}
 					_.forEachRight(postLinkFns, linkFn => {
-						linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs, linkFn.require && getControllers(linkFn.require, $element));
+						linkFn(
+							linkFn.isolateScope ? isolateScope : scope,
+							$element,
+							attrs,
+							linkFn.require && getControllers(linkFn.require, $element),
+							childTranscludeFn
+						);
 					});
 					
 				}

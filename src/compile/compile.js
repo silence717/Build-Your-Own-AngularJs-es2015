@@ -335,21 +335,33 @@ function $CompileProvider($provide) {
 					
 					// 循环调用节点link函数
 					_.forEach(linkFns, linkFn => {
-						var node = stableNodeList[linkFn.idx];
+						let node = stableNodeList[linkFn.idx];
 						if (linkFn.nodeLinkFn) {
+							let childScope;
 							if (linkFn.nodeLinkFn.scope) {
-								scope = scope.$new();
-								$(node).data('$scope', scope);
+								childScope = scope.$new();
+								$(node).data('$scope', childScope);
+							} else {
+								childScope = scope;
 							}
+
+							let boundTranscludeFn;
+							if (linkFn.nodeLinkFn.transcludeOnThisElement) {
+								boundTranscludeFn = function() {
+									return linkFn.nodeLinkFn.transclude(scope);
+								};
+							}
+
 							linkFn.nodeLinkFn(
 								linkFn.childLinkFn,
-								scope,
-								stableNodeList[linkFn.idx]
+								childScope,
+								node,
+								boundTranscludeFn
 							);
 						} else {
 							linkFn.childLinkFn(
 								scope,
-								stableNodeList[linkFn.idx].childNodes
+								node.childNodes
 							);
 						}
 					});
@@ -656,7 +668,7 @@ function $CompileProvider($provide) {
 					}
 				});
 				
-				function nodeLinkFn(childLinkFn, scope, linkNode) {
+				function nodeLinkFn(childLinkFn, scope, linkNode, boundTranscludeFn) {
 					const $element = $(linkNode);
 					
 					let isolateScope;
@@ -710,14 +722,18 @@ function $CompileProvider($provide) {
 					});
 					
 					_.forEach(controllerDirectives, (controllerDirective, name) => {
-						var require = controllerDirective.require;
+						const require = controllerDirective.require;
 						if (_.isObject(require) && !_.isArray(require) && controllerDirective.bindToController) {
 							const controller = controllers[controllerDirective.name].instance;
 							const requiredControllers = getControllers(require, $element);
 							_.assign(controller, requiredControllers);
 						}
 					});
-					
+
+					function boundTranscludeFn() {
+						return childTranscludeFn(scope);
+					}
+
 					// 先循环prelink数组
 					_.forEach(preLinkFns, linkFn => {
 						linkFn(
@@ -725,7 +741,7 @@ function $CompileProvider($provide) {
 							$element,
 							attrs,
 							linkFn.require && getControllers(linkFn.require, $element),
-							childTranscludeFn
+							boundTranscludeFn
 						);
 					});
 					// 判断子link是否存在
@@ -743,7 +759,7 @@ function $CompileProvider($provide) {
 							$element,
 							attrs,
 							linkFn.require && getControllers(linkFn.require, $element),
-							childTranscludeFn
+							boundTranscludeFn
 						);
 					});
 					
@@ -751,6 +767,8 @@ function $CompileProvider($provide) {
 				nodeLinkFn.terminal = terminal;
 				// 设置节点link函数
 				nodeLinkFn.scope = newScopeDirective && newScopeDirective.scope;
+				nodeLinkFn.transcludeOnThisElement = hasTranscludeDirective;
+				nodeLinkFn.transclude = childTranscludeFn;
 				return nodeLinkFn;
 			}
 			

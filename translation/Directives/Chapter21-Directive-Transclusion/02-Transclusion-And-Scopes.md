@@ -214,3 +214,111 @@ it('stops watching when transcluding directive is destroyed', function() {
 ```
 这里我们在 transclusion 里面注册了一个监听表达式。我们期望它在 transclusion 指令scope销毁的时候停止工作，但是它没有。
 
+这是我们看到的 transclusion scopes和其他scopes不同的点：他们从data上获取的父scope实际上应该与决定他们销毁的scope不同。他们需要两个父Scope.
+
+在第2章节中我们实现了一个功能，与Scope对象类似的功能。当你调用`scope.$new()`,你可以给定一个可选的第二个参数：一个Scope对象成为新Scope的`$parent`。
+这个Scope将会决定新Scope销毁什么时候销毁，而JavaScript 原型仍然设置为你调用`$new`的那个。
+
+现在我们可以利用这个功能：我们应该创建一个指定的*transclusion scope*从上下文的scope中继承，但是谁的`$parent`设置为 transclusion 指令的scope。
+
+较后的Scope是节点link函数提供的，现在创建了包裹transclusion function的第二层绑定 - *scope-bound transclusion function*：
+```js
+function scopeBoundTranscludeFn() {
+  return boundTranscludeFn(scope);
+}
+_.forEach(preLinkFns, function(linkFn) {
+  linkFn(
+    linkFn.isolateScope ? isolateScope : scope,
+    $element,
+    attrs,
+    linkFn.require && getControllers(linkFn.require, $element),
+    scopeBoundTranscludeFn
+); 
+});
+if (childLinkFn) {
+  var scopeToChild = scope;
+  if (newIsolateScopeDirective && newIsolateScopeDirective.template) {
+    scopeToChild = isolateScope;
+  }
+  childLinkFn(scopeToChild, linkNode.childNodes);
+}
+_.forEachRight(postLinkFns, function(linkFn) {
+  linkFn(
+    linkFn.isolateScope ? isolateScope : scope,
+    $element,
+    attrs,
+    linkFn.require && getControllers(linkFn.require, $element),
+    scopeBoundTranscludeFn
+  ); 
+});
+```
+当你在你的指令里面接收到一个 transclusion 函数，实际上你接收的是什么：被替换的内容原link函数包裹在两个分离的绑定函数。
+
+早期，"内部"bound transclude 函数，我们现在应该接收这个"containing scope"：
+```js
+var boundTranscludeFn;
+if (linkFn.nodeLinkFn.transcludeOnThisElement) {
+boundTranscludeFn = function(containingScope) {
+    return linkFn.nodeLinkFn.transclude(scope);
+  };
+}
+```
+这个给了我们需要形成 transclusion scope的所有，这是我们实际link的：
+```js
+var boundTranscludeFn;
+if (linkFn.nodeLinkFn.transcludeOnThisElement) {
+  boundTranscludeFn = function(containingScope) {
+    var transcludedScope = scope.$new(false, containingScope);
+    return linkFn.nodeLinkFn.transclude(transcludedScope);
+  }; 
+}
+```
+因此，transcluded的scope的在原型父`scope`的外部，而`$parent`将在`containingScope`内部。
+
+在进行下一个主题之前，我们还有一个关于 transclusion scope的讨论：作为指令的使用者，你实际上可以绕过我们实现的transclusion scope创建，从指令中传入你的scope。
+你可以通过调用 transclusion 函数的时候传入它：
+```js
+it('allows passing another scope to transclusion function', function() {
+    var otherLinkSpy = jasmine.createSpy();
+    var injector = makeInjectorWithDirectives({
+        myTranscluder: function() {
+            return {
+                transclude: true,
+                scope: {},
+                template: '<div></div>',
+                link: function(scope, element, attrs, ctrl, transclude) {
+                    var mySpecialScope = scope.$new(true);
+                    mySpecialScope.specialAttr = 42;
+                    transclude(mySpecialScope);
+                } };
+        },
+        myOtherDirective: function() {
+            return {link: otherLinkSpy};
+        }
+    });
+    injector.invoke(function($compile, $rootScope) {
+        var el = $('<div my-transcluder><div my-other-directive></div></div>');
+        $compile(el)($rootScope);
+        var transcludedScope = otherLinkSpy.calls.first().args[0];
+        expect(transcludedScope.specialAttr).toBe(42);
+    });
+});
+```
+这意味着`scopeBoundTranscludeFn`有一个可选参数：为 transclusion 使用的scope。它仅仅传递它到内部的 bound transclusion function，作为第一个参数：
+```js
+function scopeBoundTranscludeFn(transcludedScope) {
+  return boundTranscludeFn(transcludedScope, scope);
+}
+```
+在 bound transclusion function 里面接收这个 transclusion scope, 如果没有给定的话创建它：
+```js
+var boundTranscludeFn;
+if (linkFn.nodeLinkFn.transcludeOnThisElement) {
+    boundTranscludeFn = function(transcludedScope, containingScope) {
+      if (!transcludedScope) {
+        transcludedScope = scope.$new(false, containingScope);
+      }
+      return linkFn.nodeLinkFn.transclude(transcludedScope);
+    };
+}    
+```

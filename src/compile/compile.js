@@ -347,8 +347,11 @@ function $CompileProvider($provide) {
 
 							let boundTranscludeFn;
 							if (linkFn.nodeLinkFn.transcludeOnThisElement) {
-								boundTranscludeFn = function() {
-									return linkFn.nodeLinkFn.transclude(scope);
+								boundTranscludeFn = function (transcludedScope, containingScope) {
+									if (!transcludedScope) {
+										transcludedScope = scope.$new(false, containingScope);
+									}
+									return linkFn.nodeLinkFn.transclude(transcludedScope);
 								};
 							}
 
@@ -730,8 +733,8 @@ function $CompileProvider($provide) {
 						}
 					});
 
-					function boundTranscludeFn() {
-						return childTranscludeFn(scope);
+					function scopeBoundTranscludeFn(transcludedScope) {
+						return boundTranscludeFn(transcludedScope, scope);
 					}
 
 					// 先循环prelink数组
@@ -741,7 +744,7 @@ function $CompileProvider($provide) {
 							$element,
 							attrs,
 							linkFn.require && getControllers(linkFn.require, $element),
-							boundTranscludeFn
+							scopeBoundTranscludeFn
 						);
 					});
 					// 判断子link是否存在
@@ -759,7 +762,7 @@ function $CompileProvider($provide) {
 							$element,
 							attrs,
 							linkFn.require && getControllers(linkFn.require, $element),
-							boundTranscludeFn
+							scopeBoundTranscludeFn
 						);
 					});
 					

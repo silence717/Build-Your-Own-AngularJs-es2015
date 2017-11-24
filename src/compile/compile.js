@@ -284,9 +284,14 @@ function $CompileProvider($provide) {
 			 */
 			function compile($compileNodes) {
 				const compositeLinkFn = compileNodes($compileNodes);
-				return function publicLinkFn(scope) {
+				return function publicLinkFn(scope, options) {
+					options = options || {};
+					let parentBoundTranscludeFn = options.parentBoundTranscludeFn;
+					if (parentBoundTranscludeFn && parentBoundTranscludeFn.$$boundTransclude) {
+						parentBoundTranscludeFn = parentBoundTranscludeFn.$$boundTransclude;
+					}
 					$compileNodes.data('$scope', scope);
-					compositeLinkFn(scope, $compileNodes);
+					compositeLinkFn(scope, $compileNodes, parentBoundTranscludeFn);
 					return $compileNodes;
 				};
 			}
@@ -325,7 +330,7 @@ function $CompileProvider($provide) {
 					}
 				});
 				// 编译所有的DOM元素，然后返回复合link函数
-				function compositeLinkFn(scope, linkNodes) {
+				function compositeLinkFn(scope, linkNodes, parentBoundTranscludeFn) {
 					// 存储稳定的节点集合
 					const stableNodeList = [];
 					_.forEach(linkFns, function (linkFn) {
@@ -353,6 +358,8 @@ function $CompileProvider($provide) {
 									}
 									return linkFn.nodeLinkFn.transclude(transcludedScope);
 								};
+							} else if (parentBoundTranscludeFn) {
+								boundTranscludeFn = parentBoundTranscludeFn;
 							}
 
 							linkFn.nodeLinkFn(
@@ -364,7 +371,8 @@ function $CompileProvider($provide) {
 						} else {
 							linkFn.childLinkFn(
 								scope,
-								node.childNodes
+								node.childNodes,
+								parentBoundTranscludeFn
 							);
 						}
 					});
@@ -736,6 +744,7 @@ function $CompileProvider($provide) {
 					function scopeBoundTranscludeFn(transcludedScope) {
 						return boundTranscludeFn(transcludedScope, scope);
 					}
+					scopeBoundTranscludeFn.$$boundTransclude = boundTranscludeFn;
 
 					// 先循环prelink数组
 					_.forEach(preLinkFns, linkFn => {
@@ -754,7 +763,7 @@ function $CompileProvider($provide) {
 						if (newIsolateScopeDirective && (newIsolateScopeDirective.template || newIsolateScopeDirective.templateUrl === null)) {
 							scopeToChild = isolateScope;
 						}
-						childLinkFn(scopeToChild, linkNode.childNodes);
+						childLinkFn(scopeToChild, linkNode.childNodes, boundTranscludeFn);
 					}
 					_.forEachRight(postLinkFns, linkFn => {
 						linkFn(
